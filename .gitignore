@@ -36,3 +36,7 @@ build
 
 # Emacs files
 *~
+
+# Tooling files
+compile_commands.json
+.cache

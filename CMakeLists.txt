@@ -23,4 +23,6 @@ include_directories(${CLANG_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 add_definitions(${CLANG_DEFINITIONS})
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
 add_subdirectory(lib)
