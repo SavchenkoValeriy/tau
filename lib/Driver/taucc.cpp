@@ -2,6 +2,7 @@
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
+#include <mlir/IR/MLIRContext.h>
 #include <memory>
 
 using namespace clang;
@@ -14,6 +15,7 @@ public:
   AIRGenASTConsumer(clang::CompilerInstance &CI) {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) {
+    mlir::MLIRContext MContext;
   }
 };
 
