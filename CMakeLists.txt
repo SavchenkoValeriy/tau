@@ -9,6 +9,13 @@ project(tau
   ${cmake_3_0_LANGUAGES}
   CXX)
 
+# Set path for custom Tau-specific modules
+set(CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH}
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
+  )
+
 # Find CMake file for Clang
 find_package(Clang REQUIRED)
 # Find CMake file for MLIR
@@ -24,6 +31,8 @@ include(AddLLVM)
 include(TableGen)
 # import MLIR CMake functions
 include(AddMLIR)
+# import Tau CMake functions
+include(AddTau)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
