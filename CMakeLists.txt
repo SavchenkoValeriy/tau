@@ -34,9 +34,13 @@ include(AddMLIR)
 # import Tau CMake functions
 include(AddTau)
 
+# Traditionally, everything is in 'include'
+set(TAU_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(${TAU_INCLUDE_DIRS})
 
 add_definitions(${LLVM_DEFINITIONS})
 add_definitions(${CLANG_DEFINITIONS})
