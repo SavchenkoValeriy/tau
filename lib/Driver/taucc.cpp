@@ -1,3 +1,5 @@
+#include "tau/Frontend/Clang/AIRGenerator.h"
+
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Tooling/CommonOptionsParser.h>
@@ -16,6 +18,7 @@ public:
 
   void HandleTranslationUnit(clang::ASTContext &Context) {
     mlir::MLIRContext MContext;
+    auto Module = tau::frontend::AIRGenerator::generate(MContext, Context);
   }
 };
 
