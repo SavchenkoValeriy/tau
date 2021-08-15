@@ -2,6 +2,7 @@
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
+#include <clang/Basic/SourceManager.h>
 #include <mlir/IR/Builders.h>
 
 using namespace clang;
@@ -27,6 +28,7 @@ public:
 
 private:
   mlir::Location loc(clang::SourceRange);
+  mlir::Location loc(clang::SourceLocation);
 
   ModuleOp Module;
   Builder Builder;
@@ -34,6 +36,10 @@ private:
 };
 
 } // end anonymous namespace
+
+//===----------------------------------------------------------------------===//
+//                                  Utiliities
+//===----------------------------------------------------------------------===//
 
 ShortString GeneratorImpl::getFullyQualifiedName(const NamedDecl *ND) {
   ShortString Result;
@@ -48,6 +54,21 @@ ShortString GeneratorImpl::getFullyQualifiedName(const NamedDecl *ND) {
 
   return Result;
 }
+
+mlir::Location GeneratorImpl::loc(clang::SourceRange R) {
+  return Builder.getFusedLoc({loc(R.getBegin()), loc(R.getEnd())});
+}
+
+mlir::Location GeneratorImpl::loc(clang::SourceLocation L) {
+  const SourceManager &SM = Context.getSourceManager();
+  return Builder.getFileLineColLoc(Builder.getIdentifier(SM.getFilename(L)),
+                                   SM.getSpellingLineNumber(L),
+                                   SM.getSpellingColumnNumber(L));
+}
+
+//===----------------------------------------------------------------------===//
+//                             Top-level generators
+//===----------------------------------------------------------------------===//
 
 ModuleOp GeneratorImpl::generateModule() {
   Context.getTranslationUnitDecl()->dump();
@@ -91,7 +112,7 @@ void GeneratorImpl::generateRecord(const RecordDecl *RD) {
 void GeneratorImpl::generateFunction(const FunctionDecl *F) {
   mlir::FunctionType T;
   ShortString Name = getFullyQualifiedName(F);
-  auto Result = FuncOp::create(Builder.getUnknownLoc(), Name,
+  auto Result = FuncOp::create(loc(F->getSourceRange()), Name,
                                Builder.getFunctionType({}, {}));
   Module.push_back(Result);
 }
