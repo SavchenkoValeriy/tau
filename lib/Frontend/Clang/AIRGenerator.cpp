@@ -24,9 +24,12 @@ public:
   void generateNamespace(const NamespaceDecl *NS);
   void generateRecord(const RecordDecl *RD);
 
-  ShortString getFullyQualifiedName(const NamedDecl *ND);
+  mlir::Type getType(clang::QualType);
+  mlir::Type getBuiltinType(clang::QualType);
 
 private:
+  ShortString getFullyQualifiedName(const NamedDecl *ND);
+
   mlir::Location loc(clang::SourceRange);
   mlir::Location loc(clang::SourceLocation);
 
@@ -64,6 +67,38 @@ mlir::Location GeneratorImpl::loc(clang::SourceLocation L) {
   return Builder.getFileLineColLoc(Builder.getIdentifier(SM.getFilename(L)),
                                    SM.getSpellingLineNumber(L),
                                    SM.getSpellingColumnNumber(L));
+}
+
+//===----------------------------------------------------------------------===//
+//                                    Types
+//===----------------------------------------------------------------------===//
+
+mlir::Type GeneratorImpl::getType(clang::QualType T) {
+  switch (T->getTypeClass()) {
+  case clang::Type::Builtin:
+    return getBuiltinType(T);
+  default:
+    return Builder.getNoneType();
+  }
+}
+
+mlir::Type GeneratorImpl::getBuiltinType(clang::QualType T) {
+  if (T->isIntegralOrEnumerationType())
+    return Builder.getIntegerType(Context.getIntWidth(T),
+                                  T->isSignedIntegerOrEnumerationType());
+  if (T->isFloat128Type())
+    return Builder.getF128Type();
+
+  if (T->isSpecificBuiltinType(BuiltinType::LongDouble))
+    return Builder.getF128Type();
+
+  if (T->isSpecificBuiltinType(BuiltinType::Double))
+    return Builder.getF64Type();
+
+  if (T->isFloat16Type())
+    return Builder.getF16Type();
+
+  return Builder.getNoneType();
 }
 
 //===----------------------------------------------------------------------===//
@@ -112,8 +147,16 @@ void GeneratorImpl::generateRecord(const RecordDecl *RD) {
 void GeneratorImpl::generateFunction(const FunctionDecl *F) {
   mlir::FunctionType T;
   ShortString Name = getFullyQualifiedName(F);
-  auto Result = FuncOp::create(loc(F->getSourceRange()), Name,
-                               Builder.getFunctionType({}, {}));
+
+  llvm::SmallVector<mlir::Type, 4> ArgTypes;
+  ArgTypes.reserve(F->getNumParams());
+  for (const auto &Param : F->parameters()) {
+    ArgTypes.push_back(getType(Param->getType()));
+  }
+
+  auto Result = FuncOp::create(
+      loc(F->getSourceRange()), Name,
+      Builder.getFunctionType(ArgTypes, getType(F->getReturnType())));
   Module.push_back(Result);
 }
 
