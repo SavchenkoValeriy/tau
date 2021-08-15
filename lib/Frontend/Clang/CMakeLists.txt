@@ -3,3 +3,8 @@ add_tau_library(
   AIRGenAction.cpp
   AIRGenerator.cpp
 )
+target_link_libraries(
+  tauFrontendClang
+  PUBLIC
+  MLIRStandard
+)

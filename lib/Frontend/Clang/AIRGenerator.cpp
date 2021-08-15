@@ -3,7 +3,9 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Basic/SourceManager.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Builders.h>
+#include <mlir/IR/Dialect.h>
 
 using namespace clang;
 using namespace mlir;
@@ -13,9 +15,9 @@ namespace {
 
 using ShortString = SmallString<32>;
 
-class GeneratorImpl {
+class TopLevelGenerator {
 public:
-  GeneratorImpl(MLIRContext &MContext, ASTContext &Context)
+  TopLevelGenerator(MLIRContext &MContext, ASTContext &Context)
       : Builder(&MContext), Context(Context) {}
   ModuleOp generateModule();
 
@@ -27,15 +29,71 @@ public:
   mlir::Type getType(clang::QualType);
   mlir::Type getBuiltinType(clang::QualType);
 
-private:
   ShortString getFullyQualifiedName(const NamedDecl *ND);
 
   mlir::Location loc(clang::SourceRange);
   mlir::Location loc(clang::SourceLocation);
 
+  ModuleOp &getModule() { return Module; }
+  OpBuilder &getBuilder() { return Builder; }
+  ASTContext &getContext() { return Context; }
+
+private:
   ModuleOp Module;
-  Builder Builder;
+  OpBuilder Builder;
   ASTContext &Context;
+};
+
+class FunctionGenerator
+    : public clang::ConstStmtVisitor<FunctionGenerator, mlir::Value> {
+public:
+  static void generate(FuncOp &ToGenerate, const FunctionDecl &Original,
+                       TopLevelGenerator &Parent) {
+    if (!Original.hasBody())
+      return;
+
+    FunctionGenerator G{ToGenerate, Original, Parent};
+    G.generate();
+  }
+
+  mlir::Value VisitCompoundStmt(const CompoundStmt *Compound) {
+    for (const auto *Child : Compound->body())
+      Visit(Child);
+    return nullptr;
+  }
+
+  mlir::Value VisitReturnStmt(const ReturnStmt *Return) {
+    mlir::Value Operand = Visit(Return->getRetValue());
+    ReturnOp Result = Builder.create<mlir::ReturnOp>(
+        Parent.loc(Return->getSourceRange()),
+        Operand ? llvm::makeArrayRef(Operand) : ArrayRef<mlir::Value>());
+    return nullptr;
+  }
+
+  mlir::Value VisitIntegerLiteral(const IntegerLiteral *Literal) {
+    return Builder.create<ConstantIntOp>(
+        Parent.loc(Literal->getSourceRange()),
+        *Literal->getValue().getRawData(),
+        Context.getIntWidth(Literal->getType()));
+  }
+
+private:
+  FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
+                    TopLevelGenerator &Parent)
+      : Target(ToGenerate), Original(Original), Parent(Parent),
+        Context(Parent.getContext()), Builder(Parent.getBuilder()) {}
+
+  void generate() {
+    Block *Entry = Target.addEntryBlock();
+    Builder.setInsertionPointToStart(Entry);
+    Visit(Original.getBody());
+  }
+
+  FuncOp &Target;
+  const FunctionDecl &Original;
+  TopLevelGenerator &Parent;
+  ASTContext &Context;
+  OpBuilder &Builder;
 };
 
 } // end anonymous namespace
@@ -44,7 +102,7 @@ private:
 //                                  Utiliities
 //===----------------------------------------------------------------------===//
 
-ShortString GeneratorImpl::getFullyQualifiedName(const NamedDecl *ND) {
+ShortString TopLevelGenerator::getFullyQualifiedName(const NamedDecl *ND) {
   ShortString Result;
   llvm::raw_svector_ostream SS{Result};
 
@@ -58,11 +116,11 @@ ShortString GeneratorImpl::getFullyQualifiedName(const NamedDecl *ND) {
   return Result;
 }
 
-mlir::Location GeneratorImpl::loc(clang::SourceRange R) {
+mlir::Location TopLevelGenerator::loc(clang::SourceRange R) {
   return Builder.getFusedLoc({loc(R.getBegin()), loc(R.getEnd())});
 }
 
-mlir::Location GeneratorImpl::loc(clang::SourceLocation L) {
+mlir::Location TopLevelGenerator::loc(clang::SourceLocation L) {
   const SourceManager &SM = Context.getSourceManager();
   return Builder.getFileLineColLoc(Builder.getIdentifier(SM.getFilename(L)),
                                    SM.getSpellingLineNumber(L),
@@ -73,7 +131,7 @@ mlir::Location GeneratorImpl::loc(clang::SourceLocation L) {
 //                                    Types
 //===----------------------------------------------------------------------===//
 
-mlir::Type GeneratorImpl::getType(clang::QualType T) {
+mlir::Type TopLevelGenerator::getType(clang::QualType T) {
   switch (T->getTypeClass()) {
   case clang::Type::Builtin:
     return getBuiltinType(T);
@@ -82,7 +140,7 @@ mlir::Type GeneratorImpl::getType(clang::QualType T) {
   }
 }
 
-mlir::Type GeneratorImpl::getBuiltinType(clang::QualType T) {
+mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
   if (T->isIntegralOrEnumerationType())
     return Builder.getIntegerType(Context.getIntWidth(T),
                                   T->isSignedIntegerOrEnumerationType());
@@ -105,7 +163,7 @@ mlir::Type GeneratorImpl::getBuiltinType(clang::QualType T) {
 //                             Top-level generators
 //===----------------------------------------------------------------------===//
 
-ModuleOp GeneratorImpl::generateModule() {
+ModuleOp TopLevelGenerator::generateModule() {
   Context.getTranslationUnitDecl()->dump();
   Module = ModuleOp::create(Builder.getUnknownLoc());
 
@@ -116,7 +174,7 @@ ModuleOp GeneratorImpl::generateModule() {
   return Module;
 }
 
-void GeneratorImpl::generateDecl(const Decl *D) {
+void TopLevelGenerator::generateDecl(const Decl *D) {
   switch (D->getKind()) {
   case Decl::CXXMethod:
   case Decl::Function:
@@ -134,17 +192,17 @@ void GeneratorImpl::generateDecl(const Decl *D) {
   }
 }
 
-void GeneratorImpl::generateNamespace(const NamespaceDecl *NS) {
+void TopLevelGenerator::generateNamespace(const NamespaceDecl *NS) {
   for (const auto *NSDecl : NS->decls())
     generateDecl(NSDecl);
 }
 
-void GeneratorImpl::generateRecord(const RecordDecl *RD) {
+void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
   for (const auto *NestedDecl : RD->decls())
     generateDecl(NestedDecl);
 }
 
-void GeneratorImpl::generateFunction(const FunctionDecl *F) {
+void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
   mlir::FunctionType T;
   ShortString Name = getFullyQualifiedName(F);
 
@@ -157,11 +215,13 @@ void GeneratorImpl::generateFunction(const FunctionDecl *F) {
   auto Result = FuncOp::create(
       loc(F->getSourceRange()), Name,
       Builder.getFunctionType(ArgTypes, getType(F->getReturnType())));
+  FunctionGenerator::generate(Result, *F, *this);
   Module.push_back(Result);
 }
 
 OwningModuleRef AIRGenerator::generate(MLIRContext &MContext,
                                        ASTContext &Context) {
-  GeneratorImpl ActualGenerator(MContext, Context);
+  MContext.loadDialect<mlir::StandardOpsDialect>();
+  TopLevelGenerator ActualGenerator(MContext, Context);
   return ActualGenerator.generateModule();
 }
