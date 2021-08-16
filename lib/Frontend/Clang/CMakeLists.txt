@@ -6,5 +6,6 @@ add_tau_library(
 target_link_libraries(
   tauFrontendClang
   PUBLIC
+  immer
   MLIRStandard
 )

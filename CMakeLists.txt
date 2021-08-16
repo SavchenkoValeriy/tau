@@ -37,6 +37,8 @@ include(AddTau)
 # Traditionally, everything is in 'include'
 set(TAU_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+find_package(Immer REQUIRED)
+
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
