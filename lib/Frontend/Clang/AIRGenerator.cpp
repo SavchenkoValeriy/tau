@@ -3,6 +3,7 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Basic/SourceManager.h>
+#include <immer/map.hpp>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
@@ -67,7 +68,7 @@ public:
     ReturnOp Result = Builder.create<mlir::ReturnOp>(
         Parent.loc(Return->getSourceRange()),
         Operand ? llvm::makeArrayRef(Operand) : ArrayRef<mlir::Value>());
-    return nullptr;
+    return {};
   }
 
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *Literal) {
@@ -75,6 +76,19 @@ public:
         Parent.loc(Literal->getSourceRange()),
         *Literal->getValue().getRawData(),
         Context.getIntWidth(Literal->getType()));
+  }
+
+  mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
+    switch (Cast->getCastKind()) {
+    case CastKind::CK_LValueToRValue:
+      return Visit(Cast->getSubExpr());
+    default:
+      return {};
+    }
+  }
+
+  mlir::Value VisitDeclRefExpr(const DeclRefExpr *Ref) {
+    return getBinding(Ref->getDecl());
   }
 
 private:
@@ -85,8 +99,22 @@ private:
 
   void generate() {
     Block *Entry = Target.addEntryBlock();
+
+    for (const auto &[Param, BlockArg] :
+         llvm::zip(Original.parameters(), Entry->getArguments())) {
+      bind(Param, BlockArg);
+    }
+
     Builder.setInsertionPointToStart(Entry);
     Visit(Original.getBody());
+  }
+
+  void bind(const ValueDecl *D, mlir::Value Def) {
+    ReachingDefs = ReachingDefs.set(D, Def);
+  }
+
+  mlir::Value getBinding(const ValueDecl *D) const {
+    return ReachingDefs.at(D);
   }
 
   FuncOp &Target;
@@ -94,6 +122,7 @@ private:
   TopLevelGenerator &Parent;
   ASTContext &Context;
   OpBuilder &Builder;
+  immer::map<const ValueDecl *, mlir::Value> ReachingDefs;
 };
 
 } // end anonymous namespace
