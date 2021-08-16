@@ -91,6 +91,16 @@ public:
     return getBinding(Ref->getDecl());
   }
 
+  mlir::Value VisitDeclStmt(const DeclStmt *DS) {
+    for (const auto *D : DS->decls())
+      if (const auto *Var = dyn_cast<VarDecl>(D)) {
+        mlir::Value Init = Visit(Var->getInit());
+        // TODO: handle situations with undefined initializations.
+        bind(Var, Init);
+      }
+    return {};
+  }
+
 private:
   FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
                     TopLevelGenerator &Parent)
