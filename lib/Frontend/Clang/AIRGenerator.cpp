@@ -62,6 +62,7 @@ public:
   mlir::Value VisitDeclStmt(const DeclStmt *DS);
 
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *Literal);
+  mlir::Value VisitFloatingLiteral(const FloatingLiteral *Literal);
   mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
   mlir::Value VisitDeclRefExpr(const DeclRefExpr *Ref);
   mlir::Value VisitBinaryOperator(const BinaryOperator *BinExpr);
@@ -267,6 +268,15 @@ FunctionGenerator::VisitIntegerLiteral(const IntegerLiteral *Literal) {
   return Builder.create<ConstantIntOp>(Parent.loc(Literal->getSourceRange()),
                                        *Literal->getValue().getRawData(),
                                        Context.getIntWidth(Literal->getType()));
+}
+
+mlir::Value
+FunctionGenerator::VisitFloatingLiteral(const FloatingLiteral *Literal) {
+  mlir::Type T = Parent.getBuiltinType(Literal->getType());
+  assert(T.isa<FloatType>());
+  return Builder.create<ConstantFloatOp>(Parent.loc(Literal->getSourceRange()),
+                                         Literal->getValue(),
+                                         T.cast<FloatType>());
 }
 
 mlir::Value
