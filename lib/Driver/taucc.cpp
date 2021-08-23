@@ -9,9 +9,10 @@ using namespace llvm;
 cl::OptionCategory TauCategory("tau compiler options");
 
 int main(int Argc, const char **Argv) {
-  tooling::CommonOptionsParser OptionsParser(Argc, Argv, TauCategory);
-  tooling::ClangTool Tool(OptionsParser.getCompilations(),
-                          OptionsParser.getSourcePathList());
+  auto OptionsParser =
+      tooling::CommonOptionsParser::create(Argc, Argv, TauCategory);
+  tooling::ClangTool Tool(OptionsParser->getCompilations(),
+                          OptionsParser->getSourcePathList());
   tau::frontend::AIRGenAction Generator;
   bool Result = Tool.run(&Generator);
   auto Module = Generator.getGeneratedModule();

@@ -16,6 +16,12 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
   )
 
+option(TAU_CLANG_PATH "Path to installed Clang/LLVM")
+if(TAU_CLANG_PATH)
+  set(Clang_DIR "${TAU_CLANG_PATH}/lib/cmake/clang")
+  set(MLIR_DIR "${TAU_CLANG_PATH}/lib/cmake/mlir")
+endif()
+
 # Find CMake file for Clang
 find_package(Clang REQUIRED)
 # Find CMake file for MLIR

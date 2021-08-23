@@ -1,4 +1,5 @@
 #include "tau/Frontend/Clang/AIRGenerator.h"
+#include "mlir/IR/Location.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
@@ -127,7 +128,7 @@ mlir::Location TopLevelGenerator::loc(clang::SourceRange R) {
 
 mlir::Location TopLevelGenerator::loc(clang::SourceLocation L) {
   const SourceManager &SM = Context.getSourceManager();
-  return Builder.getFileLineColLoc(Builder.getIdentifier(SM.getFilename(L)),
+  return mlir::FileLineColLoc::get(Builder.getIdentifier(SM.getFilename(L)),
                                    SM.getSpellingLineNumber(L),
                                    SM.getSpellingColumnNumber(L));
 }
