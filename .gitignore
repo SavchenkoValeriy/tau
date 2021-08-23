@@ -40,3 +40,4 @@ build
 # Tooling files
 compile_commands.json
 .cache
+.clangd
