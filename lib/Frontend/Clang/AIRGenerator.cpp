@@ -170,7 +170,6 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
 //===----------------------------------------------------------------------===//
 
 ModuleOp TopLevelGenerator::generateModule() {
-  Context.getTranslationUnitDecl()->dump();
   Module = ModuleOp::create(Builder.getUnknownLoc());
 
   const auto *TU = Context.getTranslationUnitDecl();
