@@ -10,7 +10,7 @@ namespace {
 cl::OptionCategory TauCategory("tau compiler options");
 enum class DumpTarget { None, AST, AIR };
 static cl::opt<DumpTarget>
-    dumpAction("dump", cl::desc("Select the kind of output desired"),
+    DumpAction("dump", cl::desc("Select the kind of output desired"),
                cl::values(clEnumValN(DumpTarget::AST, "ast", "dump the AST")),
                cl::values(clEnumValN(DumpTarget::AIR, "air", "dump the AIR")),
                cl::cat(TauCategory));
@@ -26,7 +26,7 @@ int main(int Argc, const char **Argv) {
   bool Result = Tool.run(&Generator);
   auto Module = Generator.getGeneratedModule();
 
-  if (dumpAction == DumpTarget::AIR)
+  if (DumpAction == DumpTarget::AIR)
     Module.dump();
   return Result;
 }
