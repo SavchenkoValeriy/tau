@@ -189,6 +189,7 @@ void TopLevelGenerator::generateDecl(const Decl *D) {
     generateNamespace(cast<NamespaceDecl>(D));
     break;
   case Decl::CXXRecord:
+  case Decl::ClassTemplateSpecialization:
   case Decl::Record:
     generateRecord(cast<RecordDecl>(D));
     break;
