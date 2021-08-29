@@ -86,6 +86,9 @@ int test_or(int a, int b) { return a | b; }
 // CHECK-NEXT:    return %0 : si32
 // CHECK-NEXT:  }
 
+int test_comma(int a, int b) { return a, b; }
+// CHECK:         return %arg1 : si32
+
 int test_nested(int a, int b, int c) {
   return (a + b * c) - (c ^ a + b);
 }
