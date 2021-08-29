@@ -346,6 +346,7 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_ShrAssign:
   case BinaryOperatorKind::BO_Shr:
+    // TODO: support unsigned shift right op
     Result = Builder.create<mlir::SignedShiftRightOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_Cmp:

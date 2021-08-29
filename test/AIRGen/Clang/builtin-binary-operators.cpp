@@ -48,3 +48,40 @@ float test_sub(float a, float b) { return a - b; }
 // CHECK-NEXT:    %0 = subf %arg0, %arg1 : f32
 // CHECK-NEXT:    return %0 : f32
 // CHECK-NEXT:  }
+
+int test_shl(int a, int b) { return a << b; }
+// CHECK:       builtin.func @"int test_shl(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK-NEXT:    %0 = shift_left %arg0, %arg1 : si32
+// CHECK-NEXT:    return %0 : si32
+// CHECK-NEXT:  }
+
+int test_shr(int a, int b) { return a >> b; }
+// CHECK:       builtin.func @"int test_shr(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK-NEXT:    %0 = shift_right_signed %arg0, %arg1 : si32
+// CHECK-NEXT:    return %0 : si32
+// CHECK-NEXT:  }
+
+unsigned test_shr(unsigned a, unsigned b) { return a >> b; }
+// FIXME: it should be 'shift_right_unsigned'
+// CHECK:       builtin.func @"unsigned int test_shr(unsigned int a, unsigned int b)"(%arg0: ui32, %arg1: ui32) -> ui32 {
+// CHECK-NEXT:    %0 = shift_right_signed %arg0, %arg1 : ui32
+// CHECK-NEXT:    return %0 : ui32
+// CHECK-NEXT:  }
+
+int test_and(int a, int b) { return a & b; }
+// CHECK:       builtin.func @"int test_and(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK-NEXT:    %0 = and %arg0, %arg1 : si32
+// CHECK-NEXT:    return %0 : si32
+// CHECK-NEXT:  }
+
+int test_xor(int a, int b) { return a ^ b; }
+// CHECK:       builtin.func @"int test_xor(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK-NEXT:    %0 = xor %arg0, %arg1 : si32
+// CHECK-NEXT:    return %0 : si32
+// CHECK-NEXT:  }
+
+int test_or(int a, int b) { return a | b; }
+// CHECK:       builtin.func @"int test_or(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK-NEXT:    %0 = or %arg0, %arg1 : si32
+// CHECK-NEXT:    return %0 : si32
+// CHECK-NEXT:  }
