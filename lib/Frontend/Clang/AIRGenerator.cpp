@@ -159,6 +159,9 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
   if (T->isSpecificBuiltinType(BuiltinType::Double))
     return Builder.getF64Type();
 
+  if (T->isSpecificBuiltinType(BuiltinType::Float))
+    return Builder.getF32Type();
+
   if (T->isFloat16Type())
     return Builder.getF16Type();
 

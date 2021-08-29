@@ -15,7 +15,7 @@ long test_add(long a, long b) { return a + b; }
 
 float test_add(float a, float b) { return a + b; }
 // FIXME remove none types here
-// CHECK:       builtin.func @"float test_add(float a, float b)"(%arg0: none, %arg1: none) -> none {
-// CHECK-NEXT:    %0 = addf %arg0, %arg1 : none
-// CHECK-NEXT:    return %0 : none
+// CHECK:       builtin.func @"float test_add(float a, float b)"(%arg0: f32, %arg1: f32) -> f32 {
+// CHECK-NEXT:    %0 = addf %arg0, %arg1 : f32
+// CHECK-NEXT:    return %0 : f32
 // CHECK-NEXT:  }
