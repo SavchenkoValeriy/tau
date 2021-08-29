@@ -36,3 +36,15 @@ double test_mul(double a, double b) { return a * b; }
 // CHECK-NEXT:    %0 = mulf %arg0, %arg1 : f64
 // CHECK-NEXT:    return %0 : f64
 // CHECK-NEXT:  }
+
+int test_sub(int a, int b) { return a - b; }
+// CHECK:       builtin.func @"int test_sub(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK-NEXT:    %0 = subi %arg0, %arg1 : si32
+// CHECK-NEXT:    return %0 : si32
+// CHECK-NEXT:  }
+
+float test_sub(float a, float b) { return a - b; }
+// CHECK:       builtin.func @"float test_sub(float a, float b)"(%arg0: f32, %arg1: f32) -> f32 {
+// CHECK-NEXT:    %0 = subf %arg0, %arg1 : f32
+// CHECK-NEXT:    return %0 : f32
+// CHECK-NEXT:  }
