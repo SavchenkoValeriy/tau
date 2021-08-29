@@ -49,6 +49,27 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+set(TAU_TOOLS_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+set(TAU_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(TAU_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
+set(LIT_TOOL_NAMES "llvm-lit" "lit")
+find_program(
+  LIT_TOOL
+  NAMES ${LIT_TOOL_NAMES}
+  DOC "Path to lit tool"
+  )
+
+if ((NOT LIT_TOOL) OR (NOT EXISTS "${LIT_TOOL}"))
+  message(FATAL_ERROR "lit is required for testing."
+    " Please, install it via pip."
+    )
+else()
+  message(STATUS "Using lit: ${LIT_TOOL}")
+endif()
+
+set(LLVM_DEFAULT_EXTERNAL_LIT ${LIT_TOOL})
+
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
@@ -62,3 +83,4 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 add_subdirectory(lib)
 add_subdirectory(include/tau)
+add_subdirectory(test)
