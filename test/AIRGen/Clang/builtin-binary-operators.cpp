@@ -85,3 +85,15 @@ int test_or(int a, int b) { return a | b; }
 // CHECK-NEXT:    %0 = or %arg0, %arg1 : si32
 // CHECK-NEXT:    return %0 : si32
 // CHECK-NEXT:  }
+
+int test_nested(int a, int b, int c) {
+  return (a + b * c) - (c ^ a + b);
+}
+// CHECK:      builtin.func @"int test_nested(int a, int b, int c)"(%arg0: si32, %arg1: si32, %arg2: si32) -> si32 {
+// CHECK-NEXT:    %0 = muli %arg1, %arg2 : si32
+// CHECK-NEXT:    %1 = addi %arg0, %0 : si32
+// CHECK-NEXT:    %2 = addi %arg0, %arg1 : si32
+// CHECK-NEXT:    %3 = xor %arg2, %2 : si32
+// CHECK-NEXT:    %4 = subi %1, %3 : si32
+// CHECK-NEXT:    return %4 : si32
+// CHECK-NEXT:  }

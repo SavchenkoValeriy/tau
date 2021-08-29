@@ -1,5 +1,6 @@
 #include "tau/Frontend/Clang/AIRGenerator.h"
 #include "mlir/IR/Location.h"
+#include "clang/AST/Expr.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
@@ -67,6 +68,7 @@ public:
   mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
   mlir::Value VisitDeclRefExpr(const DeclRefExpr *Ref);
   mlir::Value VisitBinaryOperator(const BinaryOperator *BinExpr);
+  mlir::Value VisitParenExpr(const ParenExpr *Paren);
 
 private:
   FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
@@ -387,4 +389,9 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   }
 
   return Result;
+}
+
+mlir::Value FunctionGenerator::VisitParenExpr(const ParenExpr *Paren) {
+  // We don't care abou parentheses at this point
+  return Visit(Paren->getSubExpr());
 }
