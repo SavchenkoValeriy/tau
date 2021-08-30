@@ -1,14 +1,18 @@
 #include "tau/Frontend/Clang/AIRGenerator.h"
-#include "mlir/IR/Location.h"
-#include "clang/AST/Expr.h"
+
+#include "tau/AIR/AirDialect.h"
+#include "tau/AIR/AirOps.h"
 
 #include <clang/AST/ASTContext.h>
+#include <clang/AST/Expr.h>
+#include <clang/AST/OperationKinds.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Basic/SourceManager.h>
 #include <immer/map.hpp>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
+#include <mlir/IR/Location.h>
 
 using namespace clang;
 using namespace mlir;
@@ -68,6 +72,7 @@ public:
   mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
   mlir::Value VisitDeclRefExpr(const DeclRefExpr *Ref);
   mlir::Value VisitBinaryOperator(const BinaryOperator *BinExpr);
+  mlir::Value VisitUnaryOperator(const UnaryOperator *UnExpr);
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
 
 private:
@@ -233,6 +238,7 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
 OwningModuleRef AIRGenerator::generate(MLIRContext &MContext,
                                        ASTContext &Context) {
   MContext.loadDialect<mlir::StandardOpsDialect>();
+  MContext.loadDialect<air::AirDialect>();
   TopLevelGenerator ActualGenerator(MContext, Context);
   return ActualGenerator.generateModule();
 }
@@ -297,6 +303,52 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
 
 mlir::Value FunctionGenerator::VisitDeclRefExpr(const DeclRefExpr *Ref) {
   return getBinding(Ref->getDecl());
+}
+
+mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
+  mlir::Value Sub = Visit(UnExpr->getSubExpr());
+
+  mlir::Location Loc = Parent.loc(UnExpr->getSourceRange());
+
+  switch (UnExpr->getOpcode()) {
+  case UnaryOperatorKind::UO_AddrOf:
+    // TODO: support taking address
+    break;
+  case UnaryOperatorKind::UO_Deref:
+    // TODO: support dereference operation
+    break;
+
+  case UnaryOperatorKind::UO_PostInc:
+  case UnaryOperatorKind::UO_PostDec:
+  case UnaryOperatorKind::UO_PreInc:
+  case UnaryOperatorKind::UO_PreDec:
+    // TODO: support increment/decrement operations
+    break;
+
+  case UnaryOperatorKind::UO_Plus:
+    return Sub;
+  case UnaryOperatorKind::UO_Minus:
+    break;
+  case UnaryOperatorKind::UO_Not:
+    return Builder.create<tau::air::NotOp>(Loc, Sub);
+
+  case UnaryOperatorKind::UO_LNot:
+    break;
+
+  case UnaryOperatorKind::UO_Real:
+  case UnaryOperatorKind::UO_Imag:
+    // TODO: support "__real expr"/"__imag expr" extension
+    break;
+
+  case UnaryOperatorKind::UO_Coawait:
+    // TODO: support coroutine await
+    break;
+  case UnaryOperatorKind::UO_Extension:
+    // TODO: support __extension__ marker
+    break;
+  }
+
+  return {};
 }
 
 mlir::Value

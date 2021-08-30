@@ -5,7 +5,8 @@ add_tau_library(
 )
 target_link_libraries(
   tauFrontendClang
-  PUBLIC
-  immer
+  PRIVATE
+  tauAir
   MLIRStandard
+  immer
 )

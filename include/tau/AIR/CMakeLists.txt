@@ -1,2 +1,2 @@
-add_mlir_dialect(AIR air)
-add_mlir_doc(AIR -gen-dialect-doc AIRDialect Dialects/)
+add_mlir_dialect(AirOps air)
+add_mlir_doc(AirOps AirOps AIR/ -gen-op-doc)

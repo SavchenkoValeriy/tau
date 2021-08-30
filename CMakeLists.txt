@@ -40,9 +40,6 @@ include(AddMLIR)
 # import Tau CMake functions
 include(AddTau)
 
-# Traditionally, everything is in 'include'
-set(TAU_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
-
 find_package(Immer REQUIRED)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -73,7 +70,10 @@ set(LLVM_DEFAULT_EXTERNAL_LIT ${LIT_TOOL})
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
-include_directories(${TAU_INCLUDE_DIRS})
+
+# Tau's own include directories
+include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_BINARY_DIR}/include)
 
 add_definitions(${LLVM_DEFINITIONS})
 add_definitions(${CLANG_DEFINITIONS})
