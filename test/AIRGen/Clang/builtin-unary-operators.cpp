@@ -15,3 +15,8 @@ double test_neg(double a) { return -a; }
 // CHECK:       builtin.func @"double test_neg(double a)"(%arg0: f64) -> f64 {
 // CHECK-NEXT:    %0 = negf %arg0 : f64
 // CHECK-NEXT:    return %0 : f64
+
+int test_unary_plus(int a) { return +a; }
+// CHECK:       builtin.func @"int test_unary_plus(int a)"(%arg0: si32) -> si32 {
+// CHECK-NEXT:    return %arg0 : si32
+// CHECK-NEXT:  }
