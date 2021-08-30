@@ -9,6 +9,12 @@ project(tau
   ${cmake_3_0_LANGUAGES}
   CXX)
 
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard to conform to")
+
+# Shut up warning from linking with MLIR
+set(CMAKE_CXX_VISIBILITY_PRESET default)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON CACHE BOOL "Hide inlines")
+
 # Set path for custom Tau-specific modules
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
