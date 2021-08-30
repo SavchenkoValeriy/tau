@@ -36,6 +36,7 @@ build
 
 # Emacs files
 *~
+.dir-locals.el
 
 # Tooling files
 compile_commands.json
