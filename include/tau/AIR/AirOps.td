@@ -39,4 +39,28 @@ def Air_NotOp : Air_Op<"not", [NoSideEffect,
   }];
 }
 
+def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
+                                 SameOperandsAndResultType]>,
+                Arguments<(ins AnyInteger:$operand)> {
+    let results = (outs AnyInteger);
+    let summary = "integer negation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.negi` ssa-use `:` type
+    ```
+
+    The `neg` operation takes one operand and returns one result, operand and
+    result types are the same. This type should be an integer scalar type.
+    It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = negi %b : i32
+    ```
+  }];
+}
+
 #endif /* AIROPS_H */

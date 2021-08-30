@@ -309,6 +309,7 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   mlir::Value Sub = Visit(UnExpr->getSubExpr());
 
   mlir::Location Loc = Parent.loc(UnExpr->getSourceRange());
+  const bool IsInteger = UnExpr->getType()->isIntegralOrEnumerationType();
 
   switch (UnExpr->getOpcode()) {
   case UnaryOperatorKind::UO_AddrOf:
@@ -328,7 +329,10 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   case UnaryOperatorKind::UO_Plus:
     return Sub;
   case UnaryOperatorKind::UO_Minus:
-    break;
+    if (IsInteger)
+      return Builder.create<tau::air::NegIOp>(Loc, Sub);
+    return Builder.create<mlir::NegFOp>(Loc, Sub);
+
   case UnaryOperatorKind::UO_Not:
     return Builder.create<tau::air::NotOp>(Loc, Sub);
 
