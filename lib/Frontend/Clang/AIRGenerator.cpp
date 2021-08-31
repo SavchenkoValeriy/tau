@@ -327,6 +327,7 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
     break;
 
   case UnaryOperatorKind::UO_Plus:
+    // Unary plus is a no-op operation
     return Sub;
   case UnaryOperatorKind::UO_Minus:
     if (IsInteger)
@@ -337,6 +338,7 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
     return Builder.create<tau::air::NotOp>(Loc, Sub);
 
   case UnaryOperatorKind::UO_LNot:
+    // TODO: support logical not operation
     break;
 
   case UnaryOperatorKind::UO_Real:
