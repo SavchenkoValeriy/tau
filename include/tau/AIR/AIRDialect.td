@@ -36,4 +36,26 @@ class Air_Op<string mnemonic, list<OpTrait> traits = []> :
     Op<Air_Dialect, mnemonic, traits> {
 }
 
+//===----------------------------------------------------------------------===//
+//                                Air own types
+//===----------------------------------------------------------------------===//
+
+def Air_Type : DialectType<Air_Dialect,
+                           CPred<"tau::air::isCompatibleType($_self)">,
+                           "Air-compatible type">;
+
+// Type constraint accepting any Air pointer type.
+def Air_AnyPointer : Type<CPred<"$_self.isa<tau::air::AirPointerType>()">,
+                          "Air pointer type">;
+
+// Type constraint accepting Air pointer type with an additional constraint
+// on the element type.
+class Air_PointerTo<Type pointee> : Type<
+  And<[Air_AnyPointer.predicate,
+       SubstLeaves<
+         "$_self",
+         "$_self.cast<tau::air::AirPointerType>().getElementType()",
+         pointee.predicate>]>,
+  "Air pointer to " # pointee.summary>;
+
 #endif /* AIRDIALECT_H */

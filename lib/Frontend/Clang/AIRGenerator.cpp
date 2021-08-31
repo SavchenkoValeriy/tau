@@ -2,6 +2,7 @@
 
 #include "tau/AIR/AirDialect.h"
 #include "tau/AIR/AirOps.h"
+#include "tau/AIR/AirTypes.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Expr.h>
@@ -16,6 +17,7 @@
 
 using namespace clang;
 using namespace mlir;
+using namespace tau;
 using namespace tau::frontend;
 
 namespace {
@@ -34,6 +36,7 @@ public:
   void generateRecord(const RecordDecl *RD);
 
   mlir::Type getType(clang::QualType);
+  mlir::Type getPointerType(clang::QualType);
   mlir::Type getBuiltinType(clang::QualType);
 
   ShortString getFullyQualifiedName(const NamedDecl *ND);
@@ -146,6 +149,8 @@ mlir::Location TopLevelGenerator::loc(clang::SourceLocation L) {
 
 mlir::Type TopLevelGenerator::getType(clang::QualType T) {
   switch (T->getTypeClass()) {
+  case clang::Type::Pointer:
+    return getPointerType(T);
   case clang::Type::Builtin:
     return getBuiltinType(T);
   default:
@@ -173,6 +178,11 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
     return Builder.getF16Type();
 
   return Builder.getNoneType();
+}
+
+mlir::Type TopLevelGenerator::getPointerType(clang::QualType T) {
+  mlir::Type NestedType = getType(T->getPointeeType());
+  return air::AirPointerType::get(NestedType);
 }
 
 //===----------------------------------------------------------------------===//
@@ -331,11 +341,11 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
     return Sub;
   case UnaryOperatorKind::UO_Minus:
     if (IsInteger)
-      return Builder.create<tau::air::NegIOp>(Loc, Sub);
+      return Builder.create<air::NegIOp>(Loc, Sub);
     return Builder.create<mlir::NegFOp>(Loc, Sub);
 
   case UnaryOperatorKind::UO_Not:
-    return Builder.create<tau::air::NotOp>(Loc, Sub);
+    return Builder.create<air::NotOp>(Loc, Sub);
 
   case UnaryOperatorKind::UO_LNot:
     // TODO: support logical not operation
