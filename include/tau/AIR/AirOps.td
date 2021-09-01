@@ -113,4 +113,71 @@ def Air_StoreOp : Air_Op<"store"> {
     let verifier = [{ return ::verify(*this); }];
 }
 
+def Air_LoadOp : Air_Op<"load"> {
+    let arguments = (ins Air_AnyPointer:$from);
+    let results = (outs AnyType:$res);
+    let summary = "load operation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.load` ssa-use `:` type `->` type
+    ```
+
+    The `load` operation represents reading value from a block of
+    memory pointed to by the given location. It takes one argument
+    of a pointer type, and one result of the pointee type. The operation
+    has no standard attributes.
+    }];
+    let assemblyFormat = "attr-dict $from `:` type($from) `->` type($res)";
+    let builders = [
+      OpBuilder<(ins "mlir::Value":$from),
+      [{
+        build($_builder, $_state, from.getType().cast<AirPointerType>().getElementType(), from);
+      }]>];
+    let verifier = ?;
+}
+
+//===----------------------------------------------------------------------===//
+//                                   Constant
+//===----------------------------------------------------------------------===//
+
+def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
+  let summary = "constant";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `std.constant` attribute-value `:` type
+    ```
+
+    The `constant` operation produces an SSA value equal to some constant
+    specified by an attribute.
+    Example:
+
+    ```mlir
+    // Integer constant
+    %1 = "air.constant" 42 : i32
+    ```
+  }];
+
+  let arguments = (ins AnyAttr:$value);
+  let results = (outs AnyType:$res);
+
+  let builders = [
+    OpBuilder<(ins "mlir::Attribute":$value),
+    [{ build($_builder, $_state, value.getType(), value); }]>,
+    OpBuilder<(ins "mlir::Attribute":$value, "mlir::Type":$type),
+    [{ build($_builder, $_state, type, value); }]>,
+  ];
+
+  let extraClassDeclaration = [{
+    mlir::Attribute getValue() { return (*this)->getAttr("value"); }
+  }];
+
+  let printer = [{ return ::print(p, *this); }];
+  let parser = [{ return ::parseConstantOp(parser, result); }];
+}
+
+
 #endif /* AIROPS_H */

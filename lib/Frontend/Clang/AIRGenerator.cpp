@@ -1,9 +1,12 @@
 #include "tau/Frontend/Clang/AIRGenerator.h"
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Types.h"
 #include "tau/AIR/AirDialect.h"
 #include "tau/AIR/AirOps.h"
 #include "tau/AIR/AirTypes.h"
+#include "clang/AST/Decl.h"
 #include "llvm/ADT/None.h"
 
 #include <clang/AST/ASTContext.h>
@@ -119,12 +122,24 @@ private:
     return StackVar;
   }
 
+  mlir::Value getPointer(const ValueDecl *D) const {
+    return Declarations.lookup(D);
+  }
+
   void store(mlir::Value V, const ValueDecl *D, Location Loc) {
-    store(V, Declarations.lookup(D), Loc);
+    store(V, getPointer(D), Loc);
   }
 
   void store(mlir::Value What, mlir::Value Where, Location Loc) {
     Builder.create<air::StoreOp>(Loc, What, Where);
+  }
+
+  mlir::Value load(const ValueDecl *From, Location Loc) {
+    return load(getPointer(From), Loc);
+  }
+
+  mlir::Value load(mlir::Value From, Location Loc) {
+    return Builder.create<air::LoadOp>(Loc, From);
   }
 
   FuncOp &Target;
@@ -321,9 +336,11 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
 
 mlir::Value
 FunctionGenerator::VisitIntegerLiteral(const IntegerLiteral *Literal) {
-  return Builder.create<ConstantIntOp>(Parent.loc(Literal->getSourceRange()),
-                                       *Literal->getValue().getRawData(),
-                                       Context.getIntWidth(Literal->getType()));
+  mlir::Type T = Parent.getBuiltinType(Literal->getType());
+  assert(T.isa<IntegerType>());
+  return Builder.create<air::ConstantIntOp>(
+      Parent.loc(Literal->getSourceRange()), Literal->getValue(),
+      T.cast<IntegerType>());
 }
 
 mlir::Value
@@ -339,14 +356,14 @@ mlir::Value
 FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
   switch (Cast->getCastKind()) {
   case CastKind::CK_LValueToRValue:
-    return Visit(Cast->getSubExpr());
+    return load(Visit(Cast->getSubExpr()), Parent.loc(Cast->getSourceRange()));
   default:
     return {};
   }
 }
 
 mlir::Value FunctionGenerator::VisitDeclRefExpr(const DeclRefExpr *Ref) {
-  return {};
+  return getPointer(Ref->getDecl());
 }
 
 mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {

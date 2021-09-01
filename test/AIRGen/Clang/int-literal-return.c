@@ -3,7 +3,7 @@
 
 // CHECK:   builtin.func @"int foo()"() -> si32 {
 int foo() {
-// CHECK-NEXT: %[[CONST:[^:blank:]+]] = constant 42 : i32
-// CHECK-NEXT: return %[[CONST]] : i32
+// CHECK-NEXT: %0 = air.constant 42 : si32
+// CHECK-NEXT: return %0 : si32
   return 42;
 }
