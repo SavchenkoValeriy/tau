@@ -63,4 +63,30 @@ def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
   }];
 }
 
+def Air_AllocaOp : Air_Op<"alloca"> {
+    let arguments = (ins Optional<AnyUnsignedInteger>:$length);
+    let results = (outs Air_AnyPointer:$res);
+    let summary = "alloca operation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.alloca` (ssa-use)? `:` type
+    ```
+
+    The `alloca` operation represents all allocation on stack.  It takes
+    one optional `length` argument for array allocation. The result type
+    is a pointer type. Operation has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = alloca : !air.ptr<i32>
+
+    %b = alloca %length : !air.ptr<f64>
+    ```
+    }];
+    let assemblyFormat = "($length^ `:` type($length))? attr-dict `:` type($res)";
+}
+
 #endif /* AIROPS_H */

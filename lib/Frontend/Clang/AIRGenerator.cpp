@@ -10,6 +10,7 @@
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Basic/SourceManager.h>
 #include <immer/map.hpp>
+#include <llvm/ADT/ScopedHashTable.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
@@ -86,22 +87,24 @@ private:
 
   void generate() {
     Block *Entry = Target.addEntryBlock();
+    DeclScope ParamScope(Declarations);
 
     for (const auto &[Param, BlockArg] :
          llvm::zip(Original.parameters(), Entry->getArguments())) {
-      bind(Param, BlockArg);
+      declare(Param);
+      // TODO: store BlockArg in Param
     }
 
     Builder.setInsertionPointToStart(Entry);
     Visit(Original.getBody());
   }
 
-  void bind(const ValueDecl *D, mlir::Value Def) {
-    ReachingDefs = ReachingDefs.set(D, Def);
-  }
-
-  mlir::Value getBinding(const ValueDecl *D) const {
-    return ReachingDefs.at(D);
+  void declare(const ValueDecl *D) {
+    // TODO: support array types
+    mlir::Value StackVar = Builder.create<air::AllocaOp>(
+        Parent.loc(D->getSourceRange()),
+        air::AirPointerType::get(Parent.getType(D->getType())), mlir::Value{});
+    Declarations.insert(D, StackVar);
   }
 
   FuncOp &Target;
@@ -109,7 +112,9 @@ private:
   TopLevelGenerator &Parent;
   ASTContext &Context;
   OpBuilder &Builder;
-  immer::map<const ValueDecl *, mlir::Value> ReachingDefs;
+  using DeclMap = llvm::ScopedHashTable<const ValueDecl *, mlir::Value>;
+  using DeclScope = DeclMap::ScopeTy;
+  DeclMap Declarations;
 };
 
 } // end anonymous namespace
@@ -258,6 +263,7 @@ OwningModuleRef AIRGenerator::generate(MLIRContext &MContext,
 //===----------------------------------------------------------------------===//
 
 mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
+  DeclScope Scope(Declarations);
   for (const auto *Child : Compound->body())
     Visit(Child);
   return nullptr;
@@ -274,9 +280,9 @@ mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
 mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
   for (const auto *D : DS->decls())
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
-      mlir::Value Init = Visit(Var->getInit());
+      // mlir::Value Init = Visit(Var->getInit());
       // TODO: handle situations with undefined initializations.
-      bind(Var, Init);
+      declare(Var);
     }
   return {};
 }
@@ -312,7 +318,7 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
 }
 
 mlir::Value FunctionGenerator::VisitDeclRefExpr(const DeclRefExpr *Ref) {
-  return getBinding(Ref->getDecl());
+  return {};
 }
 
 mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
