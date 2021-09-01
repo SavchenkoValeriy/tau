@@ -1,8 +1,10 @@
 #include "tau/Frontend/Clang/AIRGenerator.h"
 
+#include "mlir/IR/Attributes.h"
 #include "tau/AIR/AirDialect.h"
 #include "tau/AIR/AirOps.h"
 #include "tau/AIR/AirTypes.h"
+#include "llvm/ADT/None.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Expr.h>
@@ -15,6 +17,9 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/Location.h>
+#include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/Value.h>
+#include <mlir/IR/Verifier.h>
 
 using namespace clang;
 using namespace mlir;
@@ -89,22 +94,37 @@ private:
     Block *Entry = Target.addEntryBlock();
     DeclScope ParamScope(Declarations);
 
+    Builder.setInsertionPointToStart(Entry);
     for (const auto &[Param, BlockArg] :
          llvm::zip(Original.parameters(), Entry->getArguments())) {
-      declare(Param);
-      // TODO: store BlockArg in Param
+      store(BlockArg, declare(Param), Parent.loc(Param->getSourceRange()));
     }
 
-    Builder.setInsertionPointToStart(Entry);
     Visit(Original.getBody());
+    if (needToAddExtraReturn(Entry))
+      Builder.create<mlir::ReturnOp>(Builder.getUnknownLoc());
   }
 
-  void declare(const ValueDecl *D) {
+  bool needToAddExtraReturn(Block *BB) const {
+    return Target.getNumResults() == 0 &&
+           (BB->empty() || !BB->back().mightHaveTrait<OpTrait::IsTerminator>());
+  }
+
+  mlir::Value declare(const ValueDecl *D) {
     // TODO: support array types
     mlir::Value StackVar = Builder.create<air::AllocaOp>(
         Parent.loc(D->getSourceRange()),
         air::AirPointerType::get(Parent.getType(D->getType())), mlir::Value{});
     Declarations.insert(D, StackVar);
+    return StackVar;
+  }
+
+  void store(mlir::Value V, const ValueDecl *D, Location Loc) {
+    store(V, Declarations.lookup(D), Loc);
+  }
+
+  void store(mlir::Value What, mlir::Value Where, Location Loc) {
+    Builder.create<air::StoreOp>(Loc, What, Where);
   }
 
   FuncOp &Target;
@@ -201,6 +221,10 @@ ModuleOp TopLevelGenerator::generateModule() {
   for (const auto *TUDecl : TU->decls())
     generateDecl(TUDecl);
 
+  if (failed(mlir::verify(Module))) {
+    Module.emitError("Generated incorrect module");
+    return nullptr;
+  }
   return Module;
 }
 
@@ -243,9 +267,12 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
     ArgTypes.push_back(getType(Param->getType()));
   }
 
-  auto Result = FuncOp::create(
-      loc(F->getSourceRange()), Name,
-      Builder.getFunctionType(ArgTypes, getType(F->getReturnType())));
+  mlir::TypeRange ReturnType = llvm::None;
+  if (!F->getReturnType()->isVoidType())
+    ReturnType = getType(F->getReturnType());
+
+  auto Result = FuncOp::create(loc(F->getSourceRange()), Name,
+                               Builder.getFunctionType(ArgTypes, ReturnType));
   FunctionGenerator::generate(Result, *F, *this);
   Module.push_back(Result);
 }
@@ -270,7 +297,8 @@ mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
 }
 
 mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
-  mlir::Value Operand = Visit(Return->getRetValue());
+  mlir::Value Operand =
+      Return->getRetValue() ? Visit(Return->getRetValue()) : mlir::Value{};
   ReturnOp Result = Builder.create<mlir::ReturnOp>(
       Parent.loc(Return->getSourceRange()),
       Operand ? llvm::makeArrayRef(Operand) : ArrayRef<mlir::Value>());

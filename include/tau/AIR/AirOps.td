@@ -63,6 +63,10 @@ def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
   }];
 }
 
+//===----------------------------------------------------------------------===//
+//                              Memory operations
+//===----------------------------------------------------------------------===//
+
 def Air_AllocaOp : Air_Op<"alloca"> {
     let arguments = (ins Optional<AnyUnsignedInteger>:$length);
     let results = (outs Air_AnyPointer:$res);
@@ -71,10 +75,10 @@ def Air_AllocaOp : Air_Op<"alloca"> {
     Syntax:
 
     ```
-    operation ::= ssa-id `=` `air.alloca` (ssa-use)? `:` type
+    operation ::= ssa-id `=` `air.alloca` (ssa-use : type)? `:` type
     ```
 
-    The `alloca` operation represents all allocation on stack.  It takes
+    The `alloca` operation represents all allocation on stack. It takes
     one optional `length` argument for array allocation. The result type
     is a pointer type. Operation has no standard attributes.
 
@@ -87,6 +91,26 @@ def Air_AllocaOp : Air_Op<"alloca"> {
     ```
     }];
     let assemblyFormat = "($length^ `:` type($length))? attr-dict `:` type($res)";
+    let verifier = ?;
+}
+
+def Air_StoreOp : Air_Op<"store"> {
+    let arguments = (ins AnyType:$what, Air_AnyPointer:$where);
+    let summary = "store operation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.store` ssa-use `:` type `->` ssa-use `:` type
+    ```
+
+    The `store` operation represents writing value into a block of
+    memory pointed to by the given location. It takes two arguments
+    that should differ only in pointer type. It has no results and
+    standard attributes.
+    }];
+    let assemblyFormat = "attr-dict $what `:` type($what) `->` $where `:` type($where)";
+    let verifier = [{ return ::verify(*this); }];
 }
 
 #endif /* AIROPS_H */
