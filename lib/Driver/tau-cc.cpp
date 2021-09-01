@@ -20,6 +20,8 @@ static cl::opt<DumpTarget>
 int main(int Argc, const char **Argv) {
   auto OptionsParser =
       tooling::CommonOptionsParser::create(Argc, Argv, TauCategory);
+  if (!OptionsParser)
+    return 1;
   tooling::ClangTool Tool(OptionsParser->getCompilations(),
                           OptionsParser->getSourcePathList());
   tau::frontend::AIRGenAction Generator;
