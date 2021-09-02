@@ -204,7 +204,7 @@ def Air_AndOp : BinaryIntOp<"and", [Commutative]> {
 def Air_ShiftLeftOp : BinaryIntOp<"shl"> {
   let summary = "integer left-shift";
   let description = [{
-    The shift_left operation shifts an integer value to the left by a variable
+    The `shl` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
 
     Example:
@@ -220,7 +220,7 @@ def Air_ShiftLeftOp : BinaryIntOp<"shl"> {
 def Air_ArithmeticShiftRightOp : BinaryIntOp<"ashr"> {
   let summary = "arithmetic (signed) integer right-shift";
   let description = [{
-    The shift_right_signed operation shifts an integer value to the right by
+    The `ashr` operation shifts an integer value to the right by
     a variable amount. The integer is interpreted as signed. The high order
     bits in the output are filled with copies of the most-significant bit
     of the shifted value (which means that the sign of the value is preserved).
@@ -240,7 +240,7 @@ def Air_ArithmeticShiftRightOp : BinaryIntOp<"ashr"> {
 def Air_LogicalShiftRightOp : BinaryIntOp<"lshr"> {
   let summary = "logical (unsigned) integer right-shift";
   let description = [{
-    The shift_right_unsigned operation shifts an integer value to the right by
+    The `lshr` operation shifts an integer value to the right by
     a variable amount. The integer is interpreted as unsigned. The high order
     bits are always filled with zeros.
 
