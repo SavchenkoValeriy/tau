@@ -18,7 +18,7 @@ include "mlir/IR/OpBase.td"
 def Air_NotOp : Air_Op<"not", [NoSideEffect,
                                SameOperandsAndResultType]>,
                 Arguments<(ins AnyInteger:$operand)> {
-    let results = (outs AnyInteger);
+    let results = (outs AnyInteger:$res);
     let summary = "integer binary not";
     let description = [{
     Syntax:
@@ -37,12 +37,13 @@ def Air_NotOp : Air_Op<"not", [NoSideEffect,
     %a = not %b : i64
     ```
   }];
+  let assemblyFormat = "attr-dict $operand `:` type($res)";
 }
 
 def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
                                  SameOperandsAndResultType]>,
                 Arguments<(ins AnyInteger:$operand)> {
-    let results = (outs AnyInteger);
+    let results = (outs AnyInteger:$res);
     let summary = "integer negation";
     let description = [{
     Syntax:
@@ -61,6 +62,7 @@ def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
     %a = negi %b : i32
     ```
   }];
+  let assemblyFormat = "attr-dict $operand `:` type($res)";
 }
 
 //===----------------------------------------------------------------------===//
