@@ -255,6 +255,49 @@ def Air_LogicalShiftRightOp : BinaryIntOp<"lshr"> {
 }
 
 //===----------------------------------------------------------------------===//
+//                        Integer comparison operations
+//===----------------------------------------------------------------------===//
+
+class ComparisonIntOp<string mnemonic, list<OpTrait> traits = []> :
+      Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
+                                            SameTypeOperands])> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs UI1:$res);
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($lhs)";
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs),
+    [{ build($_builder, $_state, $_builder.getIntegerType(1, false), lhs, rhs); }]>
+  ];
+}
+
+class ComparisonSIntOp<string mnemonic, list<OpTrait> traits = []> :
+      ComparisonIntOp<mnemonic, traits> {
+  let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
+}
+
+def Air_SignedLessThen : ComparisonSIntOp<"slt"> {
+  let summary = "signed less then";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.slt` ssa-use, ssa-use `:` type
+    ```
+
+    The `slt` operation compares its signed integer arguments and returns 1
+    if `lhs` is less then `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.slt %0, %1 : si32
+    ```
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//
 

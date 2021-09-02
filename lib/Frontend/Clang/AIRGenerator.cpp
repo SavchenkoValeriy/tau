@@ -468,7 +468,7 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
 
   mlir::Location Loc = Parent.loc(BinExpr->getSourceRange());
 
-  bool IsInteger = BinExpr->getType()->isIntegralOrEnumerationType();
+  const bool IsInteger = BinExpr->getType()->isIntegralOrEnumerationType();
 
   // Value representing the result of the operation
   mlir::Value Result;
@@ -530,6 +530,10 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     // TODO: support spaceship operator
     break;
   case BinaryOperatorKind::BO_LT:
+    if (IsInteger)
+      if (LHS.getType().isSignedInteger())
+        Result = Builder.create<air::SignedLessThen>(Loc, LHS, RHS);
+    break;
   case BinaryOperatorKind::BO_GT:
   case BinaryOperatorKind::BO_LE:
   case BinaryOperatorKind::BO_GE:
