@@ -258,10 +258,9 @@ def Air_LogicalShiftRightOp : BinaryIntOp<"lshr"> {
 //                        Integer comparison operations
 //===----------------------------------------------------------------------===//
 
-class ComparisonIntOp<string mnemonic, list<OpTrait> traits = []> :
+class ComparisonOp<string mnemonic, list<OpTrait> traits = []> :
       Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
                                             SameTypeOperands])> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
   let results = (outs UI1:$res);
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($lhs)";
   let builders = [
@@ -271,17 +270,22 @@ class ComparisonIntOp<string mnemonic, list<OpTrait> traits = []> :
 }
 
 class ComparisonSIntOp<string mnemonic, list<OpTrait> traits = []> :
-      ComparisonIntOp<mnemonic, traits> {
+      ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
 }
 
 class ComparisonUIntOp<string mnemonic, list<OpTrait> traits = []> :
-      ComparisonIntOp<mnemonic, traits> {
+      ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnyUnsignedInteger:$lhs, AnyUnsignedInteger:$rhs);
 }
 
-def Air_SignedLessThen : ComparisonSIntOp<"slt"> {
-  let summary = "signed less then";
+class ComparisonFloatOp<string mnemonic, list<OpTrait> traits = []> :
+      ComparisonOp<mnemonic, traits> {
+  let arguments = (ins AnyFloat:$lhs, AnyFloat:$rhs);
+}
+
+def Air_LessThanSIOp : ComparisonSIntOp<"slt"> {
+  let summary = "signed less than";
   let description = [{
     Syntax:
 
@@ -290,7 +294,7 @@ def Air_SignedLessThen : ComparisonSIntOp<"slt"> {
     ```
 
     The `slt` operation compares its signed integer arguments and returns 1
-    if `lhs` is less then `rhs`, and 0 otherwise. Operands are required to be
+    if `lhs` is less than `rhs`, and 0 otherwise. Operands are required to be
     of the same type. The result type is boolean. Operation has no standard
     attributes.
 
@@ -302,8 +306,8 @@ def Air_SignedLessThen : ComparisonSIntOp<"slt"> {
   }];
 }
 
-def Air_UnsignedLessThen : ComparisonUIntOp<"ult"> {
-  let summary = "unsigned less then";
+def Air_LessThanUIOp : ComparisonUIntOp<"ult"> {
+  let summary = "unsigned less than";
   let description = [{
     Syntax:
 
@@ -312,7 +316,7 @@ def Air_UnsignedLessThen : ComparisonUIntOp<"ult"> {
     ```
 
     The `ult` operation compares its unsigned integer arguments and returns 1
-    if `lhs` is less then `rhs`, and 0 otherwise. Operands are required to be
+    if `lhs` is less than `rhs`, and 0 otherwise. Operands are required to be
     of the same type. The result type is boolean. Operation has no standard
     attributes.
 
@@ -324,8 +328,30 @@ def Air_UnsignedLessThen : ComparisonUIntOp<"ult"> {
   }];
 }
 
-def Air_SignedLessThenOrEqual : ComparisonSIntOp<"sle"> {
-  let summary = "signed less then or equal";
+def Air_LessThanFOp : ComparisonFloatOp<"ltf"> {
+  let summary = "floating point less than";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.ltf` ssa-use, ssa-use `:` type
+    ```
+
+    The `ltf` operation compares its floating point arguments and returns 1
+    if `lhs` is less than `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.ltf %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_LessThanOrEqualSIOp : ComparisonSIntOp<"sle"> {
+  let summary = "signed less than or equal";
   let description = [{
     Syntax:
 
@@ -334,7 +360,7 @@ def Air_SignedLessThenOrEqual : ComparisonSIntOp<"sle"> {
     ```
 
     The `sle` operation compares its signed integer arguments and returns 1
-    if `lhs` is less then or equal `rhs`, and 0 otherwise. Operands are required to be
+    if `lhs` is less than or equal `rhs`, and 0 otherwise. Operands are required to be
     of the same type. The result type is boolean. Operation has no standard
     attributes.
 
@@ -346,8 +372,8 @@ def Air_SignedLessThenOrEqual : ComparisonSIntOp<"sle"> {
   }];
 }
 
-def Air_UnsignedLessThenOrEqual : ComparisonUIntOp<"ule"> {
-  let summary = "unsigned less then or equal";
+def Air_LessThanOrEqualUIOp : ComparisonUIntOp<"ule"> {
+  let summary = "unsigned less than or equal";
   let description = [{
     Syntax:
 
@@ -356,7 +382,7 @@ def Air_UnsignedLessThenOrEqual : ComparisonUIntOp<"ule"> {
     ```
 
     The `ule` operation compares its unsigned integer arguments and returns 1
-    if `lhs` is less then or equal `rhs`, and 0 otherwise. Operands are required to be
+    if `lhs` is less than or equal `rhs`, and 0 otherwise. Operands are required to be
     of the same type. The resule type is boolean. Operation has no standard
     attributes.
 
@@ -364,6 +390,28 @@ def Air_UnsignedLessThenOrEqual : ComparisonUIntOp<"ule"> {
 
     ```mlir
     %a = air.ule %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_LessThanOrEqualFOp : ComparisonFloatOp<"lef"> {
+  let summary = "floating point less than or equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.lef` ssa-use, ssa-use `:` type
+    ```
+
+    The `lef` operation compares its signed integer arguments and returns 1
+    if `lhs` is less than or equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.lef %0, %1 : si32
     ```
   }];
 }

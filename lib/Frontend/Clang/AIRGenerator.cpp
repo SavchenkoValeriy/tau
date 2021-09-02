@@ -93,6 +93,9 @@ public:
 
   template <class IntOp, class FloatOp, class... Args>
   mlir::Value builtinOp(mlir::Type OpType, Args &&...Rest);
+  template <class SignedIntOp, class UnsignedIntOp, class FloatOp,
+            class... Args>
+  mlir::Value builtinOp(mlir::Type OpType, Args &&...Rest);
 
 private:
   FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
@@ -523,21 +526,13 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     // TODO: support spaceship operator
     break;
   case BinaryOperatorKind::BO_LT:
-    if (ResultType.isa<IntegerType>()) {
-      if (ResultType.isSignedInteger())
-        Result = Builder.create<air::SignedLessThen>(Loc, LHS, RHS);
-      else
-        Result = Builder.create<air::UnsignedLessThen>(Loc, LHS, RHS);
-    }
+    Result = builtinOp<air::LessThanSIOp, air::LessThanUIOp, air::LessThanFOp>(
+        ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_GT:
   case BinaryOperatorKind::BO_LE:
-    if (ResultType.isa<IntegerType>()) {
-      if (ResultType.isSignedInteger())
-        Result = Builder.create<air::SignedLessThenOrEqual>(Loc, LHS, RHS);
-      else
-        Result = Builder.create<air::UnsignedLessThenOrEqual>(Loc, LHS, RHS);
-    }
+    Result = builtinOp<air::LessThanOrEqualSIOp, air::LessThanOrEqualUIOp,
+                       air::LessThanOrEqualFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_GE:
   case BinaryOperatorKind::BO_EQ:
@@ -578,6 +573,16 @@ template <class IntOp, class FloatOp, class... Args>
 mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
   if (OpType.isa<IntegerType>())
     return Builder.create<IntOp>(std::forward<Args>(Rest)...);
+  return Builder.create<FloatOp>(std::forward<Args>(Rest)...);
+}
+
+template <class SignedIntOp, class UnsignedIntOp, class FloatOp, class... Args>
+mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
+  if (OpType.isa<IntegerType>()) {
+    if (OpType.isSignedInteger())
+      return Builder.create<SignedIntOp>(std::forward<Args>(Rest)...);
+    return Builder.create<UnsignedIntOp>(std::forward<Args>(Rest)...);
+  }
   return Builder.create<FloatOp>(std::forward<Args>(Rest)...);
 }
 
