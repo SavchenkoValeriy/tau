@@ -19,12 +19,17 @@ include "mlir/IR/OpBase.td"
 //                               Unary operations
 //===----------------------------------------------------------------------===//
 
-def Air_NotOp : Air_Op<"not", [NoSideEffect,
-                               SameOperandsAndResultType]>,
-                Arguments<(ins AnyInteger:$operand)> {
-    let results = (outs AnyInteger:$res);
-    let summary = "integer binary not";
-    let description = [{
+class UnaryIntOp<string mnemonic, list<OpTrait> traits = []> :
+      Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
+                                            SameOperandsAndResultType])> {
+  let arguments = (ins AnyInteger:$operand);
+  let results = (outs AnyInteger:$res);
+  let assemblyFormat = "attr-dict $operand `:` type($res)";
+}
+
+def Air_NotOp : UnaryIntOp<"not"> {
+  let summary = "integer binary not";
+  let description = [{
     Syntax:
 
     ```
@@ -41,15 +46,11 @@ def Air_NotOp : Air_Op<"not", [NoSideEffect,
     %a = not %b : i64
     ```
   }];
-  let assemblyFormat = "attr-dict $operand `:` type($res)";
 }
 
-def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
-                                 SameOperandsAndResultType]>,
-                Arguments<(ins AnyInteger:$operand)> {
-    let results = (outs AnyInteger:$res);
-    let summary = "integer negation";
-    let description = [{
+def Air_NegIOp : UnaryIntOp<"negi"> {
+  let summary = "integer negation";
+  let description = [{
     Syntax:
 
     ```
@@ -66,7 +67,6 @@ def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
     %a = negi %b : i32
     ```
   }];
-  let assemblyFormat = "attr-dict $operand `:` type($res)";
 }
 
 //===----------------------------------------------------------------------===//
