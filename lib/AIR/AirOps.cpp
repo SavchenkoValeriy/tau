@@ -23,6 +23,12 @@ LogicalResult verify(StoreOp &Store) {
                            << ")";
 }
 
+Type getPointee(Type Pointer) {
+  if (auto AsPointer = Pointer.dyn_cast<AirPointerType>())
+    return AsPointer.getElementType();
+  return {};
+}
+
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -53,6 +59,28 @@ bool ConstantIntOp::classof(Operation *Op) {
   mlir::Type T = Op->getResult(0).getType();
   return ConstantOp::classof(Op) && T.isSignedInteger() ||
          T.isUnsignedInteger();
+}
+
+//===----------------------------------------------------------------------===//
+//                                    LoadOp
+//===----------------------------------------------------------------------===//
+
+static void print(OpAsmPrinter &P, LoadOp &Op) {
+  P << "air.load " << Op.from() << " : " << Op.from().getType();
+}
+
+static ParseResult parseLoad(OpAsmParser &Parser, OperationState &Result) {
+  OpAsmParser::OperandType From;
+  Type FromType;
+  if (Parser.parseOperand(From) || Parser.parseColon() ||
+      Parser.parseType(FromType) ||
+      Parser.resolveOperand(From, FromType, Result.operands))
+    return failure();
+
+  if (Type ResultType = getPointee(FromType))
+    return Parser.addTypeToList(ResultType, Result.types);
+
+  return failure();
 }
 
 #define GET_OP_CLASSES

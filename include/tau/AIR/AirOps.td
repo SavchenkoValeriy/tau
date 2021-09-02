@@ -305,14 +305,14 @@ def Air_StoreOp : Air_Op<"store"> {
 }
 
 def Air_LoadOp : Air_Op<"load"> {
-    let arguments = (ins Air_AnyPointer:$from);
-    let results = (outs AnyType:$res);
-    let summary = "load operation";
-    let description = [{
+  let arguments = (ins Air_AnyPointer:$from);
+  let results = (outs AnyType:$res);
+  let summary = "load operation";
+  let description = [{
     Syntax:
 
     ```
-    operation ::= `air.load` ssa-use `:` type `->` type
+    operation ::= `air.load` ssa-use `:` type
     ```
 
     The `load` operation represents reading value from a block of
@@ -320,13 +320,14 @@ def Air_LoadOp : Air_Op<"load"> {
     of a pointer type, and one result of the pointee type. The operation
     has no standard attributes.
     }];
-    let assemblyFormat = "attr-dict $from `:` type($from) `->` type($res)";
-    let builders = [
+  let builders = [
       OpBuilder<(ins "mlir::Value":$from),
       [{
         build($_builder, $_state, from.getType().cast<AirPointerType>().getElementType(), from);
       }]>];
-    let verifier = ?;
+  let verifier = ?;
+  let printer = [{ return ::print(p, *this); }];
+  let parser = [{ return ::parseLoad(parser, result); }];
 }
 
 //===----------------------------------------------------------------------===//
