@@ -323,9 +323,13 @@ mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
 mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
   for (const auto *D : DS->decls())
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
-      // mlir::Value Init = Visit(Var->getInit());
-      // TODO: handle situations with undefined initializations.
-      declare(Var);
+      mlir::Value Address = declare(Var);
+      if (Var->getInit()) {
+        mlir::Value Init = Visit(Var->getInit());
+        store(Init, Address, Parent.loc(Var->getSourceRange()));
+      } else {
+        // TODO: support undefined value
+      }
     }
   return {};
 }
@@ -427,7 +431,20 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
 
   bool IsInteger = BinExpr->getType()->isIntegralOrEnumerationType();
 
+  // Value representing the result of the operation
   mlir::Value Result;
+  // Location where we should store the result if this is an
+  // assignment operation.
+  mlir::Value LocToStore;
+
+  if (BinExpr->isCompoundAssignmentOp()) {
+    // If this is a compound assignment operator (i.e. +=/-=/etc.)
+    // we should first store the result into the LHS...
+    LocToStore = LHS;
+    // ...and also load the value from it to participate in the
+    // operation.
+    LHS = load(LHS, LHS.getLoc());
+  }
 
   switch (BinExpr->getOpcode()) {
   case BinaryOperatorKind::BO_PtrMemD:
@@ -498,13 +515,14 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     // TODO: support logical operators
     break;
   case BinaryOperatorKind::BO_Assign:
+    LocToStore = LHS;
+    [[fallthrough]];
   case BinaryOperatorKind::BO_Comma:
     Result = RHS;
   }
-  // TODO: support FP operations
 
   if (BinExpr->isAssignmentOp()) {
-    // TODO: get L-value of LHS and store it there.
+    store(Result, LocToStore, Loc);
   }
 
   return Result;
