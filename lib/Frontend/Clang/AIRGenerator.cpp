@@ -381,11 +381,10 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
 
   switch (UnExpr->getOpcode()) {
   case UnaryOperatorKind::UO_AddrOf:
-    // TODO: support taking address
-    break;
   case UnaryOperatorKind::UO_Deref:
-    // TODO: support dereference operation
-    break;
+    // Since for l-values, we actually use pointers and use l-value to r-value
+    // casts for loads, we are going to be just fine using that here.
+    return Sub;
 
   case UnaryOperatorKind::UO_PostInc:
   case UnaryOperatorKind::UO_PostDec:
@@ -393,7 +392,6 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   case UnaryOperatorKind::UO_PreDec:
     return generateIncDec(Loc, Sub, UnExpr->isPrefix(),
                           UnExpr->isIncrementOp());
-    break;
 
   case UnaryOperatorKind::UO_Plus:
     // Unary plus is a no-op operation
