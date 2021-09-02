@@ -10,6 +10,6 @@ void test_var() { int b; }
 void test_param(int a) { return; }
 // CHECK:       builtin.func @"void test_param(int a)"(%arg0: si32) {
 // CHECK-NEXT:    %0 = air.alloca : !air.ptr<si32>
-// CHECK-NEXT:    air.store %arg0 : si32 -> %0 : !air.ptr<si32>
+// CHECK-NEXT:    air.store %arg0 -> %0 : !air.ptr<si32>
 // CHECK-NEXT:    return
 // CHECK-NEXT:  }

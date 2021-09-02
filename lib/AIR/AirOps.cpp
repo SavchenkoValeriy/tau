@@ -11,18 +11,6 @@ namespace {
 using namespace mlir;
 using namespace tau::air;
 
-LogicalResult verify(StoreOp &Store) {
-  Type WhatType = Store.what().getType();
-  AirPointerType WhereType = Store.where().getType().cast<AirPointerType>();
-
-  if (WhereType.getElementType() == WhatType)
-    return success();
-
-  return Store.emitError() << "type of stored value (" << WhatType
-                           << ") doesn't match the pointer type (" << WhereType
-                           << ")";
-}
-
 Type getPointee(Type Pointer) {
   if (auto AsPointer = Pointer.dyn_cast<AirPointerType>())
     return AsPointer.getElementType();
@@ -81,6 +69,42 @@ static ParseResult parseLoad(OpAsmParser &Parser, OperationState &Result) {
     return Parser.addTypeToList(ResultType, Result.types);
 
   return failure();
+}
+
+//===----------------------------------------------------------------------===//
+//                                   StoreOp
+//===----------------------------------------------------------------------===//
+
+static LogicalResult verify(StoreOp &Store) {
+  Type WhatType = Store.what().getType();
+  AirPointerType WhereType = Store.where().getType().cast<AirPointerType>();
+
+  if (WhereType.getElementType() == WhatType)
+    return success();
+
+  return Store.emitError() << "type of stored value (" << WhatType
+                           << ") doesn't match the pointer type (" << WhereType
+                           << ")";
+}
+
+static void print(OpAsmPrinter &P, StoreOp &Op) {
+  P << "air.store " << Op.what() << " -> " << Op.where() << " : "
+    << Op.where().getType();
+}
+
+static ParseResult parseStore(OpAsmParser &Parser, OperationState &Result) {
+  OpAsmParser::OperandType What, Where;
+  Type WhereType;
+  if (Parser.parseOperand(What) || Parser.parseArrow() ||
+      Parser.parseOperand(Where) || Parser.parseColon())
+    return failure();
+
+  Type WhatType = getPointee(WhereType);
+  if (!WhatType || Parser.resolveOperand(What, WhatType, Result.operands) ||
+      Parser.resolveOperand(Where, WhereType, Result.operands))
+    return failure();
+
+  return success();
 }
 
 #define GET_OP_CLASSES

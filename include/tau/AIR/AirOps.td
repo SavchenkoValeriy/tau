@@ -292,7 +292,7 @@ def Air_StoreOp : Air_Op<"store"> {
     Syntax:
 
     ```
-    operation ::= `air.store` ssa-use `:` type `->` ssa-use `:` type
+    operation ::= `air.store` ssa-use `->` ssa-use `:` type
     ```
 
     The `store` operation represents writing value into a block of
@@ -300,8 +300,9 @@ def Air_StoreOp : Air_Op<"store"> {
     that should differ only in pointer type. It has no results and
     standard attributes.
     }];
-    let assemblyFormat = "attr-dict $what `:` type($what) `->` $where `:` type($where)";
     let verifier = [{ return ::verify(*this); }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parseStore(parser, result); }];
 }
 
 def Air_LoadOp : Air_Op<"load"> {
