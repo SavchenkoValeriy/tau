@@ -23,6 +23,7 @@
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Value.h>
 #include <mlir/IR/Verifier.h>
+#include <utility>
 
 using namespace clang;
 using namespace mlir;
@@ -89,6 +90,9 @@ public:
 
   mlir::Value generateIncDec(mlir::Location Loc, mlir::Value Var, bool IsPre,
                              bool IsInc);
+
+  template <class IntOp, class FloatOp, class... Args>
+  mlir::Value builtinOp(mlir::Type OpType, Args &&...Rest);
 
 private:
   FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
@@ -377,7 +381,7 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   mlir::Value Sub = Visit(UnExpr->getSubExpr());
 
   mlir::Location Loc = Parent.loc(UnExpr->getSourceRange());
-  const bool IsInteger = UnExpr->getType()->isIntegralOrEnumerationType();
+  mlir::Type ResultType = Sub.getType();
 
   switch (UnExpr->getOpcode()) {
   case UnaryOperatorKind::UO_AddrOf:
@@ -397,9 +401,7 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
     // Unary plus is a no-op operation
     return Sub;
   case UnaryOperatorKind::UO_Minus:
-    if (IsInteger)
-      return Builder.create<air::NegIOp>(Loc, Sub);
-    return Builder.create<mlir::NegFOp>(Loc, Sub);
+    return builtinOp<air::NegIOp, mlir::NegFOp>(ResultType, Loc, Sub);
 
   case UnaryOperatorKind::UO_Not:
     return Builder.create<air::NotOp>(Loc, Sub);
@@ -468,8 +470,6 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
 
   mlir::Location Loc = Parent.loc(BinExpr->getSourceRange());
 
-  const bool IsInteger = BinExpr->getType()->isIntegralOrEnumerationType();
-
   // Value representing the result of the operation
   mlir::Value Result;
   // Location where we should store the result if this is an
@@ -485,6 +485,8 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     LHS = load(LHS, LHS.getLoc());
   }
 
+  mlir::Type ResultType = LHS.getType();
+
   switch (BinExpr->getOpcode()) {
   case BinaryOperatorKind::BO_PtrMemD:
   case BinaryOperatorKind::BO_PtrMemI:
@@ -492,10 +494,7 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_MulAssign:
   case BinaryOperatorKind::BO_Mul:
-    if (IsInteger)
-      Result = Builder.create<air::MulIOp>(Loc, LHS, RHS);
-    else
-      Result = Builder.create<mlir::MulFOp>(Loc, LHS, RHS);
+    Result = builtinOp<air::MulIOp, mlir::MulFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_DivAssign:
   case BinaryOperatorKind::BO_Div:
@@ -505,17 +504,11 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_AddAssign:
   case BinaryOperatorKind::BO_Add:
-    if (IsInteger)
-      Result = Builder.create<air::AddIOp>(Loc, LHS, RHS);
-    else
-      Result = Builder.create<mlir::AddFOp>(Loc, LHS, RHS);
+    Result = builtinOp<air::AddIOp, mlir::AddFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_SubAssign:
   case BinaryOperatorKind::BO_Sub:
-    if (IsInteger)
-      Result = Builder.create<air::SubIOp>(Loc, LHS, RHS);
-    else
-      Result = Builder.create<mlir::SubFOp>(Loc, LHS, RHS);
+    Result = builtinOp<air::SubIOp, mlir::SubFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_ShlAssign:
   case BinaryOperatorKind::BO_Shl:
@@ -530,8 +523,8 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     // TODO: support spaceship operator
     break;
   case BinaryOperatorKind::BO_LT:
-    if (IsInteger) {
-      if (LHS.getType().isSignedInteger())
+    if (ResultType.isa<IntegerType>()) {
+      if (ResultType.isSignedInteger())
         Result = Builder.create<air::SignedLessThen>(Loc, LHS, RHS);
       else
         Result = Builder.create<air::UnsignedLessThen>(Loc, LHS, RHS);
@@ -539,8 +532,8 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_GT:
   case BinaryOperatorKind::BO_LE:
-    if (IsInteger) {
-      if (LHS.getType().isSignedInteger())
+    if (ResultType.isa<IntegerType>()) {
+      if (ResultType.isSignedInteger())
         Result = Builder.create<air::SignedLessThenOrEqual>(Loc, LHS, RHS);
       else
         Result = Builder.create<air::UnsignedLessThenOrEqual>(Loc, LHS, RHS);
@@ -579,6 +572,13 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   }
 
   return Result;
+}
+
+template <class IntOp, class FloatOp, class... Args>
+mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
+  if (OpType.isa<IntegerType>())
+    return Builder.create<IntOp>(std::forward<Args>(Rest)...);
+  return Builder.create<FloatOp>(std::forward<Args>(Rest)...);
 }
 
 mlir::Value FunctionGenerator::VisitParenExpr(const ParenExpr *Paren) {
