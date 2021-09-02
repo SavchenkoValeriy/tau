@@ -324,6 +324,50 @@ def Air_UnsignedLessThen : ComparisonUIntOp<"ult"> {
   }];
 }
 
+def Air_SignedLessThenOrEqual : ComparisonSIntOp<"sle"> {
+  let summary = "signed less then or equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.sle` ssa-use, ssa-use `:` type
+    ```
+
+    The `sle` operation compares its signed integer arguments and returns 1
+    if `lhs` is less then or equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.sle %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_UnsignedLessThenOrEqual : ComparisonUIntOp<"ule"> {
+  let summary = "unsigned less then or equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.ule` ssa-use, ssa-use `:` type
+    ```
+
+    The `ule` operation compares its unsigned integer arguments and returns 1
+    if `lhs` is less then or equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The resule type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.ule %0, %1 : si32
+    ```
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//

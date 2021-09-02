@@ -5,3 +5,18 @@ bool test_slt(int a, int b) { return a < b; }
 // CHECK-LABEL: @"bool test_slt(int a, int b)"
 // CHECK:         %[[#RES:]] = air.slt %[[#A:]], %[[#B:]] : si32
 // CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_ult(unsigned a, unsigned b) { return a < b; }
+// CHECK-LABEL: @"bool test_ult(unsigned int a, unsigned int b)"
+// CHECK:         %[[#RES:]] = air.ult %[[#A:]], %[[#B:]] : ui32
+// CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_sle(int a, int b) { return a <= b; }
+// CHECK-LABEL: @"bool test_sle(int a, int b)"
+// CHECK:         %[[#RES:]] = air.sle %[[#A:]], %[[#B:]] : si32
+// CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_ule(unsigned a, unsigned b) { return a <= b; }
+// CHECK-LABEL: @"bool test_ule(unsigned int a, unsigned int b)"
+// CHECK:         %[[#RES:]] = air.ule %[[#A:]], %[[#B:]] : ui32
+// CHECK-NEXT:    return %[[#RES]] : ui1

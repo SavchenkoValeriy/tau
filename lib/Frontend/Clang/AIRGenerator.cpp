@@ -539,6 +539,13 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_GT:
   case BinaryOperatorKind::BO_LE:
+    if (IsInteger) {
+      if (LHS.getType().isSignedInteger())
+        Result = Builder.create<air::SignedLessThenOrEqual>(Loc, LHS, RHS);
+      else
+        Result = Builder.create<air::UnsignedLessThenOrEqual>(Loc, LHS, RHS);
+    }
+    break;
   case BinaryOperatorKind::BO_GE:
   case BinaryOperatorKind::BO_EQ:
   case BinaryOperatorKind::BO_NE:
