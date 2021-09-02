@@ -437,7 +437,7 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   case BinaryOperatorKind::BO_MulAssign:
   case BinaryOperatorKind::BO_Mul:
     if (IsInteger)
-      Result = Builder.create<mlir::MulIOp>(Loc, LHS, RHS);
+      Result = Builder.create<air::MulIOp>(Loc, LHS, RHS);
     else
       Result = Builder.create<mlir::MulFOp>(Loc, LHS, RHS);
     break;
@@ -450,14 +450,14 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   case BinaryOperatorKind::BO_AddAssign:
   case BinaryOperatorKind::BO_Add:
     if (IsInteger)
-      Result = Builder.create<mlir::AddIOp>(Loc, LHS, RHS);
+      Result = Builder.create<air::AddIOp>(Loc, LHS, RHS);
     else
       Result = Builder.create<mlir::AddFOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_SubAssign:
   case BinaryOperatorKind::BO_Sub:
     if (IsInteger)
-      Result = Builder.create<mlir::SubIOp>(Loc, LHS, RHS);
+      Result = Builder.create<air::SubIOp>(Loc, LHS, RHS);
     else
       Result = Builder.create<mlir::SubFOp>(Loc, LHS, RHS);
     break;

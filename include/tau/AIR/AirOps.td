@@ -15,6 +15,10 @@
 include "AirDialect.td"
 include "mlir/IR/OpBase.td"
 
+//===----------------------------------------------------------------------===//
+//                               Unary operations
+//===----------------------------------------------------------------------===//
+
 def Air_NotOp : Air_Op<"not", [NoSideEffect,
                                SameOperandsAndResultType]>,
                 Arguments<(ins AnyInteger:$operand)> {
@@ -63,6 +67,84 @@ def Air_NegIOp : Air_Op<"negi", [NoSideEffect,
     ```
   }];
   let assemblyFormat = "attr-dict $operand `:` type($res)";
+}
+
+//===----------------------------------------------------------------------===//
+//                              Binary operations
+//===----------------------------------------------------------------------===//
+
+def Air_AddIOp : Air_Op<"addi", [Commutative,
+                                 SameOperandsAndResultType,
+                                 NoSideEffect]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer addition operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.addi` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `addi` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.addi %b, %c : si64
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_SubIOp : Air_Op<"subi", [SameOperandsAndResultType,
+                                 NoSideEffect]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer subtraction operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.subi` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `subi` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.subi %b, %c : si64
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_MulIOp : Air_Op<"muli", [Commutative,
+                                 SameOperandsAndResultType,
+                                 NoSideEffect]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer multiplication operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.muli` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `muli` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.muli %b, %c : si64
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
 //===----------------------------------------------------------------------===//
