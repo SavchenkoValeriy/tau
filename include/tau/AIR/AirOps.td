@@ -218,7 +218,7 @@ def Air_ShiftLeftOp : BinaryIntOp<"shl"> {
 }
 
 def Air_ArithmeticShiftRightOp : BinaryIntOp<"ashr"> {
-  let summary = "airithmetic (signed) integer right-shift";
+  let summary = "arithmetic (signed) integer right-shift";
   let description = [{
     The shift_right_signed operation shifts an integer value to the right by
     a variable amount. The integer is interpreted as signed. The high order
