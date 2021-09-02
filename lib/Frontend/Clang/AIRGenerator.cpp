@@ -87,6 +87,9 @@ public:
   mlir::Value VisitUnaryOperator(const UnaryOperator *UnExpr);
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
 
+  mlir::Value generateIncDec(mlir::Location Loc, mlir::Value Var, bool IsPre,
+                             bool IsInc);
+
 private:
   FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
                     TopLevelGenerator &Parent)
@@ -351,9 +354,9 @@ mlir::Value
 FunctionGenerator::VisitFloatingLiteral(const FloatingLiteral *Literal) {
   mlir::Type T = Parent.getBuiltinType(Literal->getType());
   assert(T.isa<FloatType>());
-  return Builder.create<ConstantFloatOp>(Parent.loc(Literal->getSourceRange()),
-                                         Literal->getValue(),
-                                         T.cast<FloatType>());
+  return Builder.create<air::ConstantFloatOp>(
+      Parent.loc(Literal->getSourceRange()), Literal->getValue(),
+      T.cast<FloatType>());
 }
 
 mlir::Value
@@ -388,7 +391,8 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   case UnaryOperatorKind::UO_PostDec:
   case UnaryOperatorKind::UO_PreInc:
   case UnaryOperatorKind::UO_PreDec:
-    // TODO: support increment/decrement operations
+    return generateIncDec(Loc, Sub, UnExpr->isPrefix(),
+                          UnExpr->isIncrementOp());
     break;
 
   case UnaryOperatorKind::UO_Plus:
@@ -420,6 +424,43 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   }
 
   return {};
+}
+
+mlir::Value FunctionGenerator::generateIncDec(mlir::Location Loc,
+                                              mlir::Value Var, bool IsPre,
+                                              bool IsInc) {
+  mlir::Value StoredValue = load(Var, Loc);
+  mlir::Type ValueType = StoredValue.getType();
+  const bool IsInteger = ValueType.isa<IntegerType>();
+
+  mlir::Value Result;
+
+  if (IsInteger) {
+    mlir::Value One = Builder.create<air::ConstantIntOp>(
+        Loc, 1, ValueType.cast<IntegerType>());
+
+    if (IsInc)
+      Result = Builder.create<air::AddIOp>(Loc, StoredValue, One);
+    else
+      Result = Builder.create<air::SubIOp>(Loc, StoredValue, One);
+  } else {
+    mlir::Value One = Builder.create<air::ConstantFloatOp>(
+        Loc, 1.0, ValueType.cast<FloatType>());
+
+    if (IsInc)
+      Result = Builder.create<mlir::AddFOp>(Loc, StoredValue, One);
+    else
+      Result = Builder.create<mlir::SubFOp>(Loc, StoredValue, One);
+  }
+
+  // No matter whar - store the new value.
+  store(Result, Var, Loc);
+
+  // Prefix increment/decrement returns an l-value, and that is
+  // what we are going to do here.
+  // For postfix operations, we simply return the value that was
+  // in the variable prior to the operation.
+  return IsPre ? Var : StoredValue;
 }
 
 mlir::Value

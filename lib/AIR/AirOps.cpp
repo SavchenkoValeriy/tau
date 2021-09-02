@@ -43,10 +43,30 @@ void ConstantIntOp::build(OpBuilder &Builder, OperationState &Result,
   ConstantOp::build(Builder, Result, Type, Builder.getIntegerAttr(Type, Value));
 }
 
+void ConstantIntOp::build(OpBuilder &Builder, OperationState &Result,
+                          int64_t Value, IntegerType Type) {
+  ConstantOp::build(Builder, Result, Type, Builder.getIntegerAttr(Type, Value));
+}
+
 bool ConstantIntOp::classof(Operation *Op) {
   mlir::Type T = Op->getResult(0).getType();
   return ConstantOp::classof(Op) && T.isSignedInteger() ||
          T.isUnsignedInteger();
+}
+
+void ConstantFloatOp::build(OpBuilder &Builder, OperationState &Result,
+                            llvm::APFloat Value, FloatType Type) {
+  ConstantOp::build(Builder, Result, Type, Builder.getFloatAttr(Type, Value));
+}
+
+void ConstantFloatOp::build(OpBuilder &Builder, OperationState &Result,
+                            double Value, FloatType Type) {
+  ConstantOp::build(Builder, Result, Type, Builder.getFloatAttr(Type, Value));
+}
+
+bool ConstantFloatOp::classof(Operation *Op) {
+  mlir::Type T = Op->getResult(0).getType();
+  return ConstantOp::classof(Op) && T.isa<FloatType>();
 }
 
 //===----------------------------------------------------------------------===//
