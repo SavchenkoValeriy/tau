@@ -73,11 +73,15 @@ def Air_NegIOp : UnaryIntOp<"negi"> {
 //                              Binary operations
 //===----------------------------------------------------------------------===//
 
-def Air_AddIOp : Air_Op<"addi", [Commutative,
-                                 SameOperandsAndResultType,
-                                 NoSideEffect]> {
+class BinaryIntOp<string mnemonic, list<OpTrait> traits = []> :
+      Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
+                                            SameOperandsAndResultType])> {
   let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
   let results = (outs AnyInteger:$res);
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_AddIOp : BinaryIntOp<"addi", [Commutative]> {
   let summary = "integer addition operation";
   let description = [{
     Syntax:
@@ -95,13 +99,9 @@ def Air_AddIOp : Air_Op<"addi", [Commutative,
     %a = air.addi %b, %c : si64
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_SubIOp : Air_Op<"subi", [SameOperandsAndResultType,
-                                 NoSideEffect]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_SubIOp : BinaryIntOp<"subi"> {
   let summary = "integer subtraction operation";
   let description = [{
     Syntax:
@@ -119,14 +119,9 @@ def Air_SubIOp : Air_Op<"subi", [SameOperandsAndResultType,
     %a = air.subi %b, %c : si64
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_MulIOp : Air_Op<"muli", [Commutative,
-                                 SameOperandsAndResultType,
-                                 NoSideEffect]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_MulIOp : BinaryIntOp<"muli", [Commutative]> {
   let summary = "integer multiplication operation";
   let description = [{
     Syntax:
@@ -144,14 +139,9 @@ def Air_MulIOp : Air_Op<"muli", [Commutative,
     %a = air.muli %b, %c : si64
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_XOrOp : Air_Op<"xor", [Commutative,
-                               SameOperandsAndResultType,
-                               NoSideEffect]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_XOrOp : BinaryIntOp<"xor", [Commutative]> {
   let summary = "integer binary xor";
   let description = [{
     Syntax:
@@ -169,14 +159,9 @@ def Air_XOrOp : Air_Op<"xor", [Commutative,
     %a = air.xor %b, %c : si64
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_OrOp : Air_Op<"or", [Commutative,
-                             SameOperandsAndResultType,
-                             NoSideEffect]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_OrOp : BinaryIntOp<"or", [Commutative]> {
   let summary = "integer binary or";
   let description = [{
     Syntax:
@@ -194,14 +179,9 @@ def Air_OrOp : Air_Op<"or", [Commutative,
     %a = air.or %b, %c : si64
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_AndOp : Air_Op<"and", [Commutative,
-                               SameOperandsAndResultType,
-                               NoSideEffect]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_AndOp : BinaryIntOp<"and", [Commutative]> {
   let summary = "integer binary and";
   let description = [{
     Syntax:
@@ -219,13 +199,9 @@ def Air_AndOp : Air_Op<"and", [Commutative,
     %a = air.and %b, %c : si64
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_ShiftLeftOp : Air_Op<"shl", [NoSideEffect,
-                                     SameOperandsAndResultType]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_ShiftLeftOp : BinaryIntOp<"shl"> {
   let summary = "integer left-shift";
   let description = [{
     The shift_left operation shifts an integer value to the left by a variable
@@ -239,13 +215,9 @@ def Air_ShiftLeftOp : Air_Op<"shl", [NoSideEffect,
     %3 = air.shl %1, %2 : i8    // %3 is 0b00101000
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_ArithmeticShiftRightOp : Air_Op<"ashr", [NoSideEffect,
-                                                 SameOperandsAndResultType]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_ArithmeticShiftRightOp : BinaryIntOp<"ashr"> {
   let summary = "airithmetic (signed) integer right-shift";
   let description = [{
     The shift_right_signed operation shifts an integer value to the right by
@@ -263,13 +235,9 @@ def Air_ArithmeticShiftRightOp : Air_Op<"ashr", [NoSideEffect,
     %5 = air.ashr %4, %2 : si8  // %5 is 0b00001100
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-def Air_LogicalShiftRightOp : Air_Op<"lshr", [NoSideEffect,
-                                              SameOperandsAndResultType]> {
-  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
-  let results = (outs AnyInteger:$res);
+def Air_LogicalShiftRightOp : BinaryIntOp<"lshr"> {
   let summary = "logical (unsigned) integer right-shift";
   let description = [{
     The shift_right_unsigned operation shifts an integer value to the right by
@@ -284,7 +252,6 @@ def Air_LogicalShiftRightOp : Air_Op<"lshr", [NoSideEffect,
     %3 = air.lshr %1, %2 : ui8   // %3 is 0b00010100
     ```
   }];
-  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
 //===----------------------------------------------------------------------===//
