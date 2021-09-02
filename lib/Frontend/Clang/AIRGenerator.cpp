@@ -483,15 +483,15 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_AndAssign:
   case BinaryOperatorKind::BO_And:
-    Result = Builder.create<mlir::AndOp>(Loc, LHS, RHS);
+    Result = Builder.create<air::AndOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_XorAssign:
   case BinaryOperatorKind::BO_Xor:
-    Result = Builder.create<mlir::XOrOp>(Loc, LHS, RHS);
+    Result = Builder.create<air::XOrOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_OrAssign:
   case BinaryOperatorKind::BO_Or:
-    Result = Builder.create<mlir::OrOp>(Loc, LHS, RHS);
+    Result = Builder.create<air::OrOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_LAnd:
   case BinaryOperatorKind::BO_LOr:

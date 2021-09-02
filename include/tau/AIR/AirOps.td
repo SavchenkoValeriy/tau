@@ -147,6 +147,81 @@ def Air_MulIOp : Air_Op<"muli", [Commutative,
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
+def Air_XOrOp : Air_Op<"xor", [Commutative,
+                               SameOperandsAndResultType,
+                               NoSideEffect]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer binary xor";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.xor` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `xor` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.xor %b, %c : si64
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_OrOp : Air_Op<"or", [Commutative,
+                             SameOperandsAndResultType,
+                             NoSideEffect]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer binary or";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.or` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `or` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.or %b, %c : si64
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_AndOp : Air_Op<"and", [Commutative,
+                               SameOperandsAndResultType,
+                               NoSideEffect]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer binary and";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.and` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `and` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.and %b, %c : si64
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
 //===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//
