@@ -222,6 +222,71 @@ def Air_AndOp : Air_Op<"and", [Commutative,
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
+def Air_ShiftLeftOp : Air_Op<"shl", [NoSideEffect,
+                                     SameOperandsAndResultType]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "integer left-shift";
+  let description = [{
+    The shift_left operation shifts an integer value to the left by a variable
+    amount. The low order bits are filled with zeros.
+
+    Example:
+
+    ```mlir
+    %1 = constant 5 : i8        // %1 is 0b00000101
+    %2 = constant 3 : i8
+    %3 = air.shl %1, %2 : i8    // %3 is 0b00101000
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_ArithmeticShiftRightOp : Air_Op<"ashr", [NoSideEffect,
+                                                 SameOperandsAndResultType]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "airithmetic (signed) integer right-shift";
+  let description = [{
+    The shift_right_signed operation shifts an integer value to the right by
+    a variable amount. The integer is interpreted as signed. The high order
+    bits in the output are filled with copies of the most-significant bit
+    of the shifted value (which means that the sign of the value is preserved).
+
+    Example:
+
+    ```mlir
+    %1 = air.constant 160 : si8 // %1 is 0b10100000
+    %2 = air.constant 3 : si8
+    %3 = air.ashr %1, %2 : si8  // %3 is 0b11110100
+    %4 = air.constant 96 : si8  // %4 is 0b01100000
+    %5 = air.ashr %4, %2 : si8  // %5 is 0b00001100
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
+def Air_LogicalShiftRightOp : Air_Op<"lshr", [NoSideEffect,
+                                              SameOperandsAndResultType]> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+  let results = (outs AnyInteger:$res);
+  let summary = "logical (unsigned) integer right-shift";
+  let description = [{
+    The shift_right_unsigned operation shifts an integer value to the right by
+    a variable amount. The integer is interpreted as unsigned. The high order
+    bits are always filled with zeros.
+
+    Example:
+
+    ```mlir
+    %1 = air.constant 160 : ui8  // %1 is 0b10100000
+    %2 = air.constant 3 : ui8
+    %3 = air.lshr %1, %2 : ui8   // %3 is 0b00010100
+    ```
+  }];
+  let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
+}
+
 //===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//

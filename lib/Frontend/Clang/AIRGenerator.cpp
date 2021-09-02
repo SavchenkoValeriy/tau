@@ -463,12 +463,12 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_ShlAssign:
   case BinaryOperatorKind::BO_Shl:
-    Result = Builder.create<mlir::ShiftLeftOp>(Loc, LHS, RHS);
+    Result = Builder.create<air::ShiftLeftOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_ShrAssign:
   case BinaryOperatorKind::BO_Shr:
     // TODO: support unsigned shift right op
-    Result = Builder.create<mlir::SignedShiftRightOp>(Loc, LHS, RHS);
+    Result = Builder.create<air::ArithmeticShiftRightOp>(Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_Cmp:
     // TODO: support spaceship operator
