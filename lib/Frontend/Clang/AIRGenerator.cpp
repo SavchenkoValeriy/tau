@@ -530,9 +530,12 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     // TODO: support spaceship operator
     break;
   case BinaryOperatorKind::BO_LT:
-    if (IsInteger)
+    if (IsInteger) {
       if (LHS.getType().isSignedInteger())
         Result = Builder.create<air::SignedLessThen>(Loc, LHS, RHS);
+      else
+        Result = Builder.create<air::UnsignedLessThen>(Loc, LHS, RHS);
+    }
     break;
   case BinaryOperatorKind::BO_GT:
   case BinaryOperatorKind::BO_LE:

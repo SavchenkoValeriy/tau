@@ -275,6 +275,11 @@ class ComparisonSIntOp<string mnemonic, list<OpTrait> traits = []> :
   let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
 }
 
+class ComparisonUIntOp<string mnemonic, list<OpTrait> traits = []> :
+      ComparisonIntOp<mnemonic, traits> {
+  let arguments = (ins AnyUnsignedInteger:$lhs, AnyUnsignedInteger:$rhs);
+}
+
 def Air_SignedLessThen : ComparisonSIntOp<"slt"> {
   let summary = "signed less then";
   let description = [{
@@ -293,6 +298,28 @@ def Air_SignedLessThen : ComparisonSIntOp<"slt"> {
 
     ```mlir
     %a = air.slt %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_UnsignedLessThen : ComparisonUIntOp<"ult"> {
+  let summary = "unsigned less then";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.ult` ssa-use, ssa-use `:` type
+    ```
+
+    The `ult` operation compares its unsigned integer arguments and returns 1
+    if `lhs` is less then `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.ult %0, %1 : si32
     ```
   }];
 }
