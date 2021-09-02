@@ -530,11 +530,17 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
         ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_GT:
+    Result = builtinOp<air::GreaterThanSIOp, air::GreaterThanUIOp,
+                       air::GreaterThanFOp>(ResultType, Loc, LHS, RHS);
+    break;
   case BinaryOperatorKind::BO_LE:
     Result = builtinOp<air::LessThanOrEqualSIOp, air::LessThanOrEqualUIOp,
                        air::LessThanOrEqualFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_GE:
+    Result = builtinOp<air::GreaterThanOrEqualSIOp, air::GreaterThanOrEqualUIOp,
+                       air::GreaterThanOrEqualFOp>(ResultType, Loc, LHS, RHS);
+    break;
   case BinaryOperatorKind::BO_EQ:
   case BinaryOperatorKind::BO_NE:
     // TODO: support comparison operators

@@ -416,6 +416,138 @@ def Air_LessThanOrEqualFOp : ComparisonFloatOp<"lef"> {
   }];
 }
 
+def Air_GreaterThanSIOp : ComparisonSIntOp<"sgt"> {
+  let summary = "signed greater than";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.sgt` ssa-use, ssa-use `:` type
+    ```
+
+    The `sgt` operation compares its signed integer arguments and returns 1
+    if `lhs` is greater than `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.sgt %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_GreaterThanUIOp : ComparisonUIntOp<"ugt"> {
+  let summary = "unsigned greater than";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.ugt` ssa-use, ssa-use `:` type
+    ```
+
+    The `ugt` operation compares its unsigned integer arguments and returns 1
+    if `lhs` is greater than `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.ugt %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_GreaterThanFOp : ComparisonFloatOp<"gtf"> {
+  let summary = "floating point greater than";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.gtf` ssa-use, ssa-use `:` type
+    ```
+
+    The `gtf` operation compares its floating point arguments and returns 1
+    if `lhs` is greater than `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.gtf %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_GreaterThanOrEqualSIOp : ComparisonSIntOp<"sge"> {
+  let summary = "signed greater than or equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.sge` ssa-use, ssa-use `:` type
+    ```
+
+    The `sge` operation compares its signed integer arguments and returns 1
+    if `lhs` is greater than or equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.sge %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_GreaterThanOrEqualUIOp : ComparisonUIntOp<"uge"> {
+  let summary = "unsigned greater than or equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.uge` ssa-use, ssa-use `:` type
+    ```
+
+    The `uge` operation compares its unsigned integer arguments and returns 1
+    if `lhs` is greater than or equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.uge %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_GreaterThanOrEqualFOp : ComparisonFloatOp<"gef"> {
+  let summary = "floating point greater than or equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.gef` ssa-use, ssa-use `:` type
+    ```
+
+    The `gef` operation compares its signed integer arguments and returns 1
+    if `lhs` is greater than or equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.gef %0, %1 : si32
+    ```
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//
