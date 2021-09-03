@@ -542,8 +542,11 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
                        air::GreaterThanOrEqualFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_EQ:
+    Result = builtinOp<air::EqualIOp, air::EqualFOp>(ResultType, Loc, RHS, LHS);
+    break;
   case BinaryOperatorKind::BO_NE:
-    // TODO: support comparison operators
+    Result = builtinOp<air::NotEqualIOp, air::NotEqualFOp>(ResultType, Loc, RHS,
+                                                           LHS);
     break;
   case BinaryOperatorKind::BO_AndAssign:
   case BinaryOperatorKind::BO_And:

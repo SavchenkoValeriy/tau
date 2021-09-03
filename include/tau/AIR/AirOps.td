@@ -269,6 +269,11 @@ class ComparisonOp<string mnemonic, list<OpTrait> traits = []> :
   ];
 }
 
+class ComparisonIntOp<string mnemonic, list<OpTrait> traits = []> :
+      ComparisonOp<mnemonic, traits> {
+  let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
+}
+
 class ComparisonSIntOp<string mnemonic, list<OpTrait> traits = []> :
       ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
@@ -544,6 +549,94 @@ def Air_GreaterThanOrEqualFOp : ComparisonFloatOp<"gef"> {
 
     ```mlir
     %a = air.gef %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_EqualIOp : ComparisonIntOp<"eqi"> {
+  let summary = "integer equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.eqi` ssa-use, ssa-use `:` type
+    ```
+
+    The `eqi` operation compares its floating point arguments and returns 1
+    if `lhs` is equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.eqi %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_EqualFOp : ComparisonFloatOp<"eqf"> {
+  let summary = "floating point equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.eqf` ssa-use, ssa-use `:` type
+    ```
+
+    The `eqf` operation compares its floating point arguments and returns 1
+    if `lhs` is equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.eqf %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_NotEqualIOp : ComparisonIntOp<"nei"> {
+  let summary = "integer not equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.nei` ssa-use, ssa-use `:` type
+    ```
+
+    The `nei` operation compares its floating point arguments and returns 1
+    if `lhs` is not equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.nei %0, %1 : si32
+    ```
+  }];
+}
+
+def Air_NotEqualFOp : ComparisonFloatOp<"nef"> {
+  let summary = "floating point not equal";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.nef` ssa-use, ssa-use `:` type
+    ```
+
+    The `nef` operation compares its floating point arguments and returns 1
+    if `lhs` is not equal `rhs`, and 0 otherwise. Operands are required to be
+    of the same type. The result type is boolean. Operation has no standard
+    attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.nef %0, %1 : si32
     ```
   }];
 }

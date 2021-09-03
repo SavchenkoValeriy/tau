@@ -60,3 +60,23 @@ bool test_gef(double a, double b) { return a >= b; }
 // CHECK-LABEL: @"bool test_gef(double a, double b)"
 // CHECK:         %[[#RES:]] = air.gef %[[#A:]], %[[#B:]] : f64
 // CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_eq(int a, int b) { return a == b; }
+// CHECK-LABEL: @"bool test_eq(int a, int b)"
+// CHECK:         %[[#RES:]] = air.eqi %[[#A:]], %[[#B:]] : si32
+// CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_eq(float a, float b) { return a == b; }
+// CHECK-LABEL: @"bool test_eq(float a, float b)"
+// CHECK:         %[[#RES:]] = air.eqf %[[#A:]], %[[#B:]] : f32
+// CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_ne(int a, int b) { return a != b; }
+// CHECK-LABEL: @"bool test_ne(int a, int b)"
+// CHECK:         %[[#RES:]] = air.nei %[[#A:]], %[[#B:]] : si32
+// CHECK-NEXT:    return %[[#RES]] : ui1
+
+bool test_ne(float a, float b) { return a != b; }
+// CHECK-LABEL: @"bool test_ne(float a, float b)"
+// CHECK:         %[[#RES:]] = air.nef %[[#A:]], %[[#B:]] : f32
+// CHECK-NEXT:    return %[[#RES]] : ui1
