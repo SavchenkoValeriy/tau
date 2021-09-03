@@ -140,5 +140,23 @@ bool BitcastOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          From.getIntOrFloatBitWidth() == To.getIntOrFloatBitWidth();
 }
 
+bool SExtOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
+  assert(Inputs.size() == 1 && Outputs.size() == 1 &&
+         "sext op expects one operand and result");
+  Type From = Inputs.front(), To = Outputs.front();
+
+  return From.isSignedInteger() && To.isSignedInteger() &&
+         From.getIntOrFloatBitWidth() < To.getIntOrFloatBitWidth();
+}
+
+bool ZExtOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
+  assert(Inputs.size() == 1 && Outputs.size() == 1 &&
+         "zext op expects one operand and result");
+  Type From = Inputs.front(), To = Outputs.front();
+
+  return From.isUnsignedInteger() && To.isUnsignedInteger() &&
+         From.getIntOrFloatBitWidth() < To.getIntOrFloatBitWidth();
+}
+
 #define GET_OP_CLASSES
 #include "tau/AIR/AirOps.cpp.inc"

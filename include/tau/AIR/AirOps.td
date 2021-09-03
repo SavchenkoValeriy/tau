@@ -765,6 +765,51 @@ def Air_BitcastOp : AirCastOp<"bitcast"> {
   }];
 }
 
+def Air_SExtOp : AirCastOp<"sext"> {
+  let summary = "signed extend operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.sext` ssa-use : type `to` type
+    ```
+
+    The integer sign extension operation takes an integer input of
+    width M and an integer destination type of width N. The destination
+    bit-width must be larger than the input bit-width (N > M).
+    The top-most (N - M) bits of the output are filled with copies
+    of the most-significant bit of the input.
+
+    Example:
+
+    ```mlir
+    %b = air.sext %a si32 to si64
+    ```
+  }];
+}
+
+def Air_ZExtOp : AirCastOp<"zext"> {
+  let summary = "zero extend operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.zext` ssa-use : type `to` type
+    ```
+
+    The integer zero extension operation takes an integer input of
+    width M and an integer destination type of width N. The destination
+    bit-width must be larger than the input bit-width (N > M).
+    The top-most (N - M) bits of the output are filled with zeros.
+
+    Example:
+
+    ```mlir
+    %b = air.zext %a ui32 to ui64
+    ```
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//

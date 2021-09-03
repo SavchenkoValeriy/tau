@@ -579,14 +579,6 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   return Result;
 }
 
-mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
-                                    IntegerType To) {
-  IntegerType From = Value.getType().cast<IntegerType>();
-  if (From.getWidth() == To.getWidth())
-    return Builder.create<air::BitcastOp>(Loc, To, Value);
-  return {};
-}
-
 template <class IntOp, class FloatOp, class... Args>
 mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
   if (OpType.isa<IntegerType>())
@@ -659,4 +651,14 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
   default:
     return {};
   }
+}
+
+mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
+                                    IntegerType To) {
+  IntegerType From = Value.getType().cast<IntegerType>();
+  if (From.getWidth() < To.getWidth())
+    return builtinIOp<air::SExtOp, air::ZExtOp>(To, Loc, To, Value);
+  if (From.getWidth() == To.getWidth())
+    return Builder.create<air::BitcastOp>(Loc, To, Value);
+  return {};
 }
