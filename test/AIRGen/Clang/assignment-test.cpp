@@ -76,6 +76,34 @@ void test_mulf() {
 // CHECK-NEXT:      %[[#RES:]] = mulf %[[#INIT]], %[[FCONST]] : f64
 // CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<f64>
 
+void test_sdiv() {
+  int a = 0;
+  a /= 42;
+}
+// CHECK-LABEL:   builtin.func @"void test_sdiv()"()
+// CHECK:           %[[#A:]] = air.alloca : !air.ptr<si32>
+// CHECK-DAG:       %[[#INIT:]] = air.load %[[#A]] : !air.ptr<si32>
+// CHECK-DAG:       %[[#CONST:]] = air.constant 42 : si32
+// CHECK-NEXT:      %[[#RES:]] = air.sdiv %[[#INIT]], %[[#CONST]] : si32
+// CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<si32>
+
+void test_udiv() {
+  // TODO: support integer casts
+  // unsigned a = 0;
+  // a /= 42;
+}
+
+void test_divf() {
+  double a = 0.0;
+  a /= 36.6;
+}
+// CHECK-LABEL:   builtin.func @"void test_divf()"()
+// CHECK:           %[[#A:]] = air.alloca : !air.ptr<f64>
+// CHECK-DAG:       %[[#INIT:]] = air.load %[[#A]] : !air.ptr<f64>
+// CHECK-DAG:       %[[FCONST:[^:blank]+]] = air.constant 3.660000e+01 : f64
+// CHECK-NEXT:      %[[#RES:]] = divf %[[#INIT]], %[[FCONST]] : f64
+// CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<f64>
+
 void test_xor() {
   int a = 0;
   a ^= 42;

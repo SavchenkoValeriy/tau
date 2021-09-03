@@ -81,6 +81,16 @@ class BinaryIntOp<string mnemonic, list<OpTrait> traits = []> :
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
+class BinarySIntOp<string mnemonic, list<OpTrait> traits = []> :
+      BinaryIntOp<mnemonic, traits> {
+  let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
+}
+
+class BinaryUIntOp<string mnemonic, list<OpTrait> traits = []> :
+      BinaryIntOp<mnemonic, traits> {
+  let arguments = (ins AnyUnsignedInteger:$lhs, AnyUnsignedInteger:$rhs);
+}
+
 def Air_AddIOp : BinaryIntOp<"addi", [Commutative]> {
   let summary = "integer addition operation";
   let description = [{
@@ -137,6 +147,46 @@ def Air_MulIOp : BinaryIntOp<"muli", [Commutative]> {
 
     ```mlir
     %a = air.muli %b, %c : si64
+    ```
+  }];
+}
+
+def Air_SignedDivIOp : BinarySIntOp<"sdiv"> {
+  let summary = "2's complement signed division";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.sdiv` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `sdiv` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.sdiv %b, %c : si64
+    ```
+  }];
+}
+
+def Air_UnsignedDivIOp : BinaryUIntOp<"udiv"> {
+  let summary = "unsigned integer division";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.udiv` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `udiv` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.udiv %b, %c : si64
     ```
   }];
 }

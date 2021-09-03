@@ -37,6 +37,24 @@ double test_mul(double a, double b) { return a * b; }
 // CHECK-NEXT:    return %[[#RES]] : f64
 // CHECK-NEXT:  }
 
+int test_div(int a, int b) { return a / b; }
+// CHECK:       builtin.func @"int test_div(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
+// CHECK:         %[[#RES:]] = air.sdiv %[[#LHS:]], %[[#RHS:]] : si32
+// CHECK-NEXT:    return %[[#RES]] : si32
+// CHECK-NEXT:  }
+
+unsigned test_div(unsigned a, unsigned b) { return a / b; }
+// CHECK:       builtin.func @"unsigned int test_div(unsigned int a, unsigned int b)"(%arg0: ui32, %arg1: ui32) -> ui32 {
+// CHECK:         %[[#RES:]] = air.udiv %[[#LHS:]], %[[#RHS:]] : ui32
+// CHECK-NEXT:    return %[[#RES]] : ui32
+// CHECK-NEXT:  }
+
+double test_div(double a, double b) { return a / b; }
+// CHECK:       builtin.func @"double test_div(double a, double b)"(%arg0: f64, %arg1: f64) -> f64 {
+// CHECK:         %[[#RES:]] = divf %[[#LHS:]], %[[#RHS:]] : f64
+// CHECK-NEXT:    return %[[#RES]] : f64
+// CHECK-NEXT:  }
+
 int test_sub(int a, int b) { return a - b; }
 // CHECK:       builtin.func @"int test_sub(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
 // CHECK:         %[[#RES:]] = air.subi %[[#LHS:]], %[[#RHS:]] : si32
