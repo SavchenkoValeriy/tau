@@ -6,7 +6,7 @@ int test_deref(int *a) { return *a; }
 // CHECK-NEXT:     %[[#A:]] = air.alloca : !air.ptr<!air.ptr<si32>>
 // CHECK:          %[[#A1:]] = air.load %[[#A]]
 // CHECK-NEXT:     %[[#A2:]] = air.load %[[#A1]]
-// CHECK-NEXT:     return %[[#A2]] : si32
+// CHECK-NEXT:     br ^bb[[#EXIT:]](%[[#A2]] : si32)
 
 void test_deref_assign(int *a) { *a = 42; }
 // CHECK-LABEL:  @"void test_deref_assign(int *a)"

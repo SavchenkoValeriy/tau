@@ -9,7 +9,7 @@ int test_pre_inc(int a) { return ++a; }
 // CHECK-NEXT:    %[[#SUM:]] = air.addi %[[#VAL]], %[[#ONE]] : si32
 // CHECK-NEXT:    air.store %[[#SUM]] -> %[[#A]] : !air.ptr<si32>
 // CHECK-NEXT:    %[[#VAL:]] = air.load %[[#A]] : !air.ptr<si32>
-// CHECK-NEXT:    return %[[#VAL]] : si32
+// CHECK-NEXT:    br ^bb[[#EXIT:]](%[[#VAL]] : si32)
 
 int test_post_inc(int a) { return a++; }
 // CHECK-LABEL: @"int test_post_inc(int a)"
@@ -18,7 +18,7 @@ int test_post_inc(int a) { return a++; }
 // CHECK-DAG:     %[[#VAL:]] = air.load %[[#A]] : !air.ptr<si32>
 // CHECK-NEXT:    %[[#SUM:]] = air.addi %[[#VAL]], %[[#ONE]] : si32
 // CHECK-NEXT:    air.store %[[#SUM]] -> %[[#A]] : !air.ptr<si32>
-// CHECK-NEXT:    return %[[#VAL]] : si32
+// CHECK-NEXT:    br ^bb[[#EXIT:]](%[[#VAL]] : si32)
 
 float test_pre_inc(float a) { return ++a; }
 // CHECK-LABEL: @"float test_pre_inc(float a)"
@@ -28,7 +28,7 @@ float test_pre_inc(float a) { return ++a; }
 // CHECK-NEXT:    %[[#SUM:]] = addf %[[#VAL]], %[[#ONE]] : f32
 // CHECK-NEXT:    air.store %[[#SUM]] -> %[[#A]] : !air.ptr<f32>
 // CHECK-NEXT:    %[[#VAL:]] = air.load %[[#A]] : !air.ptr<f32>
-// CHECK-NEXT:    return %[[#VAL]] : f32
+// CHECK-NEXT:    br ^bb[[#EXIT:]](%[[#VAL]] : f32)
 
 float test_post_inc(float a) { return a++; }
 // CHECK-LABEL: @"float test_post_inc(float a)"
@@ -37,4 +37,4 @@ float test_post_inc(float a) { return a++; }
 // CHECK-DAG:     %[[#VAL:]] = air.load %[[#A]] : !air.ptr<f32>
 // CHECK-NEXT:    %[[#SUM:]] = addf %[[#VAL]], %[[#ONE]] : f32
 // CHECK-NEXT:    air.store %[[#SUM]] -> %[[#A]] : !air.ptr<f32>
-// CHECK-NEXT:    return %[[#VAL]] : f32
+// CHECK-NEXT:    br ^bb[[#EXIT:]](%[[#VAL]] : f32)

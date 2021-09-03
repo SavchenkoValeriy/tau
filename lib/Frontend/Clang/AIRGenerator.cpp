@@ -23,6 +23,7 @@
 #include <mlir/IR/Types.h>
 #include <mlir/IR/Value.h>
 #include <mlir/IR/Verifier.h>
+#include <mlir/Interfaces/ControlFlowInterfaces.h>
 #include <utility>
 
 using namespace clang;
@@ -109,7 +110,10 @@ private:
         Context(Parent.getContext()), Builder(Parent.getBuilder()) {}
 
   void generate() {
-    Block *Entry = Target.addEntryBlock();
+    Entry = Target.addEntryBlock();
+    Exit = Target.addBlock();
+    handleExit();
+
     DeclScope ParamScope(Declarations);
 
     Builder.setInsertionPointToStart(Entry);
@@ -119,11 +123,24 @@ private:
     }
 
     Visit(Original.getBody());
-    if (needToAddExtraReturn(Entry))
-      Builder.create<mlir::ReturnOp>(Builder.getUnknownLoc());
+    if (needToAddExtraReturn())
+      Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Exit);
   }
 
-  bool needToAddExtraReturn(Block *BB) const {
+  void handleExit() {
+    Builder.setInsertionPointToStart(Exit);
+    mlir::Location Loc = Builder.getUnknownLoc();
+    if (Target.getNumResults() == 0)
+      Builder.create<mlir::ReturnOp>(Loc);
+    else {
+      BlockArgument ReturnValue =
+          Exit->addArgument(Target.getType().getResult(0));
+      Builder.create<mlir::ReturnOp>(Loc, ReturnValue);
+    }
+  }
+
+  bool needToAddExtraReturn() const {
+    Block *BB = Builder.getInsertionBlock();
     return Target.getNumResults() == 0 &&
            (BB->empty() || !BB->back().mightHaveTrait<OpTrait::IsTerminator>());
   }
@@ -167,6 +184,7 @@ private:
   using DeclMap = llvm::ScopedHashTable<const ValueDecl *, mlir::Value>;
   using DeclScope = DeclMap::ScopeTy;
   DeclMap Declarations;
+  Block *Entry, *Exit;
 };
 
 } // end anonymous namespace
@@ -331,9 +349,9 @@ mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
 mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
   mlir::Value Operand =
       Return->getRetValue() ? Visit(Return->getRetValue()) : mlir::Value{};
-  ReturnOp Result = Builder.create<mlir::ReturnOp>(
-      Parent.loc(Return->getSourceRange()),
-      Operand ? llvm::makeArrayRef(Operand) : ArrayRef<mlir::Value>());
+  Builder.create<mlir::BranchOp>(Parent.loc(Return->getSourceRange()), Exit,
+                                 Operand ? llvm::makeArrayRef(Operand)
+                                         : ArrayRef<mlir::Value>());
   return {};
 }
 
