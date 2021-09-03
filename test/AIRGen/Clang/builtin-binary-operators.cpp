@@ -62,9 +62,8 @@ int test_shr(int a, int b) { return a >> b; }
 // CHECK-NEXT:  }
 
 unsigned test_shr(unsigned a, unsigned b) { return a >> b; }
-// FIXME: it should be 'shift_right_unsigned'
 // CHECK:       builtin.func @"unsigned int test_shr(unsigned int a, unsigned int b)"(%arg0: ui32, %arg1: ui32) -> ui32 {
-// CHECK:         %[[#RES:]] = air.ashr %[[#LHS:]], %[[#RHS:]] : ui32
+// CHECK:         %[[#RES:]] = air.lshr %[[#LHS:]], %[[#RHS:]] : ui32
 // CHECK-NEXT:    return %[[#RES]] : ui32
 // CHECK-NEXT:  }
 

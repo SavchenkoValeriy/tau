@@ -96,6 +96,8 @@ public:
   template <class SignedIntOp, class UnsignedIntOp, class FloatOp,
             class... Args>
   mlir::Value builtinOp(mlir::Type OpType, Args &&...Rest);
+  template <class SignedIntOp, class UnsignedIntOp, class... Args>
+  mlir::Value builtinIOp(mlir::Type OpType, Args &&...Rest);
 
 private:
   FunctionGenerator(FuncOp &ToGenerate, const FunctionDecl &Original,
@@ -519,8 +521,8 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_ShrAssign:
   case BinaryOperatorKind::BO_Shr:
-    // TODO: support unsigned shift right op
-    Result = Builder.create<air::ArithmeticShiftRightOp>(Loc, LHS, RHS);
+    Result = builtinIOp<air::ArithmeticShiftRightOp, air::LogicalShiftRightOp>(
+        ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_Cmp:
     // TODO: support spaceship operator
@@ -587,12 +589,17 @@ mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
 
 template <class SignedIntOp, class UnsignedIntOp, class FloatOp, class... Args>
 mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
-  if (OpType.isa<IntegerType>()) {
-    if (OpType.isSignedInteger())
-      return Builder.create<SignedIntOp>(std::forward<Args>(Rest)...);
-    return Builder.create<UnsignedIntOp>(std::forward<Args>(Rest)...);
-  }
+  if (OpType.isa<IntegerType>())
+    return builtinIOp<SignedIntOp, UnsignedIntOp>(OpType,
+                                                  std::forward<Args>(Rest)...);
   return Builder.create<FloatOp>(std::forward<Args>(Rest)...);
+}
+
+template <class SignedIntOp, class UnsignedIntOp, class... Args>
+mlir::Value FunctionGenerator::builtinIOp(mlir::Type OpType, Args &&...Rest) {
+  if (OpType.isSignedInteger())
+    return Builder.create<SignedIntOp>(std::forward<Args>(Rest)...);
+  return Builder.create<UnsignedIntOp>(std::forward<Args>(Rest)...);
 }
 
 mlir::Value FunctionGenerator::VisitParenExpr(const ParenExpr *Paren) {
