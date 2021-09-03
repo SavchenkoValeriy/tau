@@ -341,12 +341,16 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
   for (const auto *D : DS->decls())
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
       mlir::Value Address = declare(Var);
+      mlir::Location Loc = Parent.loc(Var->getSourceRange());
+      mlir::Value Init;
       if (Var->getInit()) {
-        mlir::Value Init = Visit(Var->getInit());
-        store(Init, Address, Parent.loc(Var->getSourceRange()));
+        Init = Visit(Var->getInit());
       } else {
-        // TODO: support undefined value
+        Init = Builder.create<air::UndefOp>(
+            Loc,
+            Address.getType().cast<air::AirPointerType>().getElementType());
       }
+      store(Init, Address, Loc);
     }
   return {};
 }

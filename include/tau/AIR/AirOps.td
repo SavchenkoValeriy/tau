@@ -921,7 +921,7 @@ def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
     Syntax:
 
     ```
-    operation ::= ssa-id `=` `std.constant` attribute-value `:` type
+    operation ::= ssa-id `=` `air.constant` attribute-value `:` type
     ```
 
     The `constant` operation produces an SSA value equal to some constant
@@ -950,6 +950,30 @@ def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
 
   let printer = [{ return ::print(p, *this); }];
   let parser = [{ return ::parseConstantOp(parser, result); }];
+}
+
+def Air_UndefOp : Air_Op<"undef", [NoSideEffect]> {
+  let results = (outs AnyType:$res);
+
+  let summary = "undefined value";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.undef` `:` type
+    ```
+
+    This operation has no operands or attributes. It creates an undefined
+    value of the specified type.
+
+    Example:
+    ```mlir
+    // Undefined integer
+    %1 = "air.undef" : i32
+    ```
+  }];
+
+  let assemblyFormat = "attr-dict `:` type($res)";
 }
 
 
