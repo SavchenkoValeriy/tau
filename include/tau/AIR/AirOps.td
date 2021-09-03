@@ -191,6 +191,46 @@ def Air_UnsignedDivIOp : BinaryUIntOp<"udiv"> {
   }];
 }
 
+def Air_SignedRemIOp : BinarySIntOp<"srem"> {
+  let summary = "2's complement signed remainder";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.srem` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `srem` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.srem %b, %c : si64
+    ```
+  }];
+}
+
+def Air_UnsignedRemIOp : BinaryUIntOp<"urem"> {
+  let summary = "unsigned integer remainder";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.urem` ssa-use `,` ssa-use `:` type
+    ```
+
+    The `urem` operation takes two operands and returns one result, each of
+    these is required to be the same type. It has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = air.urem %b, %c : si64
+    ```
+  }];
+}
+
 def Air_XOrOp : BinaryIntOp<"xor", [Commutative]> {
   let summary = "integer binary xor";
   let description = [{

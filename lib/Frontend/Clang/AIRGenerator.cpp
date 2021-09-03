@@ -508,7 +508,8 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_RemAssign:
   case BinaryOperatorKind::BO_Rem:
-    // TODO: support signed and unsigned division
+    Result = builtinIOp<air::SignedRemIOp, air::UnsignedRemIOp>(ResultType, Loc,
+                                                                LHS, RHS);
     break;
   case BinaryOperatorKind::BO_AddAssign:
   case BinaryOperatorKind::BO_Add:

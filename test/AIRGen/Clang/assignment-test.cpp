@@ -104,6 +104,23 @@ void test_divf() {
 // CHECK-NEXT:      %[[#RES:]] = divf %[[#INIT]], %[[FCONST]] : f64
 // CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<f64>
 
+void test_srem() {
+  int a = 0;
+  a %= 42;
+}
+// CHECK-LABEL:   builtin.func @"void test_srem()"()
+// CHECK:           %[[#A:]] = air.alloca : !air.ptr<si32>
+// CHECK-DAG:       %[[#INIT:]] = air.load %[[#A]] : !air.ptr<si32>
+// CHECK-DAG:       %[[#CONST:]] = air.constant 42 : si32
+// CHECK-NEXT:      %[[#RES:]] = air.srem %[[#INIT]], %[[#CONST]] : si32
+// CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<si32>
+
+void test_urem() {
+  // TODO: support integer casts
+  // unsigned a = 0;
+  // a %= 42;
+}
+
 void test_xor() {
   int a = 0;
   a ^= 42;
