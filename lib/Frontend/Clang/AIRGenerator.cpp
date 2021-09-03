@@ -82,11 +82,14 @@ public:
 
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *Literal);
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *Literal);
-  mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
   mlir::Value VisitDeclRefExpr(const DeclRefExpr *Ref);
   mlir::Value VisitBinaryOperator(const BinaryOperator *BinExpr);
   mlir::Value VisitUnaryOperator(const UnaryOperator *UnExpr);
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
+
+  mlir::Value VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast);
+  mlir::Value VisitCStyleCastExpr(const CStyleCastExpr *Cast);
+  mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
 
   mlir::Value generateIncDec(mlir::Location Loc, mlir::Value Var, bool IsPre,
                              bool IsInc);
@@ -153,6 +156,8 @@ private:
   mlir::Value load(mlir::Value From, Location Loc) {
     return Builder.create<air::LoadOp>(Loc, From);
   }
+
+  mlir::Value cast(mlir::Location Loc, mlir::Value Value, IntegerType To);
 
   FuncOp &Target;
   const FunctionDecl &Original;
@@ -368,16 +373,6 @@ FunctionGenerator::VisitFloatingLiteral(const FloatingLiteral *Literal) {
       T.cast<FloatType>());
 }
 
-mlir::Value
-FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
-  switch (Cast->getCastKind()) {
-  case CastKind::CK_LValueToRValue:
-    return load(Visit(Cast->getSubExpr()), Parent.loc(Cast->getSourceRange()));
-  default:
-    return {};
-  }
-}
-
 mlir::Value FunctionGenerator::VisitDeclRefExpr(const DeclRefExpr *Ref) {
   return getPointer(Ref->getDecl());
 }
@@ -584,6 +579,14 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   return Result;
 }
 
+mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
+                                    IntegerType To) {
+  IntegerType From = Value.getType().cast<IntegerType>();
+  if (From.getWidth() == To.getWidth())
+    return Builder.create<air::BitcastOp>(Loc, To, Value);
+  return {};
+}
+
 template <class IntOp, class FloatOp, class... Args>
 mlir::Value FunctionGenerator::builtinOp(mlir::Type OpType, Args &&...Rest) {
   if (OpType.isa<IntegerType>())
@@ -609,4 +612,51 @@ mlir::Value FunctionGenerator::builtinIOp(mlir::Type OpType, Args &&...Rest) {
 mlir::Value FunctionGenerator::VisitParenExpr(const ParenExpr *Paren) {
   // We don't care abou parentheses at this point
   return Visit(Paren->getSubExpr());
+}
+
+//===----------------------------------------------------------------------===//
+//                               Cast expressions
+//===----------------------------------------------------------------------===//
+
+mlir::Value
+FunctionGenerator::VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast) {
+  mlir::Value Sub = Visit(Cast->getSubExpr());
+  mlir::Location Loc = Parent.loc(Cast->getSourceRange());
+  mlir::Type To = Parent.getType(Cast->getType());
+
+  switch (Cast->getCastKind()) {
+  case CastKind::CK_NoOp:
+    return Sub;
+  default:
+    return {};
+  }
+}
+
+mlir::Value FunctionGenerator::VisitCStyleCastExpr(const CStyleCastExpr *Cast) {
+  mlir::Value Sub = Visit(Cast->getSubExpr());
+  mlir::Location Loc = Parent.loc(Cast->getSourceRange());
+  mlir::Type To = Parent.getType(Cast->getType());
+
+  switch (Cast->getCastKind()) {
+  case CastKind::CK_NoOp:
+    return Sub;
+  default:
+    return {};
+  }
+}
+
+mlir::Value
+FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
+  mlir::Value Sub = Visit(Cast->getSubExpr());
+  mlir::Location Loc = Parent.loc(Cast->getSourceRange());
+  mlir::Type To = Parent.getType(Cast->getType());
+
+  switch (Cast->getCastKind()) {
+  case CastKind::CK_LValueToRValue:
+    return load(Sub, Loc);
+  case CastKind::CK_IntegralCast:
+    return cast(Loc, Sub, To.cast<IntegerType>());
+  default:
+    return {};
+  }
 }

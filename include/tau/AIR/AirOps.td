@@ -14,6 +14,7 @@
 
 include "AirDialect.td"
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/CastInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 //                               Unary operations
@@ -727,6 +728,39 @@ def Air_NotEqualFOp : ComparisonFloatOp<"nef", [Commutative]> {
 
     ```mlir
     %a = air.nef %0, %1 : si32
+    ```
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+//                           Integer cast operations
+//===----------------------------------------------------------------------===//
+
+class AirCastOp<string mnemonic, list<OpTrait> traits = []> :
+    Air_Op<mnemonic, traits # [
+      NoSideEffect, SameOperandsAndResultShape,
+      DeclareOpInterfaceMethods<CastOpInterface>]> {
+  let arguments = (ins AnyType:$source);
+  let results = (outs AnyType:$dest);
+  let assemblyFormat = "attr-dict $source `:` type($source) `to` type($dest)";
+}
+
+def Air_BitcastOp : AirCastOp<"bitcast"> {
+  let summary = "bitcast operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.bitcast` ssa-use : type `to` type
+    ```
+
+    Bitcast an integer or floating point value to an integer or floating point
+    value of equal bit width. When operating on vectors, casts elementwise.
+
+    Example:
+
+    ```mlir
+    %b = air.bitcast %a ui32 to si32
     ```
   }];
 }

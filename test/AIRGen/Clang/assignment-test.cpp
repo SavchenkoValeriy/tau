@@ -88,10 +88,16 @@ void test_sdiv() {
 // CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<si32>
 
 void test_udiv() {
-  // TODO: support integer casts
-  // unsigned a = 0;
-  // a /= 42;
+  unsigned a = 0;
+  a /= 42;
 }
+// CHECK-LABEL:   builtin.func @"void test_udiv()"()
+// CHECK:           %[[#A:]] = air.alloca : !air.ptr<ui32>
+// CHECK-DAG:       %[[#INIT:]] = air.load %[[#A]] : !air.ptr<ui32>
+// CHECK-DAG:       %[[#CONST:]] = air.constant 42 : si32
+// CHECK-DAG:       %[[#UCONST:]] = air.bitcast %[[#CONST]] : si32 to ui32
+// CHECK-NEXT:      %[[#RES:]] = air.udiv %[[#INIT]], %[[#UCONST]] : ui32
+// CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<ui32>
 
 void test_divf() {
   double a = 0.0;
@@ -116,10 +122,16 @@ void test_srem() {
 // CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<si32>
 
 void test_urem() {
-  // TODO: support integer casts
-  // unsigned a = 0;
-  // a %= 42;
+  unsigned a = 0;
+  a %= 42;
 }
+// CHECK-LABEL:   builtin.func @"void test_urem()"()
+// CHECK:           %[[#A:]] = air.alloca : !air.ptr<ui32>
+// CHECK-DAG:       %[[#INIT:]] = air.load %[[#A]] : !air.ptr<ui32>
+// CHECK-DAG:       %[[#CONST:]] = air.constant 42 : si32
+// CHECK-DAG:       %[[#UCONST:]] = air.bitcast %[[#CONST]] : si32 to ui32
+// CHECK-NEXT:      %[[#RES:]] = air.urem %[[#INIT]], %[[#UCONST]] : ui32
+// CHECK-NEXT:      air.store %[[#RES]] -> %[[#A]] : !air.ptr<ui32>
 
 void test_xor() {
   int a = 0;
