@@ -15,6 +15,7 @@
 include "AirDialect.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/CastInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 //                               Unary operations
@@ -729,6 +730,137 @@ def Air_NotEqualFOp : ComparisonFloatOp<"nef", [Commutative]> {
     ```mlir
     %a = air.nef %0, %1 : si32
     ```
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+//                              Conditional branch
+//===----------------------------------------------------------------------===//
+
+def CondBranchOp : Air_Op<"cond_br",
+    [AttrSizedOperandSegments,
+     DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
+     NoSideEffect, Terminator]> {
+  let summary = "conditional branch operation";
+  let description = [{
+    The `cond_br` terminator operation represents a conditional branch on a
+    boolean (1-bit integer) value. If the bit is set, then the first destination
+    is jumped to; if it is false, the second destination is chosen. The count
+    and types of operands must align with the arguments in the corresponding
+    target blocks.
+
+    The MLIR conditional branch operation is not allowed to target the entry
+    block for a region. The two destinations of the conditional branch operation
+    are allowed to be the same.
+
+    The following example illustrates a function with a conditional branch
+    operation that targets the same block.
+
+    Example:
+
+    ```mlir
+    func @select(%a: i32, %b: i32, %flag: i1) -> i32 {
+      // Both targets are the same, operands differ
+      cond_br %flag, ^bb1(%a : i32), ^bb1(%b : i32)
+
+    ^bb1(%x : i32) :
+      return %x : i32
+    }
+    ```
+  }];
+
+  let arguments = (ins UI1:$condition,
+                       Variadic<AnyType>:$trueDestOperands,
+                       Variadic<AnyType>:$falseDestOperands);
+  let successors = (successor AnySuccessor:$trueDest, AnySuccessor:$falseDest);
+
+  let builders = [
+    OpBuilder<(ins "mlir::Value":$condition, "mlir::Block *":$trueDest,
+      "mlir::ValueRange":$trueOperands, "mlir::Block *":$falseDest,
+      "mlir::ValueRange":$falseOperands), [{
+      build($_builder, $_state, condition, trueOperands, falseOperands, trueDest,
+            falseDest);
+    }]>,
+    OpBuilder<(ins "mlir::Value":$condition, "mlir::Block *":$trueDest,
+      "mlir::Block *":$falseDest, CArg<"mlir::ValueRange", "{}">:$falseOperands), [{
+      build($_builder, $_state, condition, trueDest, ValueRange(), falseDest,
+            falseOperands);
+    }]>];
+
+  // CondBranchOp is fully verified by traits.
+  let verifier = ?;
+
+  let extraClassDeclaration = [{
+    // These are the indices into the dests list.
+    enum { TrueIndex = 0, FalseIndex = 1 };
+
+    // The condition operand is the first operand in the list.
+    mlir::Value getCondition() { return getOperand(0); }
+
+    /// Return the destination if the condition is true.
+    mlir::Block *getTrueDest() {
+      return getSuccessor(TrueIndex);
+    }
+
+    /// Return the destination if the condition is false.
+    mlir::Block *getFalseDest() {
+      return getSuccessor(FalseIndex);
+    }
+
+    // Accessors for operands to the 'true' destination.
+    mlir::Value getTrueOperand(unsigned idx) {
+      assert(idx < getNumTrueOperands());
+      return getOperand(getTrueDestOperandIndex() + idx);
+    }
+
+    void setTrueOperand(unsigned idx, mlir::Value value) {
+      assert(idx < getNumTrueOperands());
+      setOperand(getTrueDestOperandIndex() + idx, value);
+    }
+
+    operand_range getTrueOperands() { return trueDestOperands(); }
+
+    unsigned getNumTrueOperands()  { return getTrueOperands().size(); }
+
+    /// Erase the operand at 'index' from the true operand list.
+    void eraseTrueOperand(unsigned index)  {
+      trueDestOperandsMutable().erase(index);
+    }
+
+    // Accessors for operands to the 'false' destination.
+    mlir::Value getFalseOperand(unsigned idx) {
+      assert(idx < getNumFalseOperands());
+      return getOperand(getFalseDestOperandIndex() + idx);
+    }
+    void setFalseOperand(unsigned idx, mlir::Value value) {
+      assert(idx < getNumFalseOperands());
+      setOperand(getFalseDestOperandIndex() + idx, value);
+    }
+
+    operand_range getFalseOperands() { return falseDestOperands(); }
+
+    unsigned getNumFalseOperands() { return getFalseOperands().size(); }
+
+    /// Erase the operand at 'index' from the false operand list.
+    void eraseFalseOperand(unsigned index) {
+      falseDestOperandsMutable().erase(index);
+    }
+
+  private:
+    /// Get the index of the first true destination operand.
+    unsigned getTrueDestOperandIndex() { return 1; }
+
+    /// Get the index of the first false destination operand.
+    unsigned getFalseDestOperandIndex() {
+      return getTrueDestOperandIndex() + getNumTrueOperands();
+    }
+  }];
+
+  let assemblyFormat = [{
+    $condition `,`
+    $trueDest (`(` $trueDestOperands^ `:` type($trueDestOperands) `)`)? `,`
+    $falseDest (`(` $falseDestOperands^ `:` type($falseDestOperands) `)`)?
+    attr-dict
   }];
 }
 

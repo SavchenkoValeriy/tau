@@ -167,5 +167,22 @@ bool TruncateOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          From.getIntOrFloatBitWidth() > To.getIntOrFloatBitWidth();
 }
 
+//===----------------------------------------------------------------------===//
+//                              Conditional branch
+//===----------------------------------------------------------------------===//
+
+Optional<MutableOperandRange>
+CondBranchOp::getMutableSuccessorOperands(unsigned Index) {
+  assert(Index < getNumSuccessors() && "invalid successor index");
+  return Index == TrueIndex ? trueDestOperandsMutable()
+                            : falseDestOperandsMutable();
+}
+
+Block *CondBranchOp::getSuccessorForOperands(ArrayRef<Attribute> Operands) {
+  if (IntegerAttr CondAttr = Operands.front().dyn_cast_or_null<IntegerAttr>())
+    return CondAttr.getValue().isOneValue() ? trueDest() : falseDest();
+  return nullptr;
+}
+
 #define GET_OP_CLASSES
 #include "tau/AIR/AirOps.cpp.inc"

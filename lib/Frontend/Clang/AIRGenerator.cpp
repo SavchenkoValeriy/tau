@@ -88,6 +88,8 @@ public:
   mlir::Value VisitUnaryOperator(const UnaryOperator *UnExpr);
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
 
+  mlir::Value VisitIfStmt(const IfStmt *If);
+
   mlir::Value VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast);
   mlir::Value VisitCStyleCastExpr(const CStyleCastExpr *Cast);
   mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
@@ -686,4 +688,53 @@ mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
     return Builder.create<air::TruncateOp>(Loc, To, Value);
 
   return Builder.create<air::BitcastOp>(Loc, To, Value);
+}
+
+//===----------------------------------------------------------------------===//
+//                           Control flow statements
+//===----------------------------------------------------------------------===//
+
+mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
+  DeclScope IfVariableScope(Declarations);
+  mlir::Value Cond = Visit(If->getCond());
+  mlir::Location Loc = Parent.loc(If->getSourceRange());
+
+  // Here we deal with at least three basic blocks (potentially four):
+  //   * current basic block where we encountered the if
+  Block *IfBlock = Builder.getBlock();
+  //   * basic block for the true branch
+  Block *Then = Target.addBlock();
+  //   * basic block for the code after if-then-else
+  Block *Next = Target.addBlock();
+  //   * basic block for the false branch
+  Block *Else = Next;
+
+  auto AddBranchIfNeeded = [&Next, this](Block *BB) {
+    // Block can have early exits in them and might not need a branch to Next
+    if (BB->hasNoSuccessors())
+      Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Next);
+  };
+
+  // Handle true branch.
+  Builder.setInsertionPointToStart(Then);
+  Visit(If->getThen());
+  AddBranchIfNeeded(Then);
+
+  // Handle false branch.
+  if (If->getElse()) {
+    Else = Target.addBlock();
+    Builder.setInsertionPointToStart(Else);
+    Visit(If->getElse());
+    AddBranchIfNeeded(Else);
+  }
+
+  // Now, when we have all the pieces in place, we can come back to the
+  // original basic block...
+  Builder.setInsertionPointToEnd(IfBlock);
+  // ...create conditional branch...
+  Builder.create<air::CondBranchOp>(Loc, Cond, Then, Else);
+  // ...and continue with the rest of the function.
+  Builder.setInsertionPointToStart(Next);
+
+  return {};
 }
