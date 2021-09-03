@@ -553,7 +553,7 @@ def Air_GreaterThanOrEqualFOp : ComparisonFloatOp<"gef"> {
   }];
 }
 
-def Air_EqualIOp : ComparisonIntOp<"eqi"> {
+def Air_EqualIOp : ComparisonIntOp<"eqi", [Commutative]> {
   let summary = "integer equal";
   let description = [{
     Syntax:
@@ -575,7 +575,7 @@ def Air_EqualIOp : ComparisonIntOp<"eqi"> {
   }];
 }
 
-def Air_EqualFOp : ComparisonFloatOp<"eqf"> {
+def Air_EqualFOp : ComparisonFloatOp<"eqf", [Commutative]> {
   let summary = "floating point equal";
   let description = [{
     Syntax:
@@ -597,7 +597,7 @@ def Air_EqualFOp : ComparisonFloatOp<"eqf"> {
   }];
 }
 
-def Air_NotEqualIOp : ComparisonIntOp<"nei"> {
+def Air_NotEqualIOp : ComparisonIntOp<"nei", [Commutative]> {
   let summary = "integer not equal";
   let description = [{
     Syntax:
@@ -619,7 +619,7 @@ def Air_NotEqualIOp : ComparisonIntOp<"nei"> {
   }];
 }
 
-def Air_NotEqualFOp : ComparisonFloatOp<"nef"> {
+def Air_NotEqualFOp : ComparisonFloatOp<"nef", [Commutative]> {
   let summary = "floating point not equal";
   let description = [{
     Syntax:
