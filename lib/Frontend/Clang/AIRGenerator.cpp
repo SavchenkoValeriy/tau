@@ -125,8 +125,13 @@ private:
     }
 
     Visit(Original.getBody());
-    if (needToAddExtraReturn())
+    Block *CurrentBlock = Builder.getBlock();
+
+    if (needToAddExtraReturn(CurrentBlock))
       Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Exit);
+
+    if (CurrentBlock->hasNoPredecessors() && CurrentBlock != Entry)
+      CurrentBlock->erase();
   }
 
   void handleExit() {
@@ -141,8 +146,7 @@ private:
     }
   }
 
-  bool needToAddExtraReturn() const {
-    Block *BB = Builder.getInsertionBlock();
+  bool needToAddExtraReturn(Block *BB) const {
     return Target.getNumResults() == 0 &&
            (BB->empty() || !BB->back().mightHaveTrait<OpTrait::IsTerminator>());
   }
@@ -696,6 +700,13 @@ mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
 
 mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
   DeclScope IfVariableScope(Declarations);
+
+  if (If->getConditionVariableDeclStmt())
+    Visit(If->getConditionVariableDeclStmt());
+
+  if (If->getInit())
+    Visit(If->getInit());
+
   mlir::Value Cond = Visit(If->getCond());
   mlir::Location Loc = Parent.loc(If->getSourceRange());
 

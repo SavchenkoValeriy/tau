@@ -42,3 +42,41 @@ int test_early_return(int a) {
   // CHECK-NEXT:      br ^bb[[#EXIT:]](%[[#CONST:]] : si32)
   return 42;
 }
+
+bool test_var_decl(int a) {
+  // CHECK-LABEL:   @"bool test_var_decl(int a)"
+  // CHECK-DAG:       %[[#EQ:]] = air.eqi
+  // CHECK-NEXT:      air.store %[[#EQ]] -> %[[#B:]]
+  // CHECK-DAG:       %[[#COND:]] = air.load %[[#B]]
+  // CHECK-NEXT:      air.cond_br %[[#COND]], ^bb[[#THEN:]], ^bb[[#ELSE:]]
+  if (bool b = a == 1) {
+    // CHECK-DAG:     ^bb[[#THEN]]:
+    // CHECK-NEXT:      %[[#VAL:]] = air.load %[[#B]]
+    // CHECK-NEXT:      br ^bb[[#EXIT:]](%[[#VAL]] : ui1)
+    return b;
+  } else {
+    // CHECK-DAG:     ^bb[[#ELSE]]:
+    // CHECK-NEXT:      %[[#VAL:]] = air.load %[[#B]]
+    // CHECK-NEXT:      br ^bb[[#EXIT:]](%[[#VAL]] : ui1)
+    return b;
+  }
+}
+
+int test_var_decl2(int a) {
+  // CHECK-LABEL:   @"int test_var_decl2(int a)"
+  // CHECK-DAG:       %[[#ADD:]] = air.addi
+  // CHECK-NEXT:      air.store %[[#ADD]] -> %[[#B:]]
+  // CHECK-DAG:       %[[#COND:]] = air.eqi
+  // CHECK-NEXT:      air.cond_br %[[#COND]], ^bb[[#THEN:]], ^bb[[#ELSE:]]
+  if (int b = a + 1; b == 42) {
+    // CHECK-DAG:     ^bb[[#THEN]]:
+    // CHECK-NEXT:      %[[#VAL:]] = air.load %[[#B]]
+    // CHECK-NEXT:      br ^bb[[#EXIT:]](%[[#VAL]] : si32)
+    return b;
+  } else {
+    // CHECK-DAG:     ^bb[[#ELSE]]:
+    // CHECK-NEXT:      %[[#VAL:]] = air.load %[[#B]]
+    // CHECK-NEXT:      br ^bb[[#EXIT:]](%[[#VAL]] : si32)
+    return b;
+  }
+}
