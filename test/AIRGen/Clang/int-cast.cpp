@@ -37,3 +37,18 @@ unsigned long test_static_ui32_to_ui64(unsigned a) {
 // CHECK-LABEL:   @"unsigned long test_static_ui32_to_ui64(unsigned int a)"
 // CHECK:           %[[#RES:]] = air.zext %[[#INP:]] : ui32 to ui64
 // CHECK-NEXT:      return %[[#RES]] : ui64
+
+int test_implicit_si64_to_si32(long a) { return a; }
+// CHECK-LABEL:   @"int test_implicit_si64_to_si32(long a)"
+// CHECK:           %[[#RES:]] = air.trunc %[[#INP:]] : si64 to si32
+// CHECK-NEXT:      return %[[#RES]] : si32
+
+int test_cstyle_si64_to_si32(long a) { return (int)a; }
+// CHECK-LABEL:   @"int test_cstyle_si64_to_si32(long a)"
+// CHECK:           %[[#RES:]] = air.trunc %[[#INP:]] : si64 to si32
+// CHECK-NEXT:      return %[[#RES]] : si32
+
+int test_static_si64_to_si32(long a) { return static_cast<int>(a); }
+// CHECK-LABEL:   @"int test_static_si64_to_si32(long a)"
+// CHECK:           %[[#RES:]] = air.trunc %[[#INP:]] : si64 to si32
+// CHECK-NEXT:      return %[[#RES]] : si32

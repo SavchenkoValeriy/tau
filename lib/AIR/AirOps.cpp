@@ -158,5 +158,14 @@ bool ZExtOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          From.getIntOrFloatBitWidth() < To.getIntOrFloatBitWidth();
 }
 
+bool TruncateOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
+  assert(Inputs.size() == 1 && Outputs.size() == 1 &&
+         "trunc op expects one operand and result");
+  Type From = Inputs.front(), To = Outputs.front();
+
+  return From.isIntOrFloat() && To.isIntOrFloat() &&
+         From.getIntOrFloatBitWidth() > To.getIntOrFloatBitWidth();
+}
+
 #define GET_OP_CLASSES
 #include "tau/AIR/AirOps.cpp.inc"

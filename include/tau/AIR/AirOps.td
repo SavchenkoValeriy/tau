@@ -810,6 +810,30 @@ def Air_ZExtOp : AirCastOp<"zext"> {
   }];
 }
 
+def Air_TruncateOp : AirCastOp<"trunc"> {
+  let summary = "integer truncation operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.zext` ssa-use : type `to` type
+    ```
+
+    The integer truncation operation takes an integer input of
+    width M and an integer destination type of width N. The destination
+    bit-width must be smaller than the input bit-width (N < M).
+    The top-most (N - M) bits of the input are discarded.
+
+    Example:
+
+    ```mlir
+      %1 = air.constant 21 : ui5           // %1 is 0b10101
+      %2 = air.trunc %1 : ui5 to ui4       // %2 is 0b0101
+      %3 = air.trunc %1 : ui5 to ui3       // %3 is 0b101
+    ```
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 //                              Memory operations
 //===----------------------------------------------------------------------===//
