@@ -145,7 +145,7 @@ bool SExtOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          "sext op expects one operand and result");
   Type From = Inputs.front(), To = Outputs.front();
 
-  return From.isSignedInteger() && To.isSignedInteger() &&
+  return From.isSignedInteger() && To.isa<IntegerType>() &&
          From.getIntOrFloatBitWidth() < To.getIntOrFloatBitWidth();
 }
 
@@ -154,7 +154,7 @@ bool ZExtOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          "zext op expects one operand and result");
   Type From = Inputs.front(), To = Outputs.front();
 
-  return From.isUnsignedInteger() && To.isUnsignedInteger() &&
+  return From.isUnsignedInteger() && To.isa<IntegerType>() &&
          From.getIntOrFloatBitWidth() < To.getIntOrFloatBitWidth();
 }
 

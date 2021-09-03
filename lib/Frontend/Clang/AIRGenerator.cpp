@@ -686,7 +686,7 @@ mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
   IntegerType From = Value.getType().cast<IntegerType>();
 
   if (From.getWidth() < To.getWidth())
-    return builtinIOp<air::SExtOp, air::ZExtOp>(To, Loc, To, Value);
+    return builtinIOp<air::SExtOp, air::ZExtOp>(From, Loc, To, Value);
 
   if (From.getWidth() > To.getWidth())
     return Builder.create<air::TruncateOp>(Loc, To, Value);
