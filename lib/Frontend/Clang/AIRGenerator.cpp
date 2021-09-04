@@ -89,6 +89,7 @@ public:
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
 
   mlir::Value VisitIfStmt(const IfStmt *If);
+  mlir::Value VisitWhileStmt(const WhileStmt *While);
 
   mlir::Value VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast);
   mlir::Value VisitCStyleCastExpr(const CStyleCastExpr *Cast);
@@ -147,8 +148,11 @@ private:
   }
 
   bool needToAddExtraReturn(Block *BB) const {
-    return Target.getNumResults() == 0 &&
-           (BB->empty() || !BB->back().mightHaveTrait<OpTrait::IsTerminator>());
+    return Target.getNumResults() == 0 && hasNoTerminator(BB);
+  }
+
+  static bool hasNoTerminator(Block *BB) {
+    return BB->empty() || !BB->back().mightHaveTrait<OpTrait::IsTerminator>();
   }
 
   mlir::Value declare(const ValueDecl *D) {
@@ -745,6 +749,54 @@ mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
   // ...create conditional branch...
   Builder.create<air::CondBranchOp>(Loc, Cond, Then, Else);
   // ...and continue with the rest of the function.
+  Builder.setInsertionPointToStart(Next);
+
+  return {};
+}
+
+mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
+  DeclScope WhileVariableScope(Declarations);
+
+  // Here we deal with three basic blocks:
+  //   * basic block for the header of the loop
+  Block *Header = Target.addBlock();
+  //   * basic block for the loop's body
+  Block *Body = Target.addBlock();
+  //   * basic block for the code after the loop
+  Block *Next = Target.addBlock();
+
+  // First, let's generate the loop's header.
+  Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Header);
+  Builder.setInsertionPointToStart(Header);
+
+  // Loop variables...
+  if (While->getConditionVariableDeclStmt())
+    Visit(While->getConditionVariableDeclStmt());
+
+  // ...and conditions belong to the header.
+  mlir::Value Cond = Visit(While->getCond());
+  mlir::Location Loc = Parent.loc(While->getSourceRange());
+
+  // If condition is true, we should proceed with the loop's
+  // body, and skip it otherwise.
+  Builder.create<air::CondBranchOp>(Loc, Cond, Body, Next);
+
+  // Generate the body.
+  Builder.setInsertionPointToStart(Body);
+  Visit(While->getBody());
+
+  // Let's check if the current block even needed.
+  Block *Current = Builder.getBlock();
+  if (Current->hasNoPredecessors())
+    Current->erase();
+
+  // And if yes, we might need to put a jump to the header block.
+  else if (hasNoTerminator(Current)) {
+    Builder.setInsertionPointToEnd(Body);
+    Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Header);
+  }
+
+  // All further generation should happen here.
   Builder.setInsertionPointToStart(Next);
 
   return {};
