@@ -11,11 +11,14 @@
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Basic/SourceManager.h>
 #include <immer/map.hpp>
+#include <iterator>
 #include <llvm/ADT/None.h>
+#include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/Builders.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/Location.h>
@@ -55,11 +58,16 @@ public:
   mlir::Location loc(clang::SourceRange);
   mlir::Location loc(clang::SourceLocation);
 
+  FuncOp getFunctionByDecl(const FunctionDecl *F) {
+    return Functions.lookup(F);
+  }
+
   ModuleOp &getModule() { return Module; }
   OpBuilder &getBuilder() { return Builder; }
   ASTContext &getContext() { return Context; }
 
 private:
+  DenseMap<const FunctionDecl *, FuncOp> Functions;
   ModuleOp Module;
   OpBuilder Builder;
   ASTContext &Context;
@@ -81,6 +89,7 @@ public:
   mlir::Value VisitReturnStmt(const ReturnStmt *Return);
   mlir::Value VisitDeclStmt(const DeclStmt *DS);
 
+  mlir::Value VisitCallExpr(const CallExpr *Call);
   mlir::Value VisitIntegerLiteral(const IntegerLiteral *Literal);
   mlir::Value VisitFloatingLiteral(const FloatingLiteral *Literal);
   mlir::Value VisitDeclRefExpr(const DeclRefExpr *Ref);
@@ -185,6 +194,14 @@ private:
   }
 
   mlir::Value cast(mlir::Location Loc, mlir::Value Value, IntegerType To);
+
+  using Values = SmallVector<mlir::Value, 8>;
+  template <class RangeTy> Values visitRange(RangeTy &&Range) {
+    Values Result;
+    llvm::transform(Range, std::back_inserter(Result),
+                    [this](const Stmt *S) { return Visit(S); });
+    return Result;
+  }
 
   FuncOp &Target;
   const FunctionDecl &Original;
@@ -333,7 +350,11 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
 
   auto Result = FuncOp::create(loc(F->getSourceRange()), Name,
                                Builder.getFunctionType(ArgTypes, ReturnType));
+  // It is important to do this BEFORE we generate function's body
+  // because of possible recursions.
+  Functions[F] = Result;
   FunctionGenerator::generate(Result, *F, *this);
+
   Module.push_back(Result);
 }
 
@@ -386,6 +407,23 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
 //===----------------------------------------------------------------------===//
 //                                 Expressions
 //===----------------------------------------------------------------------===//
+
+mlir::Value FunctionGenerator::VisitCallExpr(const CallExpr *Call) {
+  if (const FunctionDecl *DirectCallee = Call->getDirectCallee()) {
+
+    FuncOp Callee = Parent.getFunctionByDecl(DirectCallee);
+    Values Args = visitRange(Call->arguments());
+
+    auto Result = Builder.create<mlir::CallOp>(
+        Parent.loc(Call->getSourceRange()), Callee, Args);
+
+    // Return result of the call if the call has any.
+    // We couldn't have more than one result by construction.
+    return Result.getNumResults() != 0 ? Result.getResult(0) : mlir::Value{};
+  }
+  // TODO: support indirect calls
+  return {};
+}
 
 mlir::Value
 FunctionGenerator::VisitIntegerLiteral(const IntegerLiteral *Literal) {
