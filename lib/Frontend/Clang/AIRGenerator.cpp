@@ -9,6 +9,7 @@
 #include <clang/AST/Expr.h>
 #include <clang/AST/OperationKinds.h>
 #include <clang/AST/StmtVisitor.h>
+#include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
 #include <immer/map.hpp>
 #include <iterator>
@@ -49,14 +50,21 @@ public:
   void generateNamespace(const NamespaceDecl *NS);
   void generateRecord(const RecordDecl *RD);
 
-  mlir::Type getType(clang::QualType);
+  inline mlir::Type type(clang::QualType);
+  template <class NodeTy> mlir::Type type(const NodeTy *Node) {
+    return type(Node->getType());
+  }
+
   mlir::Type getPointerType(clang::QualType);
   mlir::Type getBuiltinType(clang::QualType);
 
   ShortString getFullyQualifiedName(const NamedDecl *ND);
 
-  mlir::Location loc(clang::SourceRange);
-  mlir::Location loc(clang::SourceLocation);
+  inline mlir::Location loc(clang::SourceRange);
+  inline mlir::Location loc(clang::SourceLocation);
+  template <class NodeTy> mlir::Location loc(const NodeTy *Node) {
+    return loc(Node->getSourceRange());
+  }
 
   FuncOp getFunctionByDecl(const FunctionDecl *F) {
     return Functions.lookup(F);
@@ -131,7 +139,7 @@ private:
     Builder.setInsertionPointToStart(Entry);
     for (const auto &[Param, BlockArg] :
          llvm::zip(Original.parameters(), Entry->getArguments())) {
-      store(BlockArg, declare(Param), Parent.loc(Param->getSourceRange()));
+      store(BlockArg, declare(Param), loc(Param));
     }
 
     Visit(Original.getBody());
@@ -167,8 +175,7 @@ private:
   mlir::Value declare(const ValueDecl *D) {
     // TODO: support array types
     mlir::Value StackVar = Builder.create<air::AllocaOp>(
-        Parent.loc(D->getSourceRange()),
-        air::AirPointerType::get(Parent.getType(D->getType())), mlir::Value{});
+        loc(D), air::AirPointerType::get(type(D)), mlir::Value{});
     Declarations.insert(D, StackVar);
     return StackVar;
   }
@@ -201,6 +208,13 @@ private:
     llvm::transform(Range, std::back_inserter(Result),
                     [this](const Stmt *S) { return Visit(S); });
     return Result;
+  }
+
+  template <class SmthWithLoc> mlir::Location loc(SmthWithLoc &&Object) {
+    return Parent.loc(std::forward<SmthWithLoc>(Object));
+  }
+  template <class SmthWithType> mlir::Type type(SmthWithType &&Object) {
+    return Parent.type(std::forward<SmthWithType>(Object));
   }
 
   FuncOp &Target;
@@ -249,7 +263,7 @@ mlir::Location TopLevelGenerator::loc(clang::SourceLocation L) {
 //                                    Types
 //===----------------------------------------------------------------------===//
 
-mlir::Type TopLevelGenerator::getType(clang::QualType T) {
+mlir::Type TopLevelGenerator::type(clang::QualType T) {
   switch (T->getTypeClass()) {
   case clang::Type::Pointer:
     return getPointerType(T);
@@ -283,7 +297,7 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
 }
 
 mlir::Type TopLevelGenerator::getPointerType(clang::QualType T) {
-  mlir::Type NestedType = getType(T->getPointeeType());
+  mlir::Type NestedType = type(T->getPointeeType());
   return air::AirPointerType::get(NestedType);
 }
 
@@ -341,14 +355,14 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
   llvm::SmallVector<mlir::Type, 4> ArgTypes;
   ArgTypes.reserve(F->getNumParams());
   for (const auto &Param : F->parameters()) {
-    ArgTypes.push_back(getType(Param->getType()));
+    ArgTypes.push_back(type(Param));
   }
 
   mlir::TypeRange ReturnType = llvm::None;
   if (!F->getReturnType()->isVoidType())
-    ReturnType = getType(F->getReturnType());
+    ReturnType = type(F->getReturnType());
 
-  auto Result = FuncOp::create(loc(F->getSourceRange()), Name,
+  auto Result = FuncOp::create(loc(F), Name,
                                Builder.getFunctionType(ArgTypes, ReturnType));
   // It is important to do this BEFORE we generate function's body
   // because of possible recursions.
@@ -380,7 +394,7 @@ mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
 mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
   mlir::Value Operand =
       Return->getRetValue() ? Visit(Return->getRetValue()) : mlir::Value{};
-  Builder.create<mlir::BranchOp>(Parent.loc(Return->getSourceRange()), Exit,
+  Builder.create<mlir::BranchOp>(loc(Return), Exit,
                                  Operand ? llvm::makeArrayRef(Operand)
                                          : ArrayRef<mlir::Value>());
   return {};
@@ -390,7 +404,7 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
   for (const auto *D : DS->decls())
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
       mlir::Value Address = declare(Var);
-      mlir::Location Loc = Parent.loc(Var->getSourceRange());
+      mlir::Location Loc = loc(Var);
       mlir::Value Init;
       if (Var->getInit()) {
         Init = Visit(Var->getInit());
@@ -414,8 +428,7 @@ mlir::Value FunctionGenerator::VisitCallExpr(const CallExpr *Call) {
     FuncOp Callee = Parent.getFunctionByDecl(DirectCallee);
     Values Args = visitRange(Call->arguments());
 
-    auto Result = Builder.create<mlir::CallOp>(
-        Parent.loc(Call->getSourceRange()), Callee, Args);
+    auto Result = Builder.create<mlir::CallOp>(loc(Call), Callee, Args);
 
     // Return result of the call if the call has any.
     // We couldn't have more than one result by construction.
@@ -427,20 +440,18 @@ mlir::Value FunctionGenerator::VisitCallExpr(const CallExpr *Call) {
 
 mlir::Value
 FunctionGenerator::VisitIntegerLiteral(const IntegerLiteral *Literal) {
-  mlir::Type T = Parent.getBuiltinType(Literal->getType());
+  mlir::Type T = type(Literal);
   assert(T.isa<IntegerType>());
-  return Builder.create<air::ConstantIntOp>(
-      Parent.loc(Literal->getSourceRange()), Literal->getValue(),
-      T.cast<IntegerType>());
+  return Builder.create<air::ConstantIntOp>(loc(Literal), Literal->getValue(),
+                                            T.cast<IntegerType>());
 }
 
 mlir::Value
 FunctionGenerator::VisitFloatingLiteral(const FloatingLiteral *Literal) {
-  mlir::Type T = Parent.getBuiltinType(Literal->getType());
+  mlir::Type T = type(Literal);
   assert(T.isa<FloatType>());
-  return Builder.create<air::ConstantFloatOp>(
-      Parent.loc(Literal->getSourceRange()), Literal->getValue(),
-      T.cast<FloatType>());
+  return Builder.create<air::ConstantFloatOp>(loc(Literal), Literal->getValue(),
+                                              T.cast<FloatType>());
 }
 
 mlir::Value FunctionGenerator::VisitDeclRefExpr(const DeclRefExpr *Ref) {
@@ -450,7 +461,7 @@ mlir::Value FunctionGenerator::VisitDeclRefExpr(const DeclRefExpr *Ref) {
 mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
   mlir::Value Sub = Visit(UnExpr->getSubExpr());
 
-  mlir::Location Loc = Parent.loc(UnExpr->getSourceRange());
+  mlir::Location Loc = loc(UnExpr);
   mlir::Type ResultType = Sub.getType();
 
   switch (UnExpr->getOpcode()) {
@@ -538,7 +549,7 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
   mlir::Value LHS = Visit(BinExpr->getLHS());
   mlir::Value RHS = Visit(BinExpr->getRHS());
 
-  mlir::Location Loc = Parent.loc(BinExpr->getSourceRange());
+  mlir::Location Loc = loc(BinExpr);
 
   // Value representing the result of the operation
   mlir::Value Result;
@@ -683,8 +694,8 @@ mlir::Value FunctionGenerator::VisitParenExpr(const ParenExpr *Paren) {
 mlir::Value
 FunctionGenerator::VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast) {
   mlir::Value Sub = Visit(Cast->getSubExpr());
-  mlir::Location Loc = Parent.loc(Cast->getSourceRange());
-  mlir::Type To = Parent.getType(Cast->getType());
+  mlir::Location Loc = loc(Cast);
+  mlir::Type To = type(Cast);
 
   switch (Cast->getCastKind()) {
   case CastKind::CK_NoOp:
@@ -696,8 +707,8 @@ FunctionGenerator::VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast) {
 
 mlir::Value FunctionGenerator::VisitCStyleCastExpr(const CStyleCastExpr *Cast) {
   mlir::Value Sub = Visit(Cast->getSubExpr());
-  mlir::Location Loc = Parent.loc(Cast->getSourceRange());
-  mlir::Type To = Parent.getType(Cast->getType());
+  mlir::Location Loc = loc(Cast);
+  mlir::Type To = type(Cast);
 
   switch (Cast->getCastKind()) {
   case CastKind::CK_NoOp:
@@ -710,8 +721,8 @@ mlir::Value FunctionGenerator::VisitCStyleCastExpr(const CStyleCastExpr *Cast) {
 mlir::Value
 FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
   mlir::Value Sub = Visit(Cast->getSubExpr());
-  mlir::Location Loc = Parent.loc(Cast->getSourceRange());
-  mlir::Type To = Parent.getType(Cast->getType());
+  mlir::Location Loc = loc(Cast);
+  mlir::Type To = type(Cast);
 
   switch (Cast->getCastKind()) {
   case CastKind::CK_LValueToRValue:
@@ -721,7 +732,7 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
   case CastKind::CK_NullToPointer:
     // We don't actually care what kind of null is actually casted to pointer.
     // What we care is that it's a null.
-    return Builder.create<air::NullOp>(Loc, Parent.getType(Cast->getType()));
+    return Builder.create<air::NullOp>(Loc, To);
   default:
     return {};
   }
@@ -754,7 +765,7 @@ mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
     Visit(If->getInit());
 
   mlir::Value Cond = Visit(If->getCond());
-  mlir::Location Loc = Parent.loc(If->getSourceRange());
+  mlir::Location Loc = loc(If);
 
   // Here we deal with at least three basic blocks (potentially four):
   //   * current basic block where we encountered the if
@@ -817,7 +828,7 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
 
   // ...and conditions belong to the header.
   mlir::Value Cond = Visit(While->getCond());
-  mlir::Location Loc = Parent.loc(While->getSourceRange());
+  mlir::Location Loc = loc(While);
 
   // If condition is true, we should proceed with the loop's
   // body, and skip it otherwise.
