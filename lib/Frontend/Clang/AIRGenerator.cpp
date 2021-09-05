@@ -680,6 +680,10 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
     return load(Sub, Loc);
   case CastKind::CK_IntegralCast:
     return cast(Loc, Sub, To.cast<IntegerType>());
+  case CastKind::CK_NullToPointer:
+    // We don't actually care what kind of null is actually casted to pointer.
+    // What we care is that it's a null.
+    return Builder.create<air::NullOp>(Loc, Parent.getType(Cast->getType()));
   default:
     return {};
   }

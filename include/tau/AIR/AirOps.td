@@ -1108,5 +1108,27 @@ def Air_UndefOp : Air_Op<"undef", [NoSideEffect]> {
   let assemblyFormat = "attr-dict `:` type($res)";
 }
 
+def Air_NullOp : Air_Op<"null", [NoSideEffect]> {
+  let results = (outs Air_AnyPointer:$res);
+
+  let summary = "null pointer";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.null` `:` type
+    ```
+
+    This operation has no operands or attributes. It creates a null pointer
+    of the specified type.
+
+    Example:
+    ```mlir
+    %1 = "air.null" : !air.ptr<si32>
+    ```
+  }];
+
+  let assemblyFormat = "attr-dict `:` type($res)";
+}
 
 #endif /* AIROPS_H */
