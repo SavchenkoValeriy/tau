@@ -1,8 +1,8 @@
 #include "tau/Frontend/Clang/AIRGenAction.h"
 #include "tau/Frontend/Clang/AIRGenerator.h"
-#include "llvm/Support/CommandLine.h"
 
 #include <clang/Tooling/CommonOptionsParser.h>
+#include <llvm/Support/CommandLine.h>
 
 using namespace clang;
 using namespace llvm;

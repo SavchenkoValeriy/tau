@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include "mlir/IR/TypeSupport.h"
-#include "mlir/IR/Types.h"
+#include <mlir/IR/TypeSupport.h>
+#include <mlir/IR/Types.h>
 
 namespace tau::air {
 

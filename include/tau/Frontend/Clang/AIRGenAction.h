@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/MLIRContext.h>
 
 #include <clang/Tooling/Tooling.h>
 
