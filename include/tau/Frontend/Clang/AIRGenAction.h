@@ -23,6 +23,7 @@ class AIRGenAction : public clang::tooling::FrontendActionFactory {
 public:
   virtual std::unique_ptr<clang::FrontendAction> create() override;
   mlir::ModuleOp getGeneratedModule() { return Module.release(); }
+  mlir::MLIRContext &getContext() { return Context; }
 
 private:
   mlir::MLIRContext Context;

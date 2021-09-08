@@ -998,9 +998,9 @@ def Air_AllocaOp : Air_Op<"alloca"> {
 }
 
 def Air_StoreOp : Air_Op<"store"> {
-    let arguments = (ins AnyType:$what, Air_AnyPointer:$where);
-    let summary = "store operation";
-    let description = [{
+  let arguments = (ins AnyType:$what, Air_AnyPointer:$where);
+  let summary = "store operation";
+  let description = [{
     Syntax:
 
     ```
@@ -1012,9 +1012,19 @@ def Air_StoreOp : Air_Op<"store"> {
     that should differ only in pointer type. It has no results and
     standard attributes.
     }];
-    let verifier = [{ return ::verify(*this); }];
-    let printer = [{ return ::print(p, *this); }];
-    let parser = [{ return ::parseStore(parser, result); }];
+  let verifier = [{ return ::verify(*this); }];
+  let printer = [{ return ::print(p, *this); }];
+  let parser = [{ return ::parseStore(parser, result); }];
+
+  let extraClassDeclaration = [{
+    mlir::Value getValue() {
+      return getOperand(0);
+    }
+
+    mlir::Value getAddress() {
+      return getOperand(1);
+    }
+  }];
 }
 
 def Air_LoadOp : Air_Op<"load"> {
