@@ -1,21 +1,27 @@
 #include "tau/AIR/AirOps.h"
 #include "tau/Checkers/Checkers.h"
+#include "tau/Core/State.h"
 
-#include <memory>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassRegistry.h>
 
+#include <memory>
+
 using namespace tau;
 using namespace air;
 using namespace mlir;
 
+using UninitState = core::State<1, 1>;
+constexpr UninitState UNINIT = UninitState::getNonErrorState(0);
+constexpr UninitState ERROR = UninitState::getErrorState(0);
+
 namespace {
 
 // TODO: Add checkers API
-class UseOfUninit : public PassWrapper<UseOfUninit, OperationPass<FuncOp>> {
+class UseOfUninit : public chx::Checker<UseOfUninit> {
 public:
   StringRef getArgument() const override { return "use-of-uninit"; }
   StringRef getDescription() const override {
@@ -25,15 +31,21 @@ public:
   void runOnOperation() override {
     FuncOp F = getOperation();
 
-    F.walk([](StoreOp Store) {
+    F.walk([this](StoreOp Store) {
       auto StoredValueSource = Store.getValue().getDefiningOp<UndefOp>();
       if (!StoredValueSource)
         return;
 
       mlir::Operation *Address = Store.getAddress().getDefiningOp();
       // TODO: Think about a better marking mechanism
-      Address->setAttr("use-of-uninit",
-                       BoolAttr::get(Store.getContext(), true));
+      mark(Address, UNINIT);
+      auto Fused = Address->getLoc().dyn_cast<FusedLoc>();
+      llvm::SourceMgr SourceMgr;
+      SourceMgrDiagnosticHandler Handler(SourceMgr, Store.getContext(),
+                                         llvm::errs());
+      Address->getOpOperand(10);
+
+      Address->emitError() << "Use of uninitialized value";
     });
   }
 };
