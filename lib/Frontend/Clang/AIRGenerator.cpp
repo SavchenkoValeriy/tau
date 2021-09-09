@@ -175,7 +175,11 @@ private:
   mlir::Value declare(const ValueDecl *D) {
     // TODO: support array types
     mlir::Value StackVar = Builder.create<air::AllocaOp>(
-        loc(D), air::AirPointerType::get(type(D)), mlir::Value{});
+        // Here we want to point to the value name, not its type.
+        // For this reason, we use D->getLocation() as the start
+        // location instead of D->getBeginLoc().
+        loc(SourceRange{D->getLocation(), D->getEndLoc()}),
+        air::AirPointerType::get(type(D)), mlir::Value{});
     Declarations.insert(D, StackVar);
     return StackVar;
   }
