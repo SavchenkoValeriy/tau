@@ -87,7 +87,7 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
 
-  return success(succeeded(PassPipeline.addToPipeline(FPM, ErrorHandler)) ||
+  return success(succeeded(PassPipeline.addToPipeline(FPM, ErrorHandler)) &&
                  succeeded(PM.run(Module)));
 }
 
