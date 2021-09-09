@@ -59,6 +59,10 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
 
   // TODO: reimplement it to surface only relevant options
   PassPipelineCLParser PassPipeline("", "Checkers to run");
+  cl::SetVersionPrinter([](raw_ostream &OS) {
+    // TODO: remove hardcoded version number
+    OS << "tau C/C++ compiler v0.0.1\n";
+  });
 
   auto CDB = readClangOptions(Argc, Argv);
   if (auto E = CDB.takeError()) {
