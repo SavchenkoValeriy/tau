@@ -12,7 +12,7 @@ using namespace mlir;
 using namespace tau::air;
 
 Type getPointee(Type Pointer) {
-  if (auto AsPointer = Pointer.dyn_cast<AirPointerType>())
+  if (auto AsPointer = Pointer.dyn_cast<PointerType>())
     return AsPointer.getElementType();
   return {};
 }
@@ -97,7 +97,7 @@ static ParseResult parseLoad(OpAsmParser &Parser, OperationState &Result) {
 
 static LogicalResult verify(StoreOp &Store) {
   Type WhatType = Store.what().getType();
-  AirPointerType WhereType = Store.where().getType().cast<AirPointerType>();
+  PointerType WhereType = Store.where().getType().cast<PointerType>();
 
   if (WhereType.getElementType() == WhatType)
     return success();

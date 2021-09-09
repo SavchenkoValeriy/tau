@@ -45,7 +45,7 @@ def Air_Type : DialectType<Air_Dialect,
                            "Air-compatible type">;
 
 // Type constraint accepting any Air pointer type.
-def Air_AnyPointer : Type<CPred<"$_self.isa<tau::air::AirPointerType>()">,
+def Air_AnyPointer : Type<CPred<"$_self.isa<tau::air::PointerType>()">,
                           "Air pointer type">;
 
 // Type constraint accepting Air pointer type with an additional constraint
@@ -54,7 +54,7 @@ class Air_PointerTo<Type pointee> : Type<
   And<[Air_AnyPointer.predicate,
        SubstLeaves<
          "$_self",
-         "$_self.cast<tau::air::AirPointerType>().getElementType()",
+         "$_self.cast<tau::air::PointerType>().getElementType()",
          pointee.predicate>]>,
   "Air pointer to " # pointee.summary>;
 

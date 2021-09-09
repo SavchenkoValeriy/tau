@@ -14,7 +14,7 @@ void AirDialect::initialize() {
 #define GET_OP_LIST
 #include "tau/AIR/AirOps.cpp.inc"
       >();
-  addTypes<AirPointerType>();
+  addTypes<PointerType>();
 }
 
 /// Parse a type registered to this dialect.
@@ -29,7 +29,7 @@ Type AirDialect::parseType(DialectAsmParser &Parser) const {
 
 /// Print a type registered to this dialect.
 void AirDialect::printType(Type TypeToPrint, DialectAsmPrinter &OS) const {
-  if (auto PtrType = TypeToPrint.dyn_cast<AirPointerType>()) {
+  if (auto PtrType = TypeToPrint.dyn_cast<PointerType>()) {
     OS << "ptr";
     OS << "<";
     OS.printType(PtrType.getElementType());

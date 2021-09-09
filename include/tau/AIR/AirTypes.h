@@ -17,15 +17,15 @@
 namespace tau::air {
 
 namespace detail {
-struct AirPointerTypeStorage : public mlir::TypeStorage {
+struct PointerTypeStorage : public mlir::TypeStorage {
   using KeyTy = mlir::Type;
 
-  AirPointerTypeStorage(const KeyTy &Key) : PointeeType(Key) {}
+  PointerTypeStorage(const KeyTy &Key) : PointeeType(Key) {}
 
-  static AirPointerTypeStorage *construct(mlir::TypeStorageAllocator &Allocator,
-                                          const KeyTy &Key) {
-    return new (Allocator.allocate<AirPointerTypeStorage>())
-        AirPointerTypeStorage(Key);
+  static PointerTypeStorage *construct(mlir::TypeStorageAllocator &Allocator,
+                                       const KeyTy &Key) {
+    return new (Allocator.allocate<PointerTypeStorage>())
+        PointerTypeStorage(Key);
   }
 
   bool operator==(const KeyTy &Key) const { return Key == PointeeType; }
@@ -38,9 +38,8 @@ struct AirPointerTypeStorage : public mlir::TypeStorage {
 //                                 Pointer type
 //===----------------------------------------------------------------------===//
 
-class AirPointerType
-    : public mlir::Type::TypeBase<AirPointerType, mlir::Type,
-                                  detail::AirPointerTypeStorage> {
+class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type,
+                                                detail::PointerTypeStorage> {
 public:
   /// Inherit base constructors.
   using Base::Base;
@@ -49,7 +48,7 @@ public:
   /// Gets or creates an instance of LLVM dialect pointer type pointing to an
   /// object of `Pointee` type in the given address space. The pointer type is
   /// created in the same context as `Pointee`.
-  static AirPointerType get(mlir::Type Pointee);
+  static PointerType get(mlir::Type Pointee);
 
   /// Returns the pointed-to type.
   mlir::Type getElementType() const;

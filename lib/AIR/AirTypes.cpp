@@ -7,9 +7,9 @@ using namespace mlir;
 //                                 Pointer type
 //===----------------------------------------------------------------------===//
 
-AirPointerType AirPointerType::get(Type Pointee) {
+PointerType PointerType::get(Type Pointee) {
   assert(Pointee && "expected non-null subtype");
   return Base::get(Pointee.getContext(), Pointee);
 }
 
-Type AirPointerType::getElementType() const { return getImpl()->PointeeType; }
+Type PointerType::getElementType() const { return getImpl()->PointeeType; }

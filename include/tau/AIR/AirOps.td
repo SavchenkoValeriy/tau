@@ -1046,7 +1046,7 @@ def Air_LoadOp : Air_Op<"load"> {
   let builders = [
       OpBuilder<(ins "mlir::Value":$from),
       [{
-        build($_builder, $_state, from.getType().cast<AirPointerType>().getElementType(), from);
+        build($_builder, $_state, from.getType().cast<PointerType>().getElementType(), from);
       }]>];
   let verifier = ?;
   let printer = [{ return ::print(p, *this); }];

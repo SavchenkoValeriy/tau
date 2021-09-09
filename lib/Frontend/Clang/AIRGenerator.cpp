@@ -179,7 +179,7 @@ private:
         // For this reason, we use D->getLocation() as the start
         // location instead of D->getBeginLoc().
         loc(SourceRange{D->getLocation(), D->getEndLoc()}),
-        air::AirPointerType::get(type(D)), mlir::Value{});
+        air::PointerType::get(type(D)), mlir::Value{});
     Declarations.insert(D, StackVar);
     return StackVar;
   }
@@ -302,7 +302,7 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
 
 mlir::Type TopLevelGenerator::getPointerType(clang::QualType T) {
   mlir::Type NestedType = type(T->getPointeeType());
-  return air::AirPointerType::get(NestedType);
+  return air::PointerType::get(NestedType);
 }
 
 //===----------------------------------------------------------------------===//
@@ -414,8 +414,7 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
         Init = Visit(Var->getInit());
       } else {
         Init = Builder.create<air::UndefOp>(
-            Loc,
-            Address.getType().cast<air::AirPointerType>().getElementType());
+            Loc, Address.getType().cast<air::PointerType>().getElementType());
       }
       store(Init, Address, Loc);
     }
