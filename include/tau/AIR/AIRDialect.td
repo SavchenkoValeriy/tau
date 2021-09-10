@@ -58,4 +58,20 @@ class Air_PointerTo<Type pointee> : Type<
          pointee.predicate>]>,
   "Air pointer to " # pointee.summary>;
 
+//===----------------------------------------------------------------------===//
+//                                Air attributes
+//===----------------------------------------------------------------------===//
+
+def Air_StateChangeAttr : DialectAttr<
+    Air_Dialect,
+    CPred<"$_self.isa<tau::air::StateChangeAttr>()">,
+    "Checker annotation for state change"> {
+}
+
+def Air_StateTransferAttr : DialectAttr<
+    Air_Dialect,
+    CPred<"$_self.isa<tau::air::StateTransferAttr>()">,
+    "Checker annotation for state tarnsfer"> {
+}
+
 #endif /* AIRDIALECT_H */

@@ -1,6 +1,7 @@
 add_mlir_dialect_library(tauAir
   AirDialect.cpp
   AirOps.cpp
+  AirAttrs.cpp
   AirTypes.cpp
 
   ADDITIONAL_HEADER_DIRS
