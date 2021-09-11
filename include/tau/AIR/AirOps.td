@@ -1051,6 +1051,12 @@ def Air_LoadOp : Air_Op<"load"> {
   let verifier = ?;
   let printer = [{ return ::print(p, *this); }];
   let parser = [{ return ::parseLoad(parser, result); }];
+
+  let extraClassDeclaration = [{
+    mlir::Value getAddress() {
+      return from();
+    }
+  }];
 }
 
 //===----------------------------------------------------------------------===//

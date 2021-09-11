@@ -2,7 +2,10 @@
 #include "tau/Checkers/Checkers.h"
 #include "tau/Core/State.h"
 
+#include <llvm/Support/SourceMgr.h>
 #include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/Location.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Pass/Pass.h>
@@ -20,8 +23,7 @@ constexpr UninitState ERROR = UninitState::getErrorState(0);
 
 namespace {
 
-// TODO: Add checkers API
-class UseOfUninit : public chx::Checker<UseOfUninit> {
+class UseOfUninit : public chx::Checker<UseOfUninit, UninitState> {
 public:
   StringRef getArgument() const override { return "use-of-uninit"; }
   StringRef getDescription() const override {
@@ -37,15 +39,20 @@ public:
         return;
 
       mlir::Operation *Address = Store.getAddress().getDefiningOp();
-      // TODO: Think about a better marking mechanism
-      mark(Address, UNINIT);
-      auto Fused = Address->getLoc().dyn_cast<FusedLoc>();
+      markResultChange(Address, UNINIT);
+
       llvm::SourceMgr SourceMgr;
       SourceMgrDiagnosticHandler Handler(SourceMgr, Store.getContext(),
                                          llvm::errs());
-      Address->getOpOperand(10);
-
       Address->emitError() << "Use of uninitialized value";
+    });
+
+    F.walk([this](LoadOp Load) {
+      markChange(Load.getOperation(), Load.getAddress(), UNINIT, ERROR);
+      llvm::SourceMgr SourceMgr;
+      SourceMgrDiagnosticHandler Handler(SourceMgr, Load.getContext(),
+                                         llvm::errs());
+      Load.emitError() << "Use of uninitialized value";
     });
   }
 };

@@ -22,6 +22,7 @@ public:
   using ID = unsigned;
 
   /* implicit */ constexpr State(ID From) : StateID(From) {}
+  operator ID() { return StateID; }
 
   static constexpr State getNonErrorState(unsigned Idx) {
     assert(Idx < NumberOfNonErrorStates &&
