@@ -139,7 +139,7 @@ private:
     Builder.setInsertionPointToStart(Entry);
     for (const auto &[Param, BlockArg] :
          llvm::zip(Original.parameters(), Entry->getArguments())) {
-      store(BlockArg, declare(Param), loc(Param));
+      declare(Param, BlockArg);
     }
 
     Visit(Original.getBody());
@@ -172,16 +172,28 @@ private:
     return BB->empty() || !BB->back().mightHaveTrait<OpTrait::IsTerminator>();
   }
 
-  mlir::Value declare(const ValueDecl *D) {
-    // TODO: support array types
-    mlir::Value StackVar = Builder.create<air::AllocaOp>(
-        // Here we want to point to the value name, not its type.
-        // For this reason, we use D->getLocation() as the start
-        // location instead of D->getBeginLoc().
-        loc(SourceRange{D->getLocation(), D->getEndLoc()}),
-        air::PointerType::get(type(D)), mlir::Value{});
-    Declarations.insert(D, StackVar);
-    return StackVar;
+  mlir::Value declare(const ValueDecl *D, mlir::Value InitValue) {
+    // Here we want to point to the value name, not its type.
+    // For this reason, we use D->getLocation() as the start
+    // location instead of D->getBeginLoc().
+    mlir::Location Loc = loc(SourceRange{D->getLocation(), D->getEndLoc()});
+    mlir::Type T = type(D);
+
+    if (!InitValue) {
+      InitValue = Builder.create<air::UndefOp>(Loc, T);
+    }
+
+    mlir::Value Result;
+    if (D->getType()->isLValueReferenceType()) {
+      Result = Builder.create<air::RefOp>(Loc, InitValue);
+    } else {
+      // TODO: support array types
+      Result = Builder.create<air::AllocaOp>(Loc, air::PointerType::get(T),
+                                             mlir::Value{});
+      store(InitValue, Result, Loc);
+    }
+    Declarations.insert(D, Result);
+    return Result;
   }
 
   mlir::Value getPointer(const ValueDecl *D) const {
@@ -269,6 +281,7 @@ mlir::Location TopLevelGenerator::loc(clang::SourceLocation L) {
 
 mlir::Type TopLevelGenerator::type(clang::QualType T) {
   switch (T->getTypeClass()) {
+  case clang::Type::LValueReference:
   case clang::Type::Pointer:
     return getPointerType(T);
   case clang::Type::Builtin:
@@ -407,16 +420,12 @@ mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
 mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
   for (const auto *D : DS->decls())
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
-      mlir::Value Address = declare(Var);
       mlir::Location Loc = loc(Var);
       mlir::Value Init;
       if (Var->getInit()) {
         Init = Visit(Var->getInit());
-      } else {
-        Init = Builder.create<air::UndefOp>(
-            Loc, Address.getType().cast<air::PointerType>().getElementType());
       }
-      store(Init, Address, Loc);
+      mlir::Value Address = declare(Var, Init);
     }
   return {};
 }

@@ -1059,6 +1059,51 @@ def Air_LoadOp : Air_Op<"load"> {
   }];
 }
 
+def Air_RefOp : Air_Op<"ref", [NoSideEffect, SameOperandsAndResultType]> {
+  let summary = "ref";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.ref` ssa-use `:` type
+    ```
+
+    The `ref` operation represents a C++ l-value reference with attachment
+    to its source location. Since C++ references are immutable, we don't
+    need to allocate a separate location specifically for them and
+    can use a separate SSA value for that. The operation takes one argument
+    and returns it as-is. It has no standard attributes.
+  }];
+
+  let arguments = (ins Air_AnyPointer:$value);
+  let results = (outs Air_AnyPointer:$res);
+
+  let assemblyFormat = "attr-dict $value `:` type($value)";
+}
+
+def Air_NoOp : Air_Op<"noop", [NoSideEffect, SameOperandsAndResultType]> {
+  let summary = "noop";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.noop` ssa-use `:` type
+    ```
+
+    The `noop` operation represents a copy of the operand value, but with
+    attachment to the corresponding source location. It can be used in
+    situations when we don't want to produce a separate location on stack
+    or do an extra load, but still want to report on that location.
+    The operation takes one argument and returns it as-is. It has no
+    standard attributes.
+  }];
+
+  let arguments = (ins AnyType:$value);
+  let results = (outs AnyType:$res);
+
+  let assemblyFormat = "attr-dict $value `:` type($value)";
+}
+
 //===----------------------------------------------------------------------===//
 //                                   Constant
 //===----------------------------------------------------------------------===//
