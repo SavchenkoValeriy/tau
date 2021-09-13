@@ -2,9 +2,7 @@
 #include "tau/Checkers/Checkers.h"
 #include "tau/Core/State.h"
 
-#include <llvm/Support/SourceMgr.h>
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
@@ -40,18 +38,11 @@ public:
 
       mlir::Operation *Address = Store.getAddress().getDefiningOp();
       markResultChange(Address, UNINIT);
-
-      llvm::SourceMgr SourceMgr;
-      SourceMgrDiagnosticHandler Handler(SourceMgr, Store.getContext(),
-                                         llvm::errs());
       Address->emitError() << "Use of uninitialized value";
     });
 
     F.walk([this](LoadOp Load) {
       markChange(Load.getOperation(), Load.getAddress(), UNINIT, ERROR);
-      llvm::SourceMgr SourceMgr;
-      SourceMgrDiagnosticHandler Handler(SourceMgr, Load.getContext(),
-                                         llvm::errs());
       Load.emitError() << "Use of uninitialized value";
     });
   }

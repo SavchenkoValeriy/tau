@@ -5,7 +5,9 @@
 #include <clang/Tooling/CompilationDatabase.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
+#include <llvm/Support/SourceMgr.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Pass/PassRegistry.h>
@@ -86,6 +88,9 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
   OpPassManager &FPM = PM.nest<FuncOp>();
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
+
+  llvm::SourceMgr SourceMgr;
+  SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());
 
   return success(succeeded(PassPipeline.addToPipeline(FPM, ErrorHandler)) &&
                  succeeded(PM.run(Module)));
