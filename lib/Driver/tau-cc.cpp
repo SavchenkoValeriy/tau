@@ -33,6 +33,10 @@ cl::list<std::string> SourcePaths(cl::Positional,
                                   cl::Required, cl::cat(TauCategory),
                                   cl::sub(*cl::AllSubCommands));
 
+cl::opt<bool> Verify("verify",
+                     cl::desc("Verify checker output using comment directives"),
+                     cl::cat(TauCategory), cl::Hidden);
+
 } // end anonymous namespace
 
 Expected<std::unique_ptr<tooling::CompilationDatabase>>
@@ -54,6 +58,16 @@ readClangOptions(int Argc, const char **Argv) {
     Result.reset(new tooling::FixedCompilationDatabase(".", {}));
 
   return Result;
+}
+
+std::unique_ptr<ScopedDiagnosticHandler>
+createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
+  if (Verify)
+    return std::make_unique<SourceMgrDiagnosticVerifierHandler>(
+        SourceManager, &Context, llvm::errs());
+
+  return std::make_unique<SourceMgrDiagnosticHandler>(SourceManager, &Context,
+                                                      llvm::errs());
 }
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
@@ -83,17 +97,26 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
     Module.dump();
 
   MLIRContext &Context = Generator.getContext();
+  Context.printOpOnDiagnostic(false);
 
   PassManager PM(&Context);
   OpPassManager &FPM = PM.nest<FuncOp>();
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
 
-  llvm::SourceMgr SourceMgr;
-  SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());
+  if (failed(PassPipeline.addToPipeline(FPM, ErrorHandler)))
+    return failure();
 
-  return success(succeeded(PassPipeline.addToPipeline(FPM, ErrorHandler)) &&
-                 succeeded(PM.run(Module)));
+  llvm::SourceMgr SourceMgr;
+  auto IssueHandler = createHandler(SourceMgr, Context);
+
+  if (!Verify) {
+    SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());
+    return PM.run(Module);
+  }
+
+  SourceMgrDiagnosticVerifierHandler Handler(SourceMgr, &Context, llvm::errs());
+  return success(succeeded(PM.run(Module)) && succeeded(Handler.verify()));
 }
 
 int main(int Argc, const char **Argv) { return failed(tauCCMain(Argc, Argv)); }
