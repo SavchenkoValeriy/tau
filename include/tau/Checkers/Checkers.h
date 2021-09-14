@@ -120,11 +120,15 @@ private:
   using TypeSwitch = llvm::TypeSwitch<mlir::Operation *, void>;
   template <class OperationToProcess, class... RestOps>
   TypeSwitch &processAsDerived(TypeSwitch &Switch) {
-    processAsDerived<RestOps...>(processAsDerived<OperationToProcess>(Switch));
+    TypeSwitch &One = processOneAsDerived<OperationToProcess>(Switch);
+    if constexpr (sizeof...(RestOps) == 0)
+      return One;
+    else
+      return processAsDerived<RestOps...>(One);
   }
 
   template <class OperationToProcess>
-  TypeSwitch &processAsDerived(TypeSwitch &Switch) {
+  TypeSwitch &processOneAsDerived(TypeSwitch &Switch) {
     return Switch.Case<OperationToProcess>(
         [this](OperationToProcess Op) { getDerived().process(Op); });
   }
@@ -158,7 +162,8 @@ private:
 
 template <class CheckerT, class State, class... Ops>
 void CheckerWrapper<CheckerT, State, Ops...>::process(mlir::Operation *BaseOp) {
-  processAsDerived<Ops...>(TypeSwitch(BaseOp));
+  TypeSwitch Switch(BaseOp);
+  processAsDerived<Ops...>(Switch);
 }
 
 } // end namespace chx
