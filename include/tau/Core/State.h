@@ -22,7 +22,7 @@ public:
   using ID = unsigned;
 
   /* implicit */ constexpr State(ID From) : StateID(From) {}
-  operator ID() { return StateID; }
+  operator ID() const { return StateID; }
 
   static constexpr State getNonErrorState(unsigned Idx) {
     assert(Idx < NumberOfNonErrorStates &&
@@ -43,6 +43,16 @@ private:
   ID StateID;
   static constexpr unsigned ErrorMask = 1;
 };
+
+template <unsigned X, unsigned Y>
+inline bool operator==(const State<X, Y> &LHS, const State<X, Y> &RHS) {
+  return typename State<X, Y>::ID(LHS) == RHS;
+}
+
+template <unsigned X, unsigned Y>
+inline bool operator!=(const State<X, Y> &LHS, const State<X, Y> &RHS) {
+  return !(LHS == RHS);
+}
 
 } // end namespace core
 } // end namespace tau

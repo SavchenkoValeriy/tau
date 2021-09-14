@@ -24,6 +24,9 @@ namespace {
 class UseOfUninit
     : public chx::CheckerWrapper<UseOfUninit, UninitState, StoreOp, LoadOp> {
 public:
+  StringRef getName() const override {
+    return "Use of uninitialized value checker";
+  }
   StringRef getArgument() const override { return "use-of-uninit"; }
   StringRef getDescription() const override {
     return "Detect uses of uninitialized values";

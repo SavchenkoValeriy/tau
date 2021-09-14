@@ -40,17 +40,39 @@ public:
   virtual void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
                         air::StateID) = 0;
 
+  /// Returns the unique identifier that corresponds to this pass.
+  mlir::TypeID getTypeID() const { return CheckerID; }
+
+  /// Return the name of the checker
+  virtual llvm::StringRef getName() const = 0;
+
   /// Return the command line argument/unique ID used when registering this
   /// checker.
   virtual llvm::StringRef getArgument() const = 0;
 
   /// Return the command line description used when registering this checker.
   virtual llvm::StringRef getDescription() const { return ""; }
+
+  virtual ~Checker() = default;
+
+protected:
+  explicit Checker(mlir::TypeID CheckerID) : CheckerID(CheckerID) {}
+
+private:
+  mlir::TypeID CheckerID;
 };
 
 template <class CheckerT, class State, class... Ops>
 class CheckerWrapper : public Checker {
 public:
+  /// Support isa/dyn_cast functionality for the derived pass class.
+  static bool classof(const Checker *ToTest) {
+    return ToTest->getTypeID() == mlir::TypeID::get<CheckerT>();
+  }
+
+  CheckerWrapper() : Checker(mlir::TypeID::get<CheckerT>()) {}
+  CheckerWrapper(const CheckerWrapper &) = default;
+
   /// Mark the given operation as changing the state.
   ///
   /// @param Where -- operation to be marked
