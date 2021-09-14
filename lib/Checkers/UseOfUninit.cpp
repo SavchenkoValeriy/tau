@@ -21,37 +21,38 @@ constexpr UninitState ERROR = UninitState::getErrorState(0);
 
 namespace {
 
-class UseOfUninit : public chx::Checker<UseOfUninit, UninitState> {
+class UseOfUninit
+    : public chx::CheckerWrapper<UseOfUninit, UninitState, StoreOp, LoadOp> {
 public:
   StringRef getArgument() const override { return "use-of-uninit"; }
   StringRef getDescription() const override {
     return "Detect uses of uninitialized values";
   }
 
-  void runOnOperation() override {
-    FuncOp F = getOperation();
+  void process(StoreOp Store) const {
+    auto StoredValueSource = Store.getValue().getDefiningOp<UndefOp>();
+    if (!StoredValueSource)
+      return;
 
-    F.walk([this](StoreOp Store) {
-      auto StoredValueSource = Store.getValue().getDefiningOp<UndefOp>();
-      if (!StoredValueSource)
-        return;
+    mlir::Operation *Address = Store.getAddress().getDefiningOp();
+    markResultChange(Address, UNINIT);
+  }
 
-      mlir::Operation *Address = Store.getAddress().getDefiningOp();
-      markResultChange(Address, UNINIT);
-      Address->emitError() << "Use of uninitialized value";
-    });
+  void process(LoadOp Load) const {
+    markChange(Load.getOperation(), Load.getAddress(), UNINIT, ERROR);
+  }
 
-    F.walk([this](LoadOp Load) {
-      markChange(Load.getOperation(), Load.getAddress(), UNINIT, ERROR);
-      Load.emitError() << "Use of uninitialized value";
-    });
+  InFlightDiagnostic emitError(mlir::Operation *Op, UninitState State) {
+    assert(State == ERROR);
+    return Op->emitError("Use of uninitialized value");
+  }
+
+  void emitNote(InFlightDiagnostic &Diag, mlir::Operation *Op,
+                UninitState State) {
+    assert(State == UNINIT);
+    Diag.attachNote(Op->getLoc()) << "Declared without initial value here";
   }
 };
 
 } // end anonymous namespace
 
-std::unique_ptr<mlir::Pass> tau::chx::createUseOfUninitChecker() {
-  return std::make_unique<UseOfUninit>();
-}
-
-void tau::chx::registerUseOfUninitChecker() { PassRegistration<UseOfUninit>(); }

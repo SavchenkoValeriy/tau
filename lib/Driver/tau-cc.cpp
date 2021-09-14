@@ -71,8 +71,6 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
 }
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
-  tau::chx::registerUseOfUninitChecker();
-
   // TODO: reimplement it to surface only relevant options
   PassPipelineCLParser PassPipeline("", "Checkers to run");
   cl::SetVersionPrinter([](raw_ostream &OS) {
@@ -91,6 +89,7 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
     // TODO: output clang errors?
     return failure();
 
+  // TODO: extract all the following logic into a separate component
   auto Module = Generator.getGeneratedModule();
 
   if (DumpAction == DumpTarget::AIR)
