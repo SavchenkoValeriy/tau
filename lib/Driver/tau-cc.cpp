@@ -1,4 +1,5 @@
 #include "tau/Checkers/Checkers.h"
+#include "tau/Checkers/Registry.h"
 #include "tau/Frontend/Clang/AIRGenAction.h"
 #include "tau/Frontend/Clang/AIRGenerator.h"
 
@@ -20,7 +21,9 @@ using namespace llvm;
 using namespace mlir;
 
 namespace {
-cl::OptionCategory TauCategory("tau compiler options");
+cl::OptionCategory TauCategory("Compiler options");
+cl::OptionCategory CheckersCategory("Available checkers");
+
 enum class DumpTarget { None, AST, AIR };
 cl::opt<DumpTarget>
     DumpAction("dump", cl::desc("Select the kind of output desired"),
@@ -72,7 +75,10 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
   // TODO: reimplement it to surface only relevant options
-  PassPipelineCLParser PassPipeline("", "Checkers to run");
+  tau::chx::registerUseOfUninitChecker();
+  tau::chx::CheckerCLParser CheckersOptions(CheckersCategory);
+  cl::HideUnrelatedOptions({&TauCategory, &CheckersCategory});
+
   cl::SetVersionPrinter([](raw_ostream &OS) {
     // TODO: remove hardcoded version number
     OS << "tau C/C++ compiler v0.0.1\n";
@@ -102,9 +108,6 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
   OpPassManager &FPM = PM.nest<FuncOp>();
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
-
-  if (failed(PassPipeline.addToPipeline(FPM, ErrorHandler)))
-    return failure();
 
   llvm::SourceMgr SourceMgr;
   auto IssueHandler = createHandler(SourceMgr, Context);

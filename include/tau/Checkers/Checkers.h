@@ -188,5 +188,7 @@ void CheckerWrapper<CheckerT, State, Ops...>::process(mlir::Operation *BaseOp) {
   processAsDerived<Ops...>(Switch);
 }
 
+void registerUseOfUninitChecker();
+
 } // end namespace chx
 } // end namespace tau

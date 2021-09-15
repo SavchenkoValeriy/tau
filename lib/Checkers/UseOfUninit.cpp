@@ -58,6 +58,8 @@ public:
   }
 };
 
-static chx::CheckerRegistration<UseOfUninit> Registration;
-
 } // end anonymous namespace
+
+void chx::registerUseOfUninitChecker() {
+  chx::CheckerRegistration<UseOfUninit>();
+}

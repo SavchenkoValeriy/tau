@@ -1,4 +1,5 @@
 add_tau_library(tauCheckers
+  Registry.cpp
   UseOfUninit.cpp
 )
 

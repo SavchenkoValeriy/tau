@@ -2,6 +2,7 @@
 #include "tau/Checkers/Checkers.h"
 
 #include <llvm/ADT/StringMap.h>
+#include <llvm/Support/CommandLine.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/ManagedStatic.h>
 #include <memory>
@@ -11,10 +12,15 @@ using namespace tau::chx;
 using namespace mlir;
 using namespace llvm;
 
+//===----------------------------------------------------------------------===//
+//                             Checker registration
+//===----------------------------------------------------------------------===//
+
 static ManagedStatic<StringMap<std::unique_ptr<Checker>>> CheckerRegistry;
 static ManagedStatic<StringMap<TypeID>> CheckerIDRegistry;
 
-void registerChecker(const CheckerAllocatorFunction &Constructor) {
+void tau::chx::registerChecker(const CheckerAllocatorFunction &Constructor) {
+  llvm::errs() << "HELLO\n";
   std::unique_ptr<Checker> NewChecker = Constructor();
   StringRef Argument = NewChecker->getArgument();
   if (Argument.empty())
@@ -32,3 +38,29 @@ void registerChecker(const CheckerAllocatorFunction &Constructor) {
         Argument + "'");
   }
 }
+
+//===----------------------------------------------------------------------===//
+//                               CheckerCLParser
+//===----------------------------------------------------------------------===//
+
+class CheckerCLParser::Implementation {
+public:
+  Implementation(cl::OptionCategory &CheckersCategory) {
+    for (auto &Entry : *CheckerRegistry) {
+      EnabledCheckers.try_emplace(Entry.getKey(), Entry.getKey(),
+                                  cl::desc(Entry.getValue()->getDescription()),
+                                  cl::cat(CheckersCategory));
+    }
+  }
+
+private:
+  StringMap<cl::opt<bool>> EnabledCheckers;
+};
+
+CheckerCLParser::CheckerCLParser(cl::OptionCategory &CheckersCategory)
+    : PImpl(new CheckerCLParser::Implementation(CheckersCategory)) {}
+
+CheckerCLParser::CheckerCLParser(CheckerCLParser &&) = default;
+CheckerCLParser &CheckerCLParser::operator=(CheckerCLParser &&) = default;
+
+CheckerCLParser::~CheckerCLParser() = default;
