@@ -110,7 +110,7 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
 
   llvm::SourceMgr SourceMgr;
-  auto IssueHandler = createHandler(SourceMgr, Context);
+  CheckersOptions.addEnabledCheckers(PM);
 
   if (!Verify) {
     SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());

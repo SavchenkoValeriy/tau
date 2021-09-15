@@ -32,13 +32,13 @@ unsigned StateChangeAttr::getOperandIdx() const {
 }
 
 Optional<StateID> StateChangeAttr::getFromState() const {
-  if (StateID Result = std::get<2>(getImpl()->Key))
+  if (StateID Result = StateID::fromRaw(std::get<2>(getImpl()->Key)))
     return Result;
   return None;
 }
 
 StateID StateChangeAttr::getToState() const {
-  return std::get<3>(getImpl()->Key);
+  return StateID::fromRaw(std::get<3>(getImpl()->Key));
 }
 
 StateTransferAttr StateTransferAttr::get(mlir::MLIRContext *Context,
@@ -69,7 +69,7 @@ unsigned StateTransferAttr::getToOperandIdx() const {
 }
 
 Optional<StateID> StateTransferAttr::getLimitingState() const {
-  if (StateID Result = std::get<3>(getImpl()->Key))
+  if (StateID Result = StateID::fromRaw(std::get<3>(getImpl()->Key)))
     return Result;
   return None;
 }

@@ -20,6 +20,10 @@ namespace llvm::cl {
 class OptionCategory;
 } // end namespace llvm::cl
 
+namespace mlir {
+class PassManager;
+} // end namespace mlir
+
 namespace tau::chx {
 
 using CheckerAllocatorFunction = std::function<std::unique_ptr<Checker>()>;
@@ -47,6 +51,9 @@ public:
   CheckerCLParser &operator=(CheckerCLParser &&);
 
   ~CheckerCLParser();
+
+  /// Add all enabled checkers to the given pass manager.
+  void addEnabledCheckers(mlir::PassManager &PM);
 
 private:
   class Implementation;

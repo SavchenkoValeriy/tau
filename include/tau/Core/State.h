@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "tau/AIR/StateID.h"
+
 #include <cassert>
 
 namespace tau {
@@ -19,34 +21,31 @@ namespace core {
 template <unsigned NumberOfNonErrorStates, unsigned NumberOfErrorStates>
 class State {
 public:
-  using ID = unsigned;
-
-  /* implicit */ constexpr State(ID From) : StateID(From) {}
-  operator ID() const { return StateID; }
+  /* implicit */ constexpr State(air::StateID From) : ID(From) {}
+  operator air::StateID() const { return ID; }
 
   static constexpr State getNonErrorState(unsigned Idx) {
     assert(Idx < NumberOfNonErrorStates &&
            "We don't have that many non-error states");
-    return (Idx + 1) << 1;
+    return air::StateID::getNonErrorState(Idx);
   }
 
   static constexpr State getErrorState(unsigned Idx) {
     assert(Idx < NumberOfErrorStates &&
            "We don't have that many non-error states");
-    return ((Idx + 1) << 1) | ErrorMask;
+    return air::StateID::getErrorState(Idx);
   }
 
-  static constexpr bool isError(ID ToTest) { return ToTest & ErrorMask; }
-  bool isError() const { return isError(StateID); }
+  bool isError() const { return ID.isError(); }
 
 private:
-  ID StateID;
+  air::StateID ID;
   static constexpr unsigned ErrorMask = 1;
 };
 
 template <unsigned X, unsigned Y>
 inline bool operator==(const State<X, Y> &LHS, const State<X, Y> &RHS) {
-  return typename State<X, Y>::ID(LHS) == RHS;
+  return air::StateID(LHS) == RHS;
 }
 
 template <unsigned X, unsigned Y>

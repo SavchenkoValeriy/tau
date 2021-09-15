@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "tau/AIR/StateID.h"
+
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/None.h>
 #include <llvm/ADT/Optional.h>
@@ -23,11 +25,10 @@
 namespace tau {
 namespace air {
 
-using StateID = unsigned;
-
 namespace detail {
 struct StateChangeAttrStorage : public mlir::AttributeStorage {
-  using KeyTy = std::tuple<llvm::StringRef, unsigned, StateID, StateID>;
+  using KeyTy =
+      std::tuple<llvm::StringRef, unsigned, StateID::Raw, StateID::Raw>;
 
   StateChangeAttrStorage(const KeyTy &Key) : Key(Key) {}
   StateChangeAttrStorage(llvm::StringRef CheckerID, unsigned Operand,
@@ -69,7 +70,7 @@ public:
 
 namespace detail {
 struct StateTransferAttrStorage : public mlir::AttributeStorage {
-  using KeyTy = std::tuple<llvm::StringRef, unsigned, unsigned, StateID>;
+  using KeyTy = std::tuple<llvm::StringRef, unsigned, unsigned, StateID::Raw>;
 
   StateTransferAttrStorage(const KeyTy &Key) : Key(Key) {}
   StateTransferAttrStorage(llvm::StringRef CheckerID, unsigned From,
