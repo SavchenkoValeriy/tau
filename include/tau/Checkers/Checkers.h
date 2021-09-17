@@ -14,11 +14,16 @@
 #include "tau/AIR/AirAttrs.h"
 
 #include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
 #include <llvm/ADT/TypeSwitch.h>
+#include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/OperationSupport.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Support/LLVM.h>
 
@@ -26,6 +31,8 @@
 
 namespace tau {
 namespace chx {
+
+constexpr llvm::StringLiteral StateAttrID = "state";
 
 class Checker {
 public:
@@ -157,11 +164,19 @@ private:
 
   template <class... Args>
   void markChangeImpl(mlir::Operation *Where, Args &&...Rest) const {
-    // TODO: figure out how to have miltiple instances of State attributes
-    Where->setAttr(this->getArgument(),
-                   air::StateChangeAttr::get(Where->getContext(),
-                                             this->getArgument(),
-                                             std::forward<Args>(Rest)...));
+    mlir::MLIRContext *Context = Where->getContext();
+
+    llvm::SmallVector<mlir::Attribute, 4> NewStateAttributes;
+    if (auto StateArrayAttr =
+            Where->getAttrOfType<mlir::ArrayAttr>(StateAttrID))
+      NewStateAttributes.insert(NewStateAttributes.end(),
+                                StateArrayAttr.begin(), StateArrayAttr.end());
+
+    NewStateAttributes.push_back(air::StateChangeAttr::get(
+        Where->getContext(), this->getArgument(), std::forward<Args>(Rest)...));
+
+    Where->setAttr(StateAttrID,
+                   mlir::ArrayAttr::get(Context, NewStateAttributes));
   }
 
   static unsigned findOperand(mlir::Operation *Where, mlir::Value What) {

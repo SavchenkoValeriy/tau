@@ -9,6 +9,7 @@
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/ManagedStatic.h>
 #include <memory>
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Pass/Pass.h>
@@ -52,6 +53,21 @@ void tau::chx::registerChecker(const CheckerAllocatorFunction &Constructor) {
 
 namespace {
 
+air::StateChangeAttr getStateChangeAttr(Operation *Op, StringRef CheckerID) {
+  if (auto StateAttributes = Op->getAttrOfType<ArrayAttr>(StateAttrID)) {
+    const auto *It =
+        llvm::find_if(StateAttributes, [CheckerID](Attribute Attr) {
+          if (auto StateChange = Attr.dyn_cast<air::StateChangeAttr>())
+            return StateChange.getCheckerID() == CheckerID;
+          return false;
+        });
+    return It != StateAttributes.end() ? It->cast<air::StateChangeAttr>()
+                                       : air::StateChangeAttr{};
+  }
+
+  return {};
+}
+
 class EnabledCheckersPass final
     : public PassWrapper<EnabledCheckersPass, OperationPass<FuncOp>> {
 public:
@@ -60,12 +76,13 @@ public:
   EnabledCheckersPass(Checkers &&EnabledCheckers)
       : EnabledCheckers(std::move(EnabledCheckers)) {}
 
-  StringRef getArgument() const { return "run-enabled-checkers"; }
-  StringRef getDescription() const {
+  StringRef getArgument() const override { return "run-enabled-checkers"; }
+  StringRef getDescription() const override {
     return "Run all enabled checkers on the given function";
   }
-  void runOnOperation() {
+  void runOnOperation() override {
     FuncOp Function = getOperation();
+
     Function.walk([this](Operation *Op) {
       for (Checker *EnabledChecker : EnabledCheckers) {
         EnabledChecker->process(Op);
@@ -74,16 +91,16 @@ public:
         //        without any particular information about checkers.
         //        It should be removed and replaced with a separate pass
         //        that actually performs the analysis.
-        if (auto ErrorAttr = Op->getAttrOfType<air::StateChangeAttr>(
-                EnabledChecker->getArgument())) {
+        if (auto ErrorAttr =
+                getStateChangeAttr(Op, EnabledChecker->getArgument())) {
           air::StateID ID = ErrorAttr.getToState();
           if (!ID.isError())
             continue;
           mlir::Operation *OperandOp =
               Op->getOperand(ErrorAttr.getOperandIdx()).getDefiningOp();
 
-          if (auto ChangeAttr = OperandOp->getAttrOfType<air::StateChangeAttr>(
-                  EnabledChecker->getArgument())) {
+          if (auto ChangeAttr = getStateChangeAttr(
+                  OperandOp, EnabledChecker->getArgument())) {
             if (ErrorAttr.getFromState() != ChangeAttr.getToState())
               continue;
 
