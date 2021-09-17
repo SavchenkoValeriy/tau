@@ -1,6 +1,6 @@
 #include "tau/Checkers/Registry.h"
 #include "tau/AIR/AirAttrs.h"
-#include "tau/Checkers/Checkers.h"
+#include "tau/Core/Checker.h"
 
 #include <iterator>
 #include <llvm/ADT/STLExtras.h>
@@ -18,6 +18,7 @@
 
 using namespace tau;
 using namespace chx;
+using namespace core;
 using namespace mlir;
 using namespace llvm;
 

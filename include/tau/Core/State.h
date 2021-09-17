@@ -13,10 +13,14 @@
 
 #include "tau/AIR/StateID.h"
 
+#include <llvm/ADT/StringRef.h>
+
 #include <cassert>
 
 namespace tau {
 namespace core {
+
+constexpr llvm::StringLiteral StateAttrID = "state";
 
 template <unsigned NumberOfNonErrorStates, unsigned NumberOfErrorStates>
 class State {

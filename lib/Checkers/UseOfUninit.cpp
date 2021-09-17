@@ -1,6 +1,7 @@
 #include "tau/AIR/AirOps.h"
 #include "tau/Checkers/Checkers.h"
 #include "tau/Checkers/Registry.h"
+#include "tau/Core/Checker.h"
 #include "tau/Core/State.h"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -13,6 +14,7 @@
 #include <memory>
 
 using namespace tau;
+using namespace core;
 using namespace air;
 using namespace mlir;
 
@@ -23,7 +25,7 @@ constexpr UninitState ERROR = UninitState::getErrorState(0);
 namespace {
 
 class UseOfUninit
-    : public chx::CheckerWrapper<UseOfUninit, UninitState, StoreOp, LoadOp> {
+    : public CheckerWrapper<UseOfUninit, UninitState, StoreOp, LoadOp> {
 public:
   StringRef getName() const override {
     return "Use of uninitialized value checker";

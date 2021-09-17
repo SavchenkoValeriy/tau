@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "tau/Checkers/Checkers.h"
+#include <llvm/ADT/StringRef.h>
 
 #include <functional>
 #include <memory>
@@ -24,12 +24,17 @@ namespace mlir {
 class PassManager;
 } // end namespace mlir
 
+namespace tau::core {
+class Checker;
+} // end namespace tau::core
+
 namespace tau::chx {
 
-using CheckerAllocatorFunction = std::function<std::unique_ptr<Checker>()>;
+using CheckerAllocatorFunction =
+    std::function<std::unique_ptr<core::Checker>()>;
 
 void registerChecker(const CheckerAllocatorFunction &Constructor);
-Checker &findChecker(llvm::StringRef Argument);
+core::Checker &findChecker(llvm::StringRef Argument);
 
 template <typename ConcreteChecker> struct CheckerRegistration {
   CheckerRegistration(const CheckerAllocatorFunction &Constructor) {
