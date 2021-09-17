@@ -74,13 +74,16 @@ bool ConstantFloatOp::classof(Operation *Op) {
 //===----------------------------------------------------------------------===//
 
 static void print(OpAsmPrinter &P, LoadOp &Op) {
-  P << "air.load " << Op.from() << " : " << Op.from().getType();
+  P << "air.load ";
+  P.printOptionalAttrDict(Op->getAttrs());
+  P << " " << Op.from() << " : " << Op.from().getType();
 }
 
 static ParseResult parseLoad(OpAsmParser &Parser, OperationState &Result) {
   OpAsmParser::OperandType From;
   Type FromType;
-  if (Parser.parseOperand(From) || Parser.parseColon() ||
+  if (Parser.parseOptionalAttrDict(Result.attributes) ||
+      Parser.parseOperand(From) || Parser.parseColon() ||
       Parser.parseType(FromType) ||
       Parser.resolveOperand(From, FromType, Result.operands))
     return failure();
@@ -108,14 +111,17 @@ static LogicalResult verify(StoreOp &Store) {
 }
 
 static void print(OpAsmPrinter &P, StoreOp &Op) {
-  P << "air.store " << Op.what() << " -> " << Op.where() << " : "
+  P << "air.store ";
+  P.printOptionalAttrDict(Op->getAttrs());
+  P << " " << Op.what() << " -> " << Op.where() << " : "
     << Op.where().getType();
 }
 
 static ParseResult parseStore(OpAsmParser &Parser, OperationState &Result) {
   OpAsmParser::OperandType What, Where;
   Type WhereType;
-  if (Parser.parseOperand(What) || Parser.parseArrow() ||
+  if (Parser.parseOptionalAttrDict(Result.attributes) ||
+      Parser.parseOperand(What) || Parser.parseArrow() ||
       Parser.parseOperand(Where) || Parser.parseColon())
     return failure();
 
