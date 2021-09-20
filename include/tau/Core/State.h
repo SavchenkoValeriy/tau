@@ -13,14 +13,22 @@
 
 #include "tau/AIR/StateID.h"
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
 
 #include <cassert>
+
+namespace mlir {
+class Attribute;
+class Operation;
+} // end namespace mlir
 
 namespace tau {
 namespace core {
 
 constexpr llvm::StringLiteral StateAttrID = "state";
+
+llvm::ArrayRef<mlir::Attribute> getStateAttributes(mlir::Operation *Op);
 
 template <unsigned NumberOfNonErrorStates, unsigned NumberOfErrorStates>
 class State {
