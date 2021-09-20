@@ -1,5 +1,6 @@
 #include "tau/Checkers/Checkers.h"
 #include "tau/Checkers/Registry.h"
+#include "tau/Core/Analysis.h"
 #include "tau/Frontend/Clang/AIRGenAction.h"
 #include "tau/Frontend/Clang/AIRGenerator.h"
 
@@ -10,6 +11,7 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/MLIRContext.h>
+#include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Pass/PassRegistry.h>
 #include <mlir/Support/LogicalResult.h>
@@ -74,7 +76,6 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
 }
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
-  // TODO: reimplement it to surface only relevant options
   tau::chx::registerUseOfUninitChecker();
   tau::chx::CheckerCLParser CheckersOptions(CheckersCategory);
   cl::HideUnrelatedOptions({&TauCategory, &CheckersCategory});
@@ -111,6 +112,7 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
 
   llvm::SourceMgr SourceMgr;
   CheckersOptions.addEnabledCheckers(PM);
+  FPM.addPass(tau::core::createMainAnalysis());
 
   if (!Verify) {
     SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());
