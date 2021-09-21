@@ -4,9 +4,11 @@
 #include "tau/Frontend/Clang/AIRGenAction.h"
 #include "tau/Frontend/Clang/AIRGenerator.h"
 
+#include <clang/Basic/FileManager.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
+#include <llvm/Support/SMLoc.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Diagnostics.h>
@@ -96,6 +98,13 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
     // TODO: output clang errors?
     return failure();
 
+  llvm::SourceMgr SourceMgr;
+  clang::FileManager &FileMgr = Tool.getFiles();
+  for (StringRef SourcePath : Tool.getSourcePaths()) {
+    if (auto ErrorOrBuffer = FileMgr.getBufferForFile(SourcePath))
+      SourceMgr.AddNewSourceBuffer(std::move(ErrorOrBuffer.get()), SMLoc());
+  }
+
   // TODO: extract all the following logic into a separate component
   auto Module = Generator.getGeneratedModule();
 
@@ -110,7 +119,6 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
 
-  llvm::SourceMgr SourceMgr;
   CheckersOptions.addEnabledCheckers(PM);
   FPM.addPass(tau::core::createMainAnalysis());
 
