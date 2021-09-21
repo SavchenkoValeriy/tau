@@ -1,6 +1,5 @@
 #include "tau/Core/Analysis.h"
 #include "tau/Core/FlowSensitive.h"
-#include "tau/Core/FlowWorklist.h"
 
 #include <mlir/Pass/Pass.h>
 
@@ -21,8 +20,7 @@ public:
   }
 
   void runOnOperation() override {
-    auto Analysis = getAnalysis<ForwardWorklist>();
-    FuncOp Function = getOperation();
+    auto &FlowSen = getAnalysis<FlowSensitiveAnalysis>();
   }
 };
 

@@ -114,13 +114,13 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
   MLIRContext &Context = Generator.getContext();
   Context.printOpOnDiagnostic(false);
 
+  // TODO: extract all the following logic into a separate component
   PassManager PM(&Context);
-  OpPassManager &FPM = PM.nest<FuncOp>();
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
 
   CheckersOptions.addEnabledCheckers(PM);
-  FPM.addPass(tau::core::createMainAnalysis());
+  PM.addNestedPass<FuncOp>(tau::core::createMainAnalysis());
 
   if (!Verify) {
     SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());
