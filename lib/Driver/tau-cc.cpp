@@ -1,6 +1,6 @@
 #include "tau/Checkers/Checkers.h"
-#include "tau/Checkers/Registry.h"
 #include "tau/Core/Analysis.h"
+#include "tau/Core/CheckerRegistry.h"
 #include "tau/Frontend/Clang/AIRGenAction.h"
 #include "tau/Frontend/Clang/AIRGenerator.h"
 
@@ -77,7 +77,7 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
   tau::chx::registerUseOfUninitChecker();
-  tau::chx::CheckerCLParser CheckersOptions(CheckersCategory);
+  tau::core::CheckerCLParser CheckersOptions(CheckersCategory);
   cl::HideUnrelatedOptions({&TauCategory, &CheckersCategory});
 
   cl::SetVersionPrinter([](raw_ostream &OS) {

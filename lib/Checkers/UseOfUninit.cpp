@@ -1,7 +1,7 @@
 #include "tau/AIR/AirOps.h"
 #include "tau/Checkers/Checkers.h"
-#include "tau/Checkers/Registry.h"
 #include "tau/Core/Checker.h"
+#include "tau/Core/CheckerRegistry.h"
 #include "tau/Core/State.h"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -62,6 +62,4 @@ public:
 
 } // end anonymous namespace
 
-void chx::registerUseOfUninitChecker() {
-  chx::CheckerRegistration<UseOfUninit>();
-}
+void chx::registerUseOfUninitChecker() { CheckerRegistration<UseOfUninit>(); }

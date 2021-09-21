@@ -1,4 +1,4 @@
-//===- Registry.h - Registry for all the checkers ---------------*- C++ -*-===//
+//===- CheckerRegistry.h - Registry for all the checkers --------*- C++ -*-===//
 //
 // Part of the Tau Project, under the Apache License v2.0.
 // See LICENSE.txt for license information.
@@ -25,10 +25,8 @@ class PassManager;
 } // end namespace mlir
 
 namespace tau::core {
-class Checker;
-} // end namespace tau::core
 
-namespace tau::chx {
+class Checker;
 
 using CheckerAllocatorFunction =
     std::function<std::unique_ptr<core::Checker>()>;
@@ -65,4 +63,4 @@ private:
   std::unique_ptr<Implementation> PImpl;
 };
 
-} // end namespace tau::chx
+} // end namespace tau::core

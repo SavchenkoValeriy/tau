@@ -1,4 +1,5 @@
-#include "tau/Checkers/Registry.h"
+#include "tau/Core/CheckerRegistry.h"
+
 #include "tau/AIR/AirAttrs.h"
 #include "tau/Core/Checker.h"
 
@@ -17,7 +18,6 @@
 #include <mlir/Support/TypeID.h>
 
 using namespace tau;
-using namespace chx;
 using namespace core;
 using namespace mlir;
 using namespace llvm;
@@ -29,7 +29,7 @@ using namespace llvm;
 static ManagedStatic<StringMap<std::unique_ptr<Checker>>> CheckerRegistry;
 static ManagedStatic<StringMap<TypeID>> CheckerIDRegistry;
 
-void tau::chx::registerChecker(const CheckerAllocatorFunction &Constructor) {
+void tau::core::registerChecker(const CheckerAllocatorFunction &Constructor) {
   std::unique_ptr<Checker> NewChecker = Constructor();
   StringRef Argument = NewChecker->getArgument();
   if (Argument.empty())
@@ -87,28 +87,6 @@ public:
     Function.walk([this](Operation *Op) {
       for (Checker *EnabledChecker : EnabledCheckers) {
         EnabledChecker->process(Op);
-
-        // FIXME: This is only an example of how we can report errors
-        //        without any particular information about checkers.
-        //        It should be removed and replaced with a separate pass
-        //        that actually performs the analysis.
-        if (auto ErrorAttr =
-                getStateChangeAttr(Op, EnabledChecker->getArgument())) {
-          air::StateID ID = ErrorAttr.getToState();
-          if (!ID.isError())
-            continue;
-          mlir::Operation *OperandOp =
-              Op->getOperand(ErrorAttr.getOperandIdx()).getDefiningOp();
-
-          if (auto ChangeAttr = getStateChangeAttr(
-                  OperandOp, EnabledChecker->getArgument())) {
-            if (ErrorAttr.getFromState() != ChangeAttr.getToState())
-              continue;
-
-            auto Diag = EnabledChecker->emitError(Op, ID);
-            EnabledChecker->emitNote(Diag, OperandOp, ChangeAttr.getToState());
-          }
-        }
       }
     });
   }
@@ -166,4 +144,15 @@ CheckerCLParser::~CheckerCLParser() = default;
 
 void CheckerCLParser::addEnabledCheckers(mlir::PassManager &PM) {
   PImpl->addEnabledCheckers(PM);
+}
+
+//===----------------------------------------------------------------------===//
+//                              Find checker by ID
+//===----------------------------------------------------------------------===//
+
+Checker &tau::core::findChecker(llvm::StringRef ID) {
+  auto It = CheckerRegistry->find(ID);
+  assert(It != CheckerRegistry->end() &&
+         "Got request about a non-registered checker");
+  return *It->getValue().get();
 }
