@@ -21,12 +21,13 @@ namespace frontend {
 
 class AIRGenAction : public clang::tooling::FrontendActionFactory {
 public:
+  AIRGenAction(mlir::MLIRContext &Context) : Context(Context) {}
   virtual std::unique_ptr<clang::FrontendAction> create() override;
   mlir::ModuleOp getGeneratedModule() { return Module.release(); }
   mlir::MLIRContext &getContext() { return Context; }
 
 private:
-  mlir::MLIRContext Context;
+  mlir::MLIRContext &Context;
   mlir::OwningModuleRef Module;
 };
 

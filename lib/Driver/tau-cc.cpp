@@ -77,6 +77,39 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
                                                       llvm::errs());
 }
 
+struct FrontendOutput {
+  llvm::SourceMgr SourceMgr;
+  mlir::ModuleOp Module;
+  mlir::MLIRContext Context;
+};
+
+std::unique_ptr<FrontendOutput> runClang(int Argc, const char **Argv) {
+  auto CDB = readClangOptions(Argc, Argv);
+  if (auto E = CDB.takeError()) {
+    llvm::errs() << toString(std::move(E));
+    return nullptr;
+  }
+
+  auto Result = std::make_unique<FrontendOutput>();
+
+  tooling::ClangTool Tool(*CDB->get(), SourcePaths);
+  tau::frontend::AIRGenAction Generator{Result->Context};
+  if (Tool.run(&Generator))
+    // TODO: output clang errors?
+    return nullptr;
+
+  clang::FileManager &FileMgr = Tool.getFiles();
+  for (StringRef SourcePath : Tool.getSourcePaths()) {
+    if (auto ErrorOrBuffer = FileMgr.getBufferForFile(SourcePath))
+      Result->SourceMgr.AddNewSourceBuffer(std::move(ErrorOrBuffer.get()),
+                                           SMLoc());
+  }
+
+  Result->Module = Generator.getGeneratedModule();
+
+  return Result;
+}
+
 LogicalResult tauCCMain(int Argc, const char **Argv) {
   tau::chx::registerUseOfUninitChecker();
   tau::core::CheckerCLParser CheckersOptions(CheckersCategory);
@@ -87,31 +120,14 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
     OS << "tau C/C++ compiler v0.0.1\n";
   });
 
-  auto CDB = readClangOptions(Argc, Argv);
-  if (auto E = CDB.takeError()) {
-    llvm::errs() << toString(std::move(E));
+  auto IR = runClang(Argc, Argv);
+  if (!IR)
     return failure();
-  }
-  tooling::ClangTool Tool(*CDB->get(), SourcePaths);
-  tau::frontend::AIRGenAction Generator;
-  if (Tool.run(&Generator))
-    // TODO: output clang errors?
-    return failure();
-
-  llvm::SourceMgr SourceMgr;
-  clang::FileManager &FileMgr = Tool.getFiles();
-  for (StringRef SourcePath : Tool.getSourcePaths()) {
-    if (auto ErrorOrBuffer = FileMgr.getBufferForFile(SourcePath))
-      SourceMgr.AddNewSourceBuffer(std::move(ErrorOrBuffer.get()), SMLoc());
-  }
-
-  // TODO: extract all the following logic into a separate component
-  auto Module = Generator.getGeneratedModule();
 
   if (DumpAction == DumpTarget::AIR)
-    Module.dump();
+    IR->Module.dump();
 
-  MLIRContext &Context = Generator.getContext();
+  MLIRContext &Context = IR->Context;
   Context.printOpOnDiagnostic(false);
 
   // TODO: extract all the following logic into a separate component
@@ -123,12 +139,13 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
   PM.addNestedPass<FuncOp>(tau::core::createMainAnalysis());
 
   if (!Verify) {
-    SourceMgrDiagnosticHandler Handler(SourceMgr, &Context, llvm::errs());
-    return PM.run(Module);
+    SourceMgrDiagnosticHandler Handler(IR->SourceMgr, &Context, llvm::errs());
+    return PM.run(IR->Module);
   }
 
-  SourceMgrDiagnosticVerifierHandler Handler(SourceMgr, &Context, llvm::errs());
-  return success(succeeded(PM.run(Module)) && succeeded(Handler.verify()));
+  SourceMgrDiagnosticVerifierHandler Handler(IR->SourceMgr, &Context,
+                                             llvm::errs());
+  return success(succeeded(PM.run(IR->Module)) && succeeded(Handler.verify()));
 }
 
 int main(int Argc, const char **Argv) { return failed(tauCCMain(Argc, Argv)); }
