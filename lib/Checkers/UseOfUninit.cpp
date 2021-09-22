@@ -18,8 +18,9 @@ using namespace core;
 using namespace air;
 using namespace mlir;
 
-using UninitState = core::State<1, 1>;
+using UninitState = core::State<2, 1>;
 constexpr UninitState UNINIT = UninitState::getNonErrorState(0);
+constexpr UninitState INIT = UninitState::getNonErrorState(1);
 constexpr UninitState ERROR = UninitState::getErrorState(0);
 
 namespace {
@@ -36,12 +37,11 @@ public:
   }
 
   void process(StoreOp Store) const {
-    auto StoredValueSource = Store.getValue().getDefiningOp<UndefOp>();
-    if (!StoredValueSource)
-      return;
-
     mlir::Operation *Address = Store.getAddress().getDefiningOp();
-    markResultChange(Address, UNINIT);
+    if (Store.getValue().getDefiningOp<UndefOp>())
+      markResultChange(Address, UNINIT);
+    else
+      markChange(Store, Store.getAddress(), UNINIT, INIT);
   }
 
   void process(LoadOp Load) const {
