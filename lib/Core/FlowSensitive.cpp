@@ -3,21 +3,26 @@
 #include "tau/AIR/StateID.h"
 #include "tau/Core/Checker.h"
 #include "tau/Core/CheckerRegistry.h"
+#include "tau/Core/FlowWorklist.h"
 #include "tau/Core/State.h"
 
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SetOperations.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
-#include <memory>
 #include <mlir/Analysis/DataFlowAnalysis.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
-
-#include <immer/map.hpp>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/MLIRContext.h>
+#include <mlir/Pass/AnalysisManager.h>
+
+#include <immer/map.hpp>
+
+#include <memory>
 #include <utility>
 
 using namespace tau;
@@ -57,56 +62,58 @@ template <> struct hash<StateKey> {
     return llvm::hash_combine(llvm::hash_value(Key.State), Key.CheckerID);
   }
 };
+template <> struct hash<Value> {
+  size_t operator()(const Value &V) const {
+    return llvm::hash_value(V.getAsOpaquePointer());
+  }
+};
 } // end namespace std
 
 namespace {
-class StateLatticeValue {
+class Events {
 private:
-  using StateSet = immer::map<StateKey, const StateEvent *>;
+  using EventSet = immer::map<StateKey, const StateEvent *>;
 
-  StateLatticeValue(StateSet States) : AssociatedStates(States) {}
+  Events(EventSet Events) : AssociatedEvents(Events) {}
 
-  StateSet AssociatedStates;
+  EventSet AssociatedEvents;
 
 public:
-  StateLatticeValue() = default;
-  StateLatticeValue(const StateEvent &Event) {
-    AssociatedStates =
-        AssociatedStates.insert(std::make_pair(Event.Key, &Event));
+  Events() = default;
+  Events(const StateEvent &Event) {
+    AssociatedEvents =
+        AssociatedEvents.insert(std::make_pair(Event.Key, &Event));
   }
 
-  static StateLatticeValue getPessimisticValueState(MLIRContext *) {
-    return {};
-  }
+  static Events join(const Events &LHS, const Events &RHS) {
+    if (LHS.AssociatedEvents.size() < RHS.AssociatedEvents.size())
+      return join(RHS, LHS);
 
-  static StateLatticeValue getPessimisticValueState(Value) { return {}; }
+    EventSet Result = LHS.AssociatedEvents;
 
-  static StateLatticeValue join(const StateLatticeValue &LHS,
-                                const StateLatticeValue &RHS) {
-    StateSet Result = LHS.AssociatedStates;
-
-    for (const auto &Event : RHS.AssociatedStates)
+    for (const auto &Event : RHS.AssociatedEvents)
       Result = Result.insert(Event);
 
     return Result;
   }
 
-  bool operator==(const StateLatticeValue &Other) const {
-    return AssociatedStates == Other.AssociatedStates;
+  Events join(const Events &Other) const { return join(*this, Other); }
+
+  bool operator==(const Events &Other) const {
+    return AssociatedEvents == Other.AssociatedEvents;
   }
 
   [[nodiscard]] bool contains(StringRef CheckerID, StateID ID) const {
-    return AssociatedStates.count({CheckerID, ID});
+    return AssociatedEvents.count({CheckerID, ID});
   }
 
   [[nodiscard]] const StateEvent *find(StringRef CheckerID, StateID ID) const {
-    auto *const *Result = AssociatedStates.find({CheckerID, ID});
+    auto *const *Result = AssociatedEvents.find({CheckerID, ID});
     return Result ? *Result : nullptr;
   }
 
-  StateLatticeValue replace(const StateEvent &Old,
-                            const StateEvent &New) const {
-    StateSet Result = AssociatedStates;
+  Events replace(const StateEvent &Old, const StateEvent &New) const {
+    EventSet Result = AssociatedEvents;
     Result = Result.erase(Old.Key);
     return Result.insert(std::make_pair(New.Key, &New));
   }
@@ -117,116 +124,173 @@ public:
     });
   }
 
-  using const_iterator = StateSet::iterator;
-  const_iterator begin() const { return AssociatedStates.begin(); }
-  const_iterator end() const { return AssociatedStates.end(); }
+  using const_iterator = EventSet::iterator;
+  const_iterator begin() const { return AssociatedEvents.begin(); }
+  const_iterator end() const { return AssociatedEvents.end(); }
 };
 } // end anonymous namespace
 
-class FlowSensitiveAnalysis::Implementation
-    : public ForwardDataFlowAnalysis<StateLatticeValue> {
-  using Base = ForwardDataFlowAnalysis<StateLatticeValue>;
-  using AssociatedStates = LatticeElement<StateLatticeValue>;
+class FlowSensitiveAnalysis::Implementation {
+  using ValueEvents = immer::map<Value, Events>;
+  using BlockStateMap = SmallVector<ValueEvents, 20>;
 
+  // State management
+  BlockStateMap States;
+  ValueEvents CurrentState;
+
+  // Traversal instruments
+  PostOrderBlockEnumerator &Enumerator;
+  ForwardWorklist &Worklist;
+  BitVector Processed;
+
+  // Memory management
   llvm::SpecificBumpPtrAllocator<StateEvent> Allocator;
 
 public:
-  using Base::ForwardDataFlowAnalysis;
-
-  template <class... Args>
-  const StateEvent &allocateStateEvent(Args &&...Rest) {
-    return *(new (Allocator.Allocate()) StateEvent{Rest...});
+  Implementation(FuncOp Function, AnalysisManager &AM)
+      : Enumerator(AM.getAnalysis<PostOrderBlockEnumerator>()),
+        Worklist(AM.getAnalysis<ForwardWorklist>()),
+        Processed(Function.getBlocks().size()) {
+    States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
+    Worklist.enqueue(&Function.getBlocks().front());
   }
 
-  ChangeResult visitOperation(Operation *Op,
-                              ArrayRef<AssociatedStates *> OperandStates) {
-    ChangeResult Result = ChangeResult::NoChange;
+  void run() {
+    while (Block *BB = Worklist.dequeue()) {
+      visitBlock(*BB);
+    }
+  }
 
+  void visitBlock(Block &BB) {
+    CurrentState = joinPreds(BB);
+    for (Operation &Op : BB) {
+      visitOperation(Op);
+    }
+    if (setState(BB, CurrentState) == ChangeResult::Change ||
+        !isProcessed(BB)) {
+      markProcessed(BB);
+      for (Block *Succ : BB.getSuccessors())
+        Worklist.enqueue(Succ);
+    }
+  }
+
+  ValueEvents joinPreds(Block &BB) const {
+    ValueEvents Result;
+    for (Block *Pred : BB.getPredecessors()) {
+      Result = join(Result, getState(*Pred));
+    }
+    return Result;
+  }
+
+  static ValueEvents join(const ValueEvents &LHS, const ValueEvents &RHS) {
+    if (LHS.size() < RHS.size())
+      return join(RHS, LHS);
+
+    ValueEvents Result = LHS;
+    for (auto &[V, E] : RHS) {
+      Result = Result.insert(std::make_pair(V, Events::join(Result[V], E)));
+    }
+    return Result;
+  }
+
+  void visitOperation(Operation &Op) {
     // Let's go over state attributes, the attributes marking what
     // should happen with all the values involved.
-    auto StateAttrs = getStateAttributes(Op);
+    auto StateAttrs = getStateAttributes(&Op);
     for (auto StateAttr : StateAttrs) {
       // State change:
       //    One of the values should change its state
       if (auto StateChange = StateAttr.dyn_cast<StateChangeAttr>()) {
         // Let's get current states of the value directly mentioned
         // in the attribute.
-        auto &StatesOfTheChangingOperand =
-            getOperandByIdx(Op, StateChange.getOperandIdx(), OperandStates);
+        Value AffectedValue = getOperandByIdx(Op, StateChange.getOperandIdx());
+        StringRef CheckerID = StateChange.getCheckerID();
+        Optional<StateID> From = StateChange.getFromState();
+        StateID To = StateChange.getToState();
 
-        Result |= addTransition(
-            StatesOfTheChangingOperand, Op, StateChange.getCheckerID(),
-            StateChange.getFromState(), StateChange.getToState());
+        if (const StateEvent *NewEvent =
+                addTransition(AffectedValue, Op, CheckerID, From, To))
+          // FIXME: this functionality doesn't belong here
+          if (To.isError()) {
+            auto &Checker = findChecker(CheckerID);
+            InFlightDiagnostic Error = Checker.emitError(&Op, To);
+
+            for (const StateEvent *CurrentEvent = NewEvent->Parent;
+                 CurrentEvent; CurrentEvent = CurrentEvent->Parent)
+              Checker.emitNote(Error, CurrentEvent->Location,
+                               CurrentEvent->Key.State);
+          }
       }
     }
-
-    if (Op->getNumResults()) {
-      Value ResultValue = Op->getResult(0);
-      AssociatedStates &ResultStates = getLatticeElement(ResultValue);
-      if (ResultStates.isUninitialized())
-        Result |= ResultStates.join(StateLatticeValue{});
-    }
-
-    return Result;
   }
 
-  ChangeResult addTransition(AssociatedStates &CurrentStates,
-                             Operation *Location, StringRef CheckerID,
-                             Optional<StateID> From, StateID To) {
-    ChangeResult Result = ChangeResult::NoChange;
+  const StateEvent *addTransition(Value ForValue, Operation &Location,
+                                  StringRef CheckerID, Optional<StateID> From,
+                                  StateID To) {
+    Events Current = CurrentState[ForValue];
 
     if (!From) {
       // The lack of the state here means that it's the initial
       // transition, and we should check that among the tracked
       // states of the value there are no states of this checker.
-      if (CurrentStates.isUninitialized() ||
-          CurrentStates.getValue().hasNoCheckerState(CheckerID))
-        return CurrentStates.join(allocateStateEvent(CheckerID, To, Location));
-
-      return Result;
-    }
-
-    if (CurrentStates.isUninitialized())
-      return Result;
-
-    if (const StateEvent *FromEvent =
-            CurrentStates.getValue().find(CheckerID, *From)) {
-      const StateEvent &ToEvent =
-          allocateStateEvent(CheckerID, To, Location, FromEvent);
-      StateLatticeValue NewValue =
-          CurrentStates.getValue().replace(*FromEvent, ToEvent);
-      CurrentStates.getValue() = NewValue;
-      Result = mlir::ChangeResult::Change;
-
-      // FIXME: this functionality doesn't belong here
-      if (To.isError()) {
-        auto &Checker = findChecker(CheckerID);
-        InFlightDiagnostic Error = Checker.emitError(Location, To);
-
-        for (const StateEvent *CurrentEvent = ToEvent.Parent; CurrentEvent;
-             CurrentEvent = CurrentEvent->Parent) {
-          Checker.emitNote(Error, CurrentEvent->Location,
-                           CurrentEvent->Key.State);
-        }
+      if (Current.hasNoCheckerState(CheckerID)) {
+        const StateEvent &NewEvent =
+            allocateStateEvent(CheckerID, To, &Location);
+        associate(ForValue, Current.join(Events(NewEvent)));
+        return &NewEvent;
       }
+
+      return nullptr;
     }
 
-    return Result;
+    if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
+      const StateEvent &ToEvent =
+          allocateStateEvent(CheckerID, To, &Location, FromEvent);
+      Events NewSetOfEvents = Current.replace(*FromEvent, ToEvent);
+      associate(ForValue, NewSetOfEvents);
+      return &ToEvent;
+    }
+
+    return nullptr;
   }
 
-  AssociatedStates &
-  getOperandByIdx(Operation *Op, unsigned Index,
-                  ArrayRef<AssociatedStates *> OperandStates) {
+  static Value getOperandByIdx(Operation &Op, unsigned Index) {
     // Index equal to the number of operands means result.
-    if (Op->getNumOperands() == Index) {
-      assert(Op->getNumResults() && "Operation has no result");
-      // OperandStates don't include the result and should be requested
-      // separately.
-      return getLatticeElement(Op->getResult(0));
+    if (Op.getNumOperands() == Index) {
+      assert(Op.getNumResults() && "Operation has no result");
+      return Op.getResult(0);
     }
 
-    // Otherwise, it's right there in OperandStates.
-    return *OperandStates[Index];
+    return Op.getOperand(Index);
+  }
+
+  void associate(Value V, Events E) {
+    CurrentState = CurrentState.insert(std::make_pair(V, E));
+  }
+
+  ChangeResult setState(Block &BB, ValueEvents NewState) {
+    ValueEvents &Current = getState(BB);
+
+    if (Current == NewState)
+      return ChangeResult::NoChange;
+
+    Current = NewState;
+    return ChangeResult::Change;
+  }
+
+  ValueEvents &getState(Block &BB) { return States[index(BB)]; }
+  const ValueEvents &getState(Block &BB) const { return States[index(BB)]; }
+
+  bool isProcessed(const Block &BB) const { return Processed.test(index(BB)); }
+  void markProcessed(const Block &BB) { Processed.set(index(BB)); }
+
+  unsigned index(const Block &BB) const {
+    return Enumerator.getPostOrderIndex(&BB);
+  }
+
+  template <class... Args>
+  const StateEvent &allocateStateEvent(Args &&...Rest) {
+    return *(new (Allocator.Allocate()) StateEvent{Rest...});
   }
 };
 
@@ -234,9 +298,11 @@ public:
 //                                  Interface
 //===----------------------------------------------------------------------===//
 
-FlowSensitiveAnalysis::FlowSensitiveAnalysis(mlir::Operation *TopLevelOp) {
-  PImpl = std::make_unique<Implementation>(TopLevelOp->getContext());
-  PImpl->run(TopLevelOp);
+FlowSensitiveAnalysis::FlowSensitiveAnalysis(Operation *TopLevelOp,
+                                             AnalysisManager &AM) {
+  assert(isa<FuncOp>(TopLevelOp) && "Only functions are supported");
+  PImpl = std::make_unique<Implementation>(cast<FuncOp>(TopLevelOp), AM);
+  PImpl->run();
 }
 
 FlowSensitiveAnalysis::~FlowSensitiveAnalysis() = default;

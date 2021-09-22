@@ -30,18 +30,18 @@ protected:
 
 private:
   llvm::BitVector EnqueuedBlocks;
-  using QueueImpl = llvm::SmallVector<const mlir::Block *, 20>;
-  llvm::PriorityQueue<const mlir::Block *, QueueImpl, Comparator> WorkList;
+  using QueueImpl = llvm::SmallVector<mlir::Block *, 20>;
+  llvm::PriorityQueue<mlir::Block *, QueueImpl, Comparator> WorkList;
 
   Derived &getDerived() { return *static_cast<Derived *>(this); }
 
 public:
-  WorklistBase(mlir::FuncOp Function, mlir::AnalysisManager &AM)
+  WorklistBase(mlir::Operation *Function, mlir::AnalysisManager &AM)
       : Enumeration(AM.getAnalysis<PostOrderBlockEnumerator>()),
-        EnqueuedBlocks(Function.getBlocks().size()),
+        EnqueuedBlocks(llvm::cast<mlir::FuncOp>(Function).getBlocks().size()),
         WorkList(this->getDerived().getComparator()) {}
 
-  void enqueue(const mlir::Block *BB) {
+  void enqueue(mlir::Block *BB) {
     unsigned BBIndex = Enumeration.getPostOrderIndex(BB);
 
     if (!EnqueuedBlocks[BBIndex]) {
@@ -50,11 +50,11 @@ public:
     }
   }
 
-  const mlir::Block *dequeue() {
+  mlir::Block *dequeue() {
     if (WorkList.empty())
       return nullptr;
 
-    const mlir::Block *BB = WorkList.top();
+    mlir::Block *BB = WorkList.top();
     WorkList.pop();
     EnqueuedBlocks[Enumeration.getPostOrderIndex(BB)] = false;
     return BB;

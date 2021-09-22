@@ -14,6 +14,7 @@
 #include <memory>
 
 namespace mlir {
+class AnalysisManager;
 class Operation;
 } // end namespace mlir
 
@@ -21,7 +22,7 @@ namespace tau::core {
 
 class FlowSensitiveAnalysis {
 public:
-  FlowSensitiveAnalysis(mlir::Operation *TopLevelOp);
+  FlowSensitiveAnalysis(mlir::Operation *TopLevelOp, mlir::AnalysisManager &AM);
 
   FlowSensitiveAnalysis(const FlowSensitiveAnalysis &) = delete;
   FlowSensitiveAnalysis &operator=(const FlowSensitiveAnalysis &) = delete;
