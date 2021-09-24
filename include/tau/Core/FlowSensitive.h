@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <llvm/ADT/ArrayRef.h>
 #include <memory>
 
 namespace mlir {
@@ -20,9 +21,20 @@ class Operation;
 
 namespace tau::core {
 
+class StateEvent;
+class StateEventForest;
+
 class FlowSensitiveAnalysis {
 public:
   FlowSensitiveAnalysis(mlir::Operation *TopLevelOp, mlir::AnalysisManager &AM);
+
+  struct Issue {
+    const StateEvent &ErrorEvent;
+    bool Guaranteed;
+  };
+
+  StateEventForest &getEventForest();
+  llvm::ArrayRef<Issue> getFoundIssues();
 
   FlowSensitiveAnalysis(const FlowSensitiveAnalysis &) = delete;
   FlowSensitiveAnalysis &operator=(const FlowSensitiveAnalysis &) = delete;

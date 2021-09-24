@@ -1,12 +1,12 @@
 #include "tau/Core/FlowSensitive.h"
+
 #include "tau/AIR/AirAttrs.h"
 #include "tau/AIR/StateID.h"
-#include "tau/Core/Checker.h"
-#include "tau/Core/CheckerRegistry.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/State.h"
 #include "tau/Core/StateEventForest.h"
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SetOperations.h>
@@ -126,6 +126,9 @@ class FlowSensitiveAnalysis::Implementation {
   // Memory management
   StateEventForest Forest;
 
+  // Issue tracking
+  SmallVector<Issue, 20> FoundIssues;
+
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
       : Enumerator(AM.getAnalysis<PostOrderBlockEnumerator>()),
@@ -140,6 +143,10 @@ public:
       visit(*BB);
   }
 
+  StateEventForest &getForest() { return Forest; }
+  ArrayRef<Issue> getIssues() { return FoundIssues; }
+
+private:
   void visit(Block &BB) {
     // CurrentState contains the state of all values while we walk
     // through the basic block.  We start it with the disjunction
@@ -217,17 +224,11 @@ public:
         StateID To = StateChange.getToState();
 
         if (const StateEvent *NewEvent =
-                addTransition(AffectedValue, Op, CheckerID, From, To))
-          // FIXME: this functionality doesn't belong here
-          if (To.isError()) {
-            auto &Checker = findChecker(CheckerID);
-            InFlightDiagnostic Error = Checker.emitError(&Op, To);
-
-            for (const StateEvent *CurrentEvent = NewEvent->Parent;
-                 CurrentEvent; CurrentEvent = CurrentEvent->Parent)
-              Checker.emitNote(Error, CurrentEvent->Location,
-                               CurrentEvent->Key.State);
-          }
+                addTransition(AffectedValue, Op, CheckerID, From, To);
+            NewEvent != nullptr && To.isError())
+          // TODO: use domination relationship to figure out whether
+          //       we can guarantee that the issue can happen.
+          FoundIssues.push_back({*NewEvent, false});
       }
     }
   }
@@ -313,3 +314,11 @@ FlowSensitiveAnalysis::FlowSensitiveAnalysis(Operation *TopLevelOp,
 }
 
 FlowSensitiveAnalysis::~FlowSensitiveAnalysis() = default;
+
+StateEventForest &FlowSensitiveAnalysis::getEventForest() {
+  return PImpl->getForest();
+}
+
+ArrayRef<FlowSensitiveAnalysis::Issue> FlowSensitiveAnalysis::getFoundIssues() {
+  return PImpl->getIssues();
+}
