@@ -2,6 +2,7 @@
 
 #include "tau/AIR/AirAttrs.h"
 #include "tau/Core/Checker.h"
+#include "tau/Core/CheckerPass.h"
 
 #include <iterator>
 #include <llvm/ADT/STLExtras.h>
@@ -69,32 +70,6 @@ air::StateChangeAttr getStateChangeAttr(Operation *Op, StringRef CheckerID) {
   return {};
 }
 
-class EnabledCheckersPass final
-    : public PassWrapper<EnabledCheckersPass, OperationPass<FuncOp>> {
-public:
-  using Checkers = llvm::SmallVector<Checker *, 32>;
-
-  EnabledCheckersPass(Checkers &&EnabledCheckers)
-      : EnabledCheckers(std::move(EnabledCheckers)) {}
-
-  StringRef getArgument() const override { return "run-enabled-checkers"; }
-  StringRef getDescription() const override {
-    return "Run all enabled checkers on the given function";
-  }
-  void runOnOperation() override {
-    FuncOp Function = getOperation();
-
-    Function.walk([this](Operation *Op) {
-      for (Checker *EnabledChecker : EnabledCheckers) {
-        EnabledChecker->process(Op);
-      }
-    });
-  }
-
-private:
-  Checkers EnabledCheckers;
-};
-
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -112,7 +87,7 @@ public:
   }
 
   void addEnabledCheckers(PassManager &PM) {
-    EnabledCheckersPass::Checkers ListOfEnabledCheckers;
+    SmallVector<Checker *, 20> ListOfEnabledCheckers;
     // First get a subset of checkers enabled by options.
     auto FilteredCheckers =
         llvm::make_filter_range(*CheckerRegistry, [this](auto &Entry) -> bool {
@@ -126,8 +101,7 @@ public:
                     [](auto &Entry) { return Entry.getValue().get(); });
 
     // We evaluate all checkers in one pass.
-    PM.addNestedPass<FuncOp>(std::make_unique<EnabledCheckersPass>(
-        std::move(ListOfEnabledCheckers)));
+    PM.addNestedPass<FuncOp>(createCheckerPass(ListOfEnabledCheckers));
   }
 
 private:
