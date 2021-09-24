@@ -1,8 +1,8 @@
 #include "tau/Checkers/Checkers.h"
 #include "tau/Core/Analysis.h"
 #include "tau/Core/CheckerRegistry.h"
-#include "tau/Frontend/Clang/AIRGenAction.h"
-#include "tau/Frontend/Clang/AIRGenerator.h"
+#include "tau/Frontend/Clang/Clang.h"
+#include "tau/Frontend/Output.h"
 
 #include <clang/Basic/FileManager.h>
 #include <clang/Tooling/CompilationDatabase.h>
@@ -46,27 +46,6 @@ cl::opt<bool> Verify("verify",
 
 } // end anonymous namespace
 
-Expected<std::unique_ptr<tooling::CompilationDatabase>>
-readClangOptions(int Argc, const char **Argv) {
-  std::string ErrorMessage;
-  auto Result = tooling::FixedCompilationDatabase::loadFromCommandLine(
-      Argc, Argv, ErrorMessage);
-  if (!ErrorMessage.empty())
-    ErrorMessage.append("\n");
-  llvm::raw_string_ostream OS(ErrorMessage);
-  // Stop initializing if command-line option parsing failed.
-  if (!cl::ParseCommandLineOptions(Argc, Argv, "", &OS)) {
-    OS.flush();
-    return llvm::make_error<llvm::StringError>(ErrorMessage,
-                                               llvm::inconvertibleErrorCode());
-  }
-
-  if (!Result)
-    Result.reset(new tooling::FixedCompilationDatabase(".", {}));
-
-  return Result;
-}
-
 std::unique_ptr<ScopedDiagnosticHandler>
 createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
   if (Verify)
@@ -75,39 +54,6 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
 
   return std::make_unique<SourceMgrDiagnosticHandler>(SourceManager, &Context,
                                                       llvm::errs());
-}
-
-struct FrontendOutput {
-  llvm::SourceMgr SourceMgr;
-  mlir::ModuleOp Module;
-  mlir::MLIRContext Context;
-};
-
-std::unique_ptr<FrontendOutput> runClang(int Argc, const char **Argv) {
-  auto CDB = readClangOptions(Argc, Argv);
-  if (auto E = CDB.takeError()) {
-    llvm::errs() << toString(std::move(E));
-    return nullptr;
-  }
-
-  auto Result = std::make_unique<FrontendOutput>();
-
-  tooling::ClangTool Tool(*CDB->get(), SourcePaths);
-  tau::frontend::AIRGenAction Generator{Result->Context};
-  if (Tool.run(&Generator))
-    // TODO: output clang errors?
-    return nullptr;
-
-  clang::FileManager &FileMgr = Tool.getFiles();
-  for (StringRef SourcePath : Tool.getSourcePaths()) {
-    if (auto ErrorOrBuffer = FileMgr.getBufferForFile(SourcePath))
-      Result->SourceMgr.AddNewSourceBuffer(std::move(ErrorOrBuffer.get()),
-                                           SMLoc());
-  }
-
-  Result->Module = Generator.getGeneratedModule();
-
-  return Result;
 }
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
@@ -120,7 +66,7 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
     OS << "tau C/C++ compiler v0.0.1\n";
   });
 
-  auto IR = runClang(Argc, Argv);
+  auto IR = tau::frontend::runClang(Argc, Argv, SourcePaths);
   if (!IR)
     return failure();
 
