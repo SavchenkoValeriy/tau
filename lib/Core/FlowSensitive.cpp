@@ -33,6 +33,8 @@ using namespace llvm;
 
 namespace {
 
+// TODO: State event graphs should probably be available to other
+//       components.
 struct StateKey {
   StringRef CheckerID;
   StateID State;
@@ -85,21 +87,29 @@ public:
         AssociatedEvents.insert(std::make_pair(Event.Key, &Event));
   }
 
-  static Events join(const Events &LHS, const Events &RHS) {
+  [[nodiscard]] static Events join(const Events &LHS, const Events &RHS) {
+    // It's easier to merge smaller sets into larger ones.
     if (LHS.AssociatedEvents.size() < RHS.AssociatedEvents.size())
       return join(RHS, LHS);
 
     EventSet Result = LHS.AssociatedEvents;
 
+    // If Result already has an event with the same key - doesn't matter.
+    // We can pick just one to carry on further.
+    //
+    // NOTE: This in fact might cause a problem if the event that we discard
+    //       is possible and the one that we kept is not.
     for (const auto &Event : RHS.AssociatedEvents)
       Result = Result.insert(Event);
 
     return Result;
   }
 
-  Events join(const Events &Other) const { return join(*this, Other); }
+  [[nodiscard]] Events join(const Events &Other) const {
+    return join(*this, Other);
+  }
 
-  bool operator==(const Events &Other) const {
+  [[nodiscard]] bool operator==(const Events &Other) const {
     return AssociatedEvents == Other.AssociatedEvents;
   }
 
@@ -108,17 +118,18 @@ public:
   }
 
   [[nodiscard]] const StateEvent *find(StringRef CheckerID, StateID ID) const {
-    auto *const *Result = AssociatedEvents.find({CheckerID, ID});
+    const auto *const *Result = AssociatedEvents.find({CheckerID, ID});
     return Result ? *Result : nullptr;
   }
 
-  Events replace(const StateEvent &Old, const StateEvent &New) const {
+  [[nodiscard]] Events replace(const StateEvent &Old,
+                               const StateEvent &New) const {
     EventSet Result = AssociatedEvents;
     Result = Result.erase(Old.Key);
     return Result.insert(std::make_pair(New.Key, &New));
   }
 
-  bool hasNoCheckerState(StringRef CheckerID) const {
+  [[nodiscard]] bool hasNoCheckerState(StringRef CheckerID) const {
     return llvm::none_of(*this, [CheckerID](const auto &KeyEventPair) {
       return KeyEventPair.first.CheckerID == CheckerID;
     });
@@ -156,44 +167,72 @@ public:
   }
 
   void run() {
-    while (Block *BB = Worklist.dequeue()) {
-      visitBlock(*BB);
-    }
+    while (Block *BB = Worklist.dequeue())
+      visit(*BB);
   }
 
-  void visitBlock(Block &BB) {
+  void visit(Block &BB) {
+    // CurrentState contains the state of all values while we walk
+    // through the basic block.  We start it with the disjunction
+    // of all states from the block's predecessors.
     CurrentState = joinPreds(BB);
-    for (Operation &Op : BB) {
-      visitOperation(Op);
-    }
+
+    // Sequentially visit all block's operation.
+    // This visitation affects the CurrentState.
+    for (Operation &Op : BB)
+      visit(Op);
+
+    // We have two options when we need to keep going and traverse
+    // block's successors:
+    //
+    //    * The state at the block's exit has changed,
+    //      meaning that it might change states of the successor blocks.
+    //
+    //    * It's the first time we visit this block, and it's
+    //      successors are still to be processed at least once.
     if (setState(BB, CurrentState) == ChangeResult::Change ||
         !isProcessed(BB)) {
       markProcessed(BB);
-      for (Block *Succ : BB.getSuccessors())
-        Worklist.enqueue(Succ);
+      Worklist.enqueueSuccessors(BB);
     }
   }
 
   ValueEvents joinPreds(Block &BB) const {
     ValueEvents Result;
-    for (Block *Pred : BB.getPredecessors()) {
+    for (Block *Pred : BB.getPredecessors())
       Result = join(Result, getState(*Pred));
-    }
+
     return Result;
   }
 
   static ValueEvents join(const ValueEvents &LHS, const ValueEvents &RHS) {
+    // It's easier to merge smaller maps into larger ones.
     if (LHS.size() < RHS.size())
       return join(RHS, LHS);
 
     ValueEvents Result = LHS;
-    for (auto &[V, E] : RHS) {
+    for (auto &[V, E] : RHS)
+      // Merge sets of events for the same values.
+      // Here we have three possible situations:
+      //
+      //    * V is both in LHS and RHS
+      //    This means that Result[V] == LHS[V], E == RHS[V], and we associate
+      //    join(LHS[V], RHS[V]) with V.
+      //
+      //    * V is in RHS only
+      //    In this situation, Result[V] is empty and after the next operation
+      //    it becomes RHS[V].
+      //
+      //    * V is in LHS only
+      //    In this situaution we won't iterate over this value at all,
+      //    but Result[V] == LHS[V] prior to the loop, which is the correct
+      //    answer.
       Result = Result.insert(std::make_pair(V, Events::join(Result[V], E)));
-    }
+
     return Result;
   }
 
-  void visitOperation(Operation &Op) {
+  void visit(Operation &Op) {
     // Let's go over state attributes, the attributes marking what
     // should happen with all the values involved.
     auto StateAttrs = getStateAttributes(&Op);
@@ -236,6 +275,8 @@ public:
       if (Current.hasNoCheckerState(CheckerID)) {
         const StateEvent &NewEvent =
             allocateStateEvent(CheckerID, To, &Location);
+        // Since the value had no checker-related events prior to this,
+        // we can simply add a new event.
         associate(ForValue, Current.join(Events(NewEvent)));
         return &NewEvent;
       }
@@ -246,6 +287,8 @@ public:
     if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
       const StateEvent &ToEvent =
           allocateStateEvent(CheckerID, To, &Location, FromEvent);
+      // Since this is a state transition, we need to replace the previous
+      // event.
       Events NewSetOfEvents = Current.replace(*FromEvent, ToEvent);
       associate(ForValue, NewSetOfEvents);
       return &ToEvent;
@@ -265,6 +308,7 @@ public:
   }
 
   void associate(Value V, Events E) {
+    // Associating happens for the current basic block only.
     CurrentState = CurrentState.insert(std::make_pair(V, E));
   }
 

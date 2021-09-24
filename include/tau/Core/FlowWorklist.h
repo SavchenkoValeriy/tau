@@ -89,6 +89,11 @@ public:
   detail::ForwardTraversalComparator getComparator() const {
     return {Enumeration};
   }
+
+  void enqueueSuccessors(mlir::Block &BB) {
+    for (mlir::Block *Succ : BB.getSuccessors())
+      enqueue(Succ);
+  }
 };
 
 class BackwardWorklist
@@ -101,6 +106,11 @@ public:
 
   detail::BackwardTraversalComparator getComparator() const {
     return {Enumeration};
+  }
+
+  void enqueuePredecessors(mlir::Block &BB) {
+    for (mlir::Block *Pred : BB.getPredecessors())
+      enqueue(Pred);
   }
 };
 
