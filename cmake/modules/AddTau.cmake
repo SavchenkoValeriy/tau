@@ -27,4 +27,5 @@ function(add_tau_unittest name)
     RUNTIME_OUTPUT_DIRECTORY ""
     )
   gtest_discover_tests(${name})
+  add_dependencies(unittests ${name})
 endfunction()

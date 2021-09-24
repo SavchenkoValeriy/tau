@@ -101,7 +101,6 @@ endif()
 
 enable_testing()
 add_custom_target(check)
-add_dependencies(check test)
 
 add_subdirectory(lib)
 add_subdirectory(include/tau)
