@@ -85,7 +85,14 @@ add_definitions(${LLVM_DEFINITIONS})
 add_definitions(${CLANG_DEFINITIONS})
 add_definitions(${MLIR_DEFINITIONS})
 
+# Always export compilation commands
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
+option(TAU_ENABLE_ASAN "Enable address sanitizer")
+if(TAU_ENABLE_ASAN)
+  set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+  set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+endif()
 
 add_subdirectory(lib)
 add_subdirectory(include/tau)
