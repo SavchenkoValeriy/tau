@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.9)
 
 if(POLICY CMP0116)
   cmake_policy(SET CMP0116 OLD)
@@ -33,6 +33,9 @@ find_package(Clang REQUIRED)
 # Find CMake file for MLIR
 find_package(MLIR REQUIRED)
 
+# Find CMake file for GoogleTest
+find_package(GTest REQUIRED)
+
 # Add path to MLIR modules
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 # Add path to LLVM modules
@@ -43,6 +46,8 @@ include(AddLLVM)
 include(TableGen)
 # import MLIR CMake functions
 include(AddMLIR)
+# import GTest CMake functions
+include(GoogleTest)
 # import Tau CMake functions
 include(AddTau)
 
@@ -94,6 +99,11 @@ if(TAU_ENABLE_ASAN)
   set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 endif()
 
+enable_testing()
+add_custom_target(check)
+add_dependencies(check test)
+
 add_subdirectory(lib)
 add_subdirectory(include/tau)
 add_subdirectory(test)
+add_subdirectory(unittests)

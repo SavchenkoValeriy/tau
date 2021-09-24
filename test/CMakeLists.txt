@@ -10,10 +10,11 @@ list(APPEND TAU_TEST_DEPS
   tau-cc
   )
 
-add_lit_testsuite(check "Running the Tau regression tests"
+add_lit_testsuite(check-cc "Running the Tau regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   PARAMS ${TAU_TEST_PARAMS}
   DEPENDS ${TAU_TEST_DEPS}
   ARGS ${TAU_TEST_EXTRA_ARGS}
   )
-set_target_properties(check PROPERTIES FOLDER "Tau tests")
+set_target_properties(check-cc PROPERTIES FOLDER "Tau tests")
+add_dependencies(check check-cc)
