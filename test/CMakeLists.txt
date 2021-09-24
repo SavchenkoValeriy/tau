@@ -10,7 +10,7 @@ list(APPEND TAU_TEST_DEPS
   tau-cc
   )
 
-add_lit_testsuite(check-cc "Running the Tau regression tests"
+add_lit_testsuite(check-cc "Running regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   PARAMS ${TAU_TEST_PARAMS}
   DEPENDS ${TAU_TEST_DEPS}
