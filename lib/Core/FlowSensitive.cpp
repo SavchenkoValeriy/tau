@@ -5,6 +5,7 @@
 #include "tau/Core/CheckerRegistry.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/State.h"
+#include "tau/Core/StateEventForest.h"
 
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/STLExtras.h>
@@ -30,46 +31,6 @@ using namespace air;
 using namespace core;
 using namespace mlir;
 using namespace llvm;
-
-namespace {
-
-// TODO: State event graphs should probably be available to other
-//       components.
-struct StateKey {
-  StringRef CheckerID;
-  StateID State;
-
-  bool operator==(const StateKey &Other) const {
-    return CheckerID == Other.CheckerID && State == Other.State;
-  }
-};
-
-struct StateEvent {
-  StateKey Key;
-  Operation *Location = nullptr;
-  const StateEvent *Parent = nullptr;
-};
-} // end anonymous namespace
-
-namespace llvm {
-inline hash_code
-hash_value(StateID ID) { // NOLINT(readability-identifier-naming)
-  return hash_value(StateID::Raw(ID));
-}
-} // end namespace llvm
-
-namespace std {
-template <> struct hash<StateKey> {
-  size_t operator()(const StateKey &Key) const {
-    return llvm::hash_combine(llvm::hash_value(Key.State), Key.CheckerID);
-  }
-};
-template <> struct hash<Value> {
-  size_t operator()(const Value &V) const {
-    return llvm::hash_value(V.getAsOpaquePointer());
-  }
-};
-} // end namespace std
 
 namespace {
 class Events {
@@ -141,6 +102,14 @@ public:
 };
 } // end anonymous namespace
 
+namespace std {
+template <> struct hash<Value> {
+  size_t operator()(const Value &V) const {
+    return llvm::hash_value(V.getAsOpaquePointer());
+  }
+};
+} // end namespace std
+
 class FlowSensitiveAnalysis::Implementation {
   using ValueEvents = immer::map<Value, Events>;
   using BlockStateMap = SmallVector<ValueEvents, 20>;
@@ -155,7 +124,7 @@ class FlowSensitiveAnalysis::Implementation {
   BitVector Processed;
 
   // Memory management
-  llvm::SpecificBumpPtrAllocator<StateEvent> Allocator;
+  StateEventForest Forest;
 
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
@@ -273,8 +242,7 @@ public:
       // transition, and we should check that among the tracked
       // states of the value there are no states of this checker.
       if (Current.hasNoCheckerState(CheckerID)) {
-        const StateEvent &NewEvent =
-            allocateStateEvent(CheckerID, To, &Location);
+        const StateEvent &NewEvent = Forest.addEvent(CheckerID, To, &Location);
         // Since the value had no checker-related events prior to this,
         // we can simply add a new event.
         associate(ForValue, Current.join(Events(NewEvent)));
@@ -286,7 +254,7 @@ public:
 
     if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
       const StateEvent &ToEvent =
-          allocateStateEvent(CheckerID, To, &Location, FromEvent);
+          Forest.addEvent(CheckerID, To, &Location, FromEvent);
       // Since this is a state transition, we need to replace the previous
       // event.
       Events NewSetOfEvents = Current.replace(*FromEvent, ToEvent);
@@ -330,11 +298,6 @@ public:
 
   unsigned index(const Block &BB) const {
     return Enumerator.getPostOrderIndex(&BB);
-  }
-
-  template <class... Args>
-  const StateEvent &allocateStateEvent(Args &&...Rest) {
-    return *(new (Allocator.Allocate()) StateEvent{Rest...});
   }
 };
 

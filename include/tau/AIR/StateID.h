@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <llvm/ADT/Hashing.h>
+
 namespace tau::air {
 struct StateID {
   using Raw = unsigned;
@@ -44,3 +46,10 @@ inline bool operator!=(const StateID &LHS, const StateID &RHS) {
 }
 
 } // end namespace tau::air
+
+namespace llvm {
+inline hash_code
+hash_value(tau::air::StateID ID) { // NOLINT(readability-identifier-naming)
+  return hash_value(tau::air::StateID::Raw(ID));
+}
+} // end namespace llvm
