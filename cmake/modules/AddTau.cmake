@@ -19,13 +19,13 @@ function(add_tau_unittest name)
   target_link_libraries(${name}
     PRIVATE
     LLVMSupport
-    GTest::gtest
-    GTest::gtest_main
+    Catch2::Catch2
+    Catch2WithMain
     )
   set_target_properties(${name}
     PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ""
     )
-  gtest_discover_tests(${name})
+  catch_discover_tests(${name})
   add_dependencies(unittests ${name})
 endfunction()

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.14)
 
 if(POLICY CMP0116)
   cmake_policy(SET CMP0116 OLD)
@@ -33,23 +33,38 @@ find_package(Clang REQUIRED)
 # Find CMake file for MLIR
 find_package(MLIR REQUIRED)
 
-# Find CMake file for GoogleTest
-find_package(GTest REQUIRED)
+# FetchContent allows us to download external projects
+# at configuration time
+Include(FetchContent)
+
+# Fetch Catch2
+FetchContent_Declare(
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v2.13.7
+)
+
+set(CATCH_BUILD_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(Catch2)
 
 # Add path to MLIR modules
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 # Add path to LLVM modules
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+# Add path to Catch2 modules
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
 
 # import LLVM CMake functions
 include(AddLLVM)
 include(TableGen)
 # import MLIR CMake functions
 include(AddMLIR)
-# import GTest CMake functions
-include(GoogleTest)
+# import testing functions
+include(CTest)
+include(Catch)
 # import Tau CMake functions
 include(AddTau)
+
 
 find_package(Immer REQUIRED)
 
@@ -104,5 +119,5 @@ add_custom_target(check)
 
 add_subdirectory(lib)
 add_subdirectory(include/tau)
-add_subdirectory(test)
 add_subdirectory(unittests)
+add_subdirectory(test)

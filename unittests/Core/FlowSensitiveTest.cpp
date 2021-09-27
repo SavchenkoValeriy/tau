@@ -7,20 +7,21 @@
 #include "tau/Frontend/Output.h"
 
 #include <clang/Tooling/Tooling.h>
-#include <initializer_list>
-#include <iterator>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/Support/Casting.h>
-#include <memory>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-
-#include <gtest/gtest.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Support/LLVM.h>
+
+#include <initializer_list>
+#include <iterator>
+#include <memory>
+
+#include <catch2/catch.hpp>
 
 using namespace tau;
 using namespace core;
@@ -92,11 +93,11 @@ private:
   StateEventForest &Forest;
 };
 
-class FlowSensitiveAnalysisTest : public ::testing::Test {
+class FlowSensitiveAnalysisTest {
 public:
   template <class CheckerT> void run(const Twine &Snippet) {
     IR = frontend::runClangOnCode(Snippet);
-    ASSERT_NE(IR, nullptr);
+    REQUIRE(IR != nullptr);
 
     MLIRContext &Context = IR->Context;
     PassManager PM(&Context);
@@ -108,7 +109,7 @@ public:
     PM.addNestedPass<FuncOp>(std::make_unique<FlowSensitiveIssuesHarvester>(
         FoundIssues, EventForest));
 
-    ASSERT_TRUE(succeeded(PM.run(IR->Module)));
+    REQUIRE(succeeded(PM.run(IR->Module)));
   }
 
 private:
@@ -120,7 +121,8 @@ protected:
 };
 } // end anonymous namespace
 
-TEST_F(FlowSensitiveAnalysisTest, Basic) {
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Trivial sequence of events",
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -132,25 +134,25 @@ void test(int x) {
   foobar(x);
 }
 )");
-  ASSERT_EQ(FoundIssues.size(), 1);
+  REQUIRE(FoundIssues.size() == 1);
   auto Issue = FoundIssues[0];
-  EXPECT_TRUE(Issue.Guaranteed);
+  CHECK(Issue.Guaranteed);
 
   auto Foobar = dyn_cast_or_null<CallOp>(Issue.ErrorEvent.Location);
-  ASSERT_TRUE(Foobar);
-  EXPECT_TRUE(Foobar.callee().startswith("void foobar"));
+  REQUIRE(Foobar);
+  CHECK(Foobar.callee().startswith("void foobar"));
 
-  ASSERT_NE(Issue.ErrorEvent.Parent, nullptr);
+  REQUIRE(Issue.ErrorEvent.Parent != nullptr);
   auto BarEvent = *Issue.ErrorEvent.Parent;
   auto Bar = dyn_cast_or_null<CallOp>(BarEvent.Location);
-  ASSERT_TRUE(Bar);
-  EXPECT_TRUE(Bar.callee().startswith("void bar"));
+  REQUIRE(Bar);
+  CHECK(Bar.callee().startswith("void bar"));
 
-  ASSERT_NE(BarEvent.Parent, nullptr);
+  REQUIRE(BarEvent.Parent != nullptr);
   auto FooEvent = *BarEvent.Parent;
   auto Foo = dyn_cast_or_null<CallOp>(FooEvent.Location);
-  ASSERT_TRUE(Foo);
-  EXPECT_TRUE(Foo.callee().startswith("void foo"));
+  REQUIRE(Foo);
+  CHECK(Foo.callee().startswith("void foo"));
 
-  ASSERT_EQ(FooEvent.Parent, nullptr);
+  CHECK(FooEvent.Parent == nullptr);
 }

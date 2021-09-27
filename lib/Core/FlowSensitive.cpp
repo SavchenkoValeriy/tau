@@ -228,7 +228,7 @@ private:
             NewEvent != nullptr && To.isError())
           // TODO: use domination relationship to figure out whether
           //       we can guarantee that the issue can happen.
-          FoundIssues.push_back({*NewEvent, false});
+          FoundIssues.push_back({*NewEvent, true});
       }
     }
   }
