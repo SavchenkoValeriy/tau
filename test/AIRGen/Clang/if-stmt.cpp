@@ -1,4 +1,4 @@
-// RUN: tau-cc -dump=air %s > %t.out 2>&1
+// RUN: tau-cc -dump=air %s > %t.out 2>&1 -- -std=c++17
 // RUN: FileCheck %s < %t.out
 
 int test_basic(int a) {
@@ -10,9 +10,9 @@ int test_basic(int a) {
   // CHECK-NEXT:      air.cond_br %[[#COND]], ^bb[[#THEN:]], ^bb[[#ELSE:]]
   if (a > 42) {
     // CHECK-DAG:     ^bb[[#THEN]]:
-    // CHECK-NEXT:      %[[#A:]] = air.load
-    // CHECK-NEXT:      air.store %[[#A]] -> %[[#B]]
-    // CHECK-NEXT:      br ^bb[[#NEXT:]]
+    // CHECK-DAG:       %[[#A:]] = air.load
+    // CHECK-DAG:       air.store %[[#A]] -> %[[#B]]
+    // CHECK-DAG:       br ^bb[[#NEXT:]]
     b = a;
   }
   // CHECK-DAG:     ^bb[[#ELSE]]:
@@ -33,8 +33,8 @@ int test_early_return(int a) {
   // CHECK-NEXT:      air.cond_br %[[#COND]], ^bb[[#THEN:]], ^bb[[#ELSE:]]
   if (a > 42) {
     // CHECK-DAG:     ^bb[[#THEN]]:
-    // CHECK-NEXT:      %[[#A:]] = air.load
-    // CHECK-NEXT:      br ^bb[[#EXIT:]](%[[#A:]] : si32)
+    // CHECK-DAG:       %[[#A:]] = air.load
+    // CHECK-DAG:       br ^bb[[#EXIT:]](%[[#A:]] : si32)
     return a;
   }
   // CHECK-DAG:     ^bb[[#ELSE]]:

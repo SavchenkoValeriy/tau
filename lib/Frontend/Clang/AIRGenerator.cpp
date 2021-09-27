@@ -779,40 +779,56 @@ mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
   mlir::Value Cond = Visit(If->getCond());
   mlir::Location Loc = loc(If);
 
-  // Here we deal with at least three basic blocks (potentially four):
-  //   * current basic block where we encountered the if
+  // We need to remember this block to put a conditional branch
+  // when all other blocks are ready.
   Block *IfBlock = Builder.getBlock();
-  //   * basic block for the true branch
-  Block *Then = Target.addBlock();
-  //   * basic block for the code after if-then-else
-  Block *Next = Target.addBlock();
-  //   * basic block for the false branch
-  Block *Else = Next;
 
-  auto AddBranchIfNeeded = [&Next, this](Block *BB) {
-    // Block can have early exits in them and might not need a branch to Next
-    if (BB->hasNoSuccessors())
-      Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Next);
+  auto VisitBranch = [this](const Stmt *Branch) {
+    // First, we create the block
+    Block *BranchStart = Target.addBlock();
+    // We generate all the code into that block
+    Builder.setInsertionPointToStart(BranchStart);
+    Visit(Branch);
+    // And then we check what is the block after the code generation,
+    // since the branch itself could've had a non-trivial CFG structure.
+    Block *BranchEnd = Builder.getBlock();
+    // Both "entry" and "exit" (so-to-speak) blocks of this branch
+    // should be used to fully integrate new code into the function.
+    return std::make_pair(BranchStart, BranchEnd);
   };
 
   // Handle true branch.
-  Builder.setInsertionPointToStart(Then);
-  Visit(If->getThen());
-  AddBranchIfNeeded(Then);
+  auto [ThenStart, ThenEnd] = VisitBranch(If->getThen());
 
   // Handle false branch.
-  if (If->getElse()) {
-    Else = Target.addBlock();
-    Builder.setInsertionPointToStart(Else);
-    Visit(If->getElse());
-    AddBranchIfNeeded(Else);
-  }
+  Block *ElseStart = nullptr, *ElseEnd = nullptr;
+  if (If->getElse())
+    std::tie(ElseStart, ElseEnd) = VisitBranch(If->getElse());
+
+  // We could've created this block a bit earlier, but we prefer
+  // to keep topologocial ordering of blocks in a function whenever possible.
+  Block *Next = Target.addBlock();
+  auto AddBranchToNextIfNeeded = [&Next, this](Block *BB) {
+    // Block can have early exits in them and might not need a branch to Next
+    if (BB->hasNoSuccessors()) {
+      Builder.setInsertionPointToEnd(BB);
+      Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Next);
+    }
+  };
+
+  AddBranchToNextIfNeeded(ThenEnd);
+  if (ElseEnd)
+    AddBranchToNextIfNeeded(ElseEnd);
+  else
+    // No else means that we should head straight to Next.
+    ElseStart = Next;
 
   // Now, when we have all the pieces in place, we can come back to the
   // original basic block...
   Builder.setInsertionPointToEnd(IfBlock);
   // ...create conditional branch...
-  Builder.create<air::CondBranchOp>(Loc, Cond, Then, Else);
+  Builder.create<air::CondBranchOp>(Loc, Cond, ThenStart, ElseStart);
+
   // ...and continue with the rest of the function.
   Builder.setInsertionPointToStart(Next);
 
