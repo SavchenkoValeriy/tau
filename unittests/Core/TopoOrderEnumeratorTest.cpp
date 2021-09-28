@@ -117,3 +117,156 @@ void foo(bool x) {
   CHECK(getOrder(1) > getOrder(4));
   CHECK(getOrder(1) > getOrder(3));
 }
+
+TEST_CASE_METHOD(TopoOrderEnumeratorTest, "Order for nested if-else",
+                 "[analysis][order]") {
+  run(R"(
+void foo(bool x, bool y) {
+  1;
+  if (x) {
+    2;
+    if (y) {
+      5;
+    } else {
+      6;
+    }
+  } else if (y) {
+    4;
+  } else {
+    7;
+  }
+  3;
+}
+)");
+
+  CHECK(getOrder(1) > getOrder(2));
+
+  CHECK(getOrder(2) > getOrder(3));
+  CHECK(getOrder(2) > getOrder(5));
+  CHECK(getOrder(2) > getOrder(6));
+
+  CHECK(getOrder(1) > getOrder(3));
+  CHECK(getOrder(1) > getOrder(4));
+  CHECK(getOrder(1) > getOrder(7));
+
+  CHECK(getOrder(4) > getOrder(3));
+  CHECK(getOrder(7) > getOrder(3));
+
+  CHECK(getOrder(1) > getOrder(3));
+}
+
+TEST_CASE_METHOD(TopoOrderEnumeratorTest, "Order for loop",
+                 "[analysis][order]") {
+  run(R"(
+void foo(bool x) {
+  1;
+  while (x) {
+    2;
+  }
+  3;
+}
+)");
+
+  CHECK(getOrder(1) > getOrder(2));
+  CHECK(getOrder(2) > getOrder(3));
+  CHECK(getOrder(1) > getOrder(3));
+}
+
+TEST_CASE_METHOD(TopoOrderEnumeratorTest, "Order for if in loop",
+                 "[analysis][order][!shouldfail]") {
+  run(R"(
+void foo(bool x, bool y) {
+  1;
+  while (x) {
+    2;
+    if (y) {
+      4;
+    } else {
+      5;
+    }
+    6;
+  }
+  3;
+}
+)");
+
+  CHECK(getOrder(1) > getOrder(2));
+
+  CHECK(getOrder(2) > getOrder(3));
+  CHECK(getOrder(2) > getOrder(4));
+  CHECK(getOrder(2) > getOrder(5));
+  CHECK(getOrder(2) > getOrder(6));
+
+  CHECK(getOrder(1) > getOrder(3));
+  CHECK(getOrder(1) > getOrder(4));
+  CHECK(getOrder(1) > getOrder(5));
+
+  CHECK(getOrder(4) > getOrder(3));
+  CHECK(getOrder(4) > getOrder(6));
+
+  CHECK(getOrder(5) > getOrder(3));
+  CHECK(getOrder(5) > getOrder(6));
+
+  CHECK(getOrder(6) > getOrder(3));
+}
+
+TEST_CASE_METHOD(TopoOrderEnumeratorTest, "Order for nested loops",
+                 "[analysis][order][!shouldfail]") {
+  run(R"(
+void foo(bool x, bool y) {
+  1;
+  while (x) {
+    2;
+    if (y) {
+      4;
+    } else {
+      while (x) {
+        5;
+        if (y) {
+          7;
+        } else {
+          8;
+        }
+        9;
+      }
+      10;
+    }
+    6;
+  }
+  3;
+}
+)");
+
+  CHECK(getOrder(1) > getOrder(2));
+
+  CHECK(getOrder(2) > getOrder(3));
+  CHECK(getOrder(2) > getOrder(4));
+  CHECK(getOrder(2) > getOrder(5));
+  CHECK(getOrder(2) > getOrder(6));
+  CHECK(getOrder(2) > getOrder(7));
+  CHECK(getOrder(2) > getOrder(8));
+  CHECK(getOrder(2) > getOrder(9));
+  CHECK(getOrder(2) > getOrder(10));
+
+  CHECK(getOrder(1) > getOrder(3));
+  CHECK(getOrder(1) > getOrder(4));
+  CHECK(getOrder(1) > getOrder(5));
+
+  CHECK(getOrder(4) > getOrder(3));
+  CHECK(getOrder(4) > getOrder(5));
+  CHECK(getOrder(4) > getOrder(6));
+  CHECK(getOrder(4) > getOrder(7));
+  CHECK(getOrder(4) > getOrder(8));
+  CHECK(getOrder(4) > getOrder(9));
+  CHECK(getOrder(4) > getOrder(10));
+
+  CHECK(getOrder(5) > getOrder(3));
+  CHECK(getOrder(5) > getOrder(6));
+  CHECK(getOrder(5) > getOrder(7));
+  CHECK(getOrder(5) > getOrder(8));
+
+  CHECK(getOrder(6) > getOrder(3));
+
+  CHECK(getOrder(7) > getOrder(9));
+  CHECK(getOrder(8) > getOrder(9));
+}
