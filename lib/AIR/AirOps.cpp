@@ -49,9 +49,11 @@ void ConstantIntOp::build(OpBuilder &Builder, OperationState &Result,
 }
 
 bool ConstantIntOp::classof(Operation *Op) {
+  if (!ConstantOp::classof(Op))
+    return false;
+
   mlir::Type T = Op->getResult(0).getType();
-  return ConstantOp::classof(Op) && T.isSignedInteger() ||
-         T.isUnsignedInteger();
+  return T.isSignedInteger() || T.isUnsignedInteger();
 }
 
 void ConstantFloatOp::build(OpBuilder &Builder, OperationState &Result,
@@ -65,8 +67,11 @@ void ConstantFloatOp::build(OpBuilder &Builder, OperationState &Result,
 }
 
 bool ConstantFloatOp::classof(Operation *Op) {
+  if (!ConstantOp::classof(Op))
+    return false;
+
   mlir::Type T = Op->getResult(0).getType();
-  return ConstantOp::classof(Op) && T.isa<FloatType>();
+  return T.isa<FloatType>();
 }
 
 //===----------------------------------------------------------------------===//
