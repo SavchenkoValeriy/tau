@@ -4,6 +4,7 @@ add_tau_library(tauCore
   CheckerRegistry.cpp
   FlowSensitive.cpp
   PostOrderEnumerator.cpp
+  TopoOrderEnumerator.cpp
   State.cpp
 )
 
