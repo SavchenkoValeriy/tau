@@ -36,7 +36,6 @@ public:
 
   void runOnOperation() override {
     FuncOp Function = getOperation();
-    Function.dump();
     Enumerator = std::make_unique<TopoOrderBlockEnumerator>(
         getAnalysis<TopoOrderBlockEnumerator>());
     for (Block &BB : Function.getBlocks())
