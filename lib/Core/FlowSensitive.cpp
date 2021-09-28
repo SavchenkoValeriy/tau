@@ -119,7 +119,7 @@ class FlowSensitiveAnalysis::Implementation {
   ValueEvents CurrentState;
 
   // Traversal instruments
-  PostOrderBlockEnumerator &Enumerator;
+  TopoOrderBlockEnumerator &Enumerator;
   ForwardWorklist &Worklist;
   BitVector Processed;
 
@@ -131,7 +131,7 @@ class FlowSensitiveAnalysis::Implementation {
 
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
-      : Enumerator(AM.getAnalysis<PostOrderBlockEnumerator>()),
+      : Enumerator(AM.getAnalysis<TopoOrderBlockEnumerator>()),
         Worklist(AM.getAnalysis<ForwardWorklist>()),
         Processed(Function.getBlocks().size()) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
@@ -298,7 +298,7 @@ private:
   void markProcessed(const Block &BB) { Processed.set(index(BB)); }
 
   unsigned index(const Block &BB) const {
-    return Enumerator.getPostOrderIndex(&BB);
+    return Enumerator.getTopoOrderIndex(&BB);
   }
 };
 

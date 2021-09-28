@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "tau/Core/PostOrderEnumerator.h"
+#include "tau/Core/TopoOrderEnumerator.h"
 
 #include <llvm/ADT/BitVector.h>
 #include <llvm/ADT/DenseMap.h>
@@ -26,7 +26,7 @@ namespace detail {
 
 template <class Derived, class Comparator> class WorklistBase {
 protected:
-  PostOrderBlockEnumerator &Enumeration;
+  TopoOrderBlockEnumerator &Enumeration;
 
 private:
   llvm::BitVector EnqueuedBlocks;
@@ -37,12 +37,12 @@ private:
 
 public:
   WorklistBase(mlir::Operation *Function, mlir::AnalysisManager &AM)
-      : Enumeration(AM.getAnalysis<PostOrderBlockEnumerator>()),
+      : Enumeration(AM.getAnalysis<TopoOrderBlockEnumerator>()),
         EnqueuedBlocks(llvm::cast<mlir::FuncOp>(Function).getBlocks().size()),
         WorkList(this->getDerived().getComparator()) {}
 
   void enqueue(mlir::Block *BB) {
-    unsigned BBIndex = Enumeration.getPostOrderIndex(BB);
+    unsigned BBIndex = Enumeration.getTopoOrderIndex(BB);
 
     if (!EnqueuedBlocks[BBIndex]) {
       EnqueuedBlocks[BBIndex] = true;
@@ -56,16 +56,16 @@ public:
 
     mlir::Block *BB = WorkList.top();
     WorkList.pop();
-    EnqueuedBlocks[Enumeration.getPostOrderIndex(BB)] = false;
+    EnqueuedBlocks[Enumeration.getTopoOrderIndex(BB)] = false;
     return BB;
   }
 };
 
 struct ForwardTraversalComparator {
-  PostOrderBlockEnumerator &Enumerator;
+  TopoOrderBlockEnumerator &Enumerator;
   bool operator()(const mlir::Block *LHS, const mlir::Block *RHS) const {
-    return Enumerator.getPostOrderIndex(LHS) >
-           Enumerator.getPostOrderIndex(RHS);
+    return Enumerator.getTopoOrderIndex(LHS) <
+           Enumerator.getTopoOrderIndex(RHS);
   }
 };
 
