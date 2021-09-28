@@ -74,7 +74,7 @@ void test_nested(int a, int b) {
     // CHECK-DAG:       %[[#COND:]] = air.sgt
     // CHECK-DAG:       air.cond_br %[[#COND]], ^bb[[#NBODY:]], ^bb[[#NNEXT:]]
     while (b > 42) {
-      // CHECK-DAG:     ^bb[[#BODY]]:
+      // CHECK-DAG:     ^bb[[#NBODY]]:
       // CHECK-DAG:       br ^bb[[#NHEADER]]
     }
     // CHECK-DAG:     ^bb[[#NNEXT]]:
