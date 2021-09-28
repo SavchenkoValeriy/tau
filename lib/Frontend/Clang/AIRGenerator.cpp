@@ -873,7 +873,7 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
 
   // And if yes, we might need to put a jump to the header block.
   else if (hasNoTerminator(Current)) {
-    Builder.setInsertionPointToEnd(Body);
+    Builder.setInsertionPointToEnd(Current);
     Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Header);
   }
 

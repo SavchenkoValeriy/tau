@@ -60,3 +60,26 @@ void test_decl(int a) {
   // CHECK-DAG:     ^bb[[#NEXT]]:
   // CHECK-DAG:       br ^bb[[#EXIT:]]
 }
+
+void test_nested(int a, int b) {
+  // CHECK-LABEL:   @"void test_nested(int a, int b)"
+  // CHECK-DAG:       br ^bb[[#HEADER:]]
+  // CHECK-DAG:     ^bb[[#HEADER]]:
+  // CHECK-DAG:       %[[#COND:]] = air.slt
+  // CHECK-DAG:       air.cond_br %[[#COND]], ^bb[[#BODY:]], ^bb[[#NEXT:]]
+  while (a < 42) {
+    // CHECK-DAG:     ^bb[[#BODY]]:
+    // CHECK-DAG:       br ^bb[[#NHEADER:]]
+    // CHECK-DAG:     ^bb[[#NHEADER]]:
+    // CHECK-DAG:       %[[#COND:]] = air.sgt
+    // CHECK-DAG:       air.cond_br %[[#COND]], ^bb[[#NBODY:]], ^bb[[#NNEXT:]]
+    while (b > 42) {
+      // CHECK-DAG:     ^bb[[#BODY]]:
+      // CHECK-DAG:       br ^bb[[#NHEADER]]
+    }
+    // CHECK-DAG:     ^bb[[#NNEXT]]:
+    // CHECK-DAG:       br ^bb[[#HEADER:]]
+  }
+  // CHECK-DAG:     ^bb[[#NEXT]]:
+  // CHECK-DAG:       br ^bb[[#EXIT:]]
+}
