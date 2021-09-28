@@ -159,8 +159,7 @@ void test(int x) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest,
-                 "Events always following one another",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "Events always following one another", "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -180,7 +179,7 @@ void test(int x, int y, int &z) {
   bar(x);
 
   if (z + 10 == y)
-    return;
+    z++;
 
   foobar(x);
 }

@@ -18,6 +18,7 @@
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/Dominance.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Pass/AnalysisManager.h>
 
@@ -128,12 +129,16 @@ class FlowSensitiveAnalysis::Implementation {
 
   // Issue tracking
   SmallVector<Issue, 20> FoundIssues;
+  DominanceInfo &DomTree;
+  PostDominanceInfo &PostDomTree;
 
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
       : Enumerator(AM.getAnalysis<TopoOrderBlockEnumerator>()),
         Worklist(AM.getAnalysis<ForwardWorklist>()),
-        Processed(Function.getBlocks().size()) {
+        Processed(Function.getBlocks().size()),
+        DomTree(AM.getAnalysis<DominanceInfo>()),
+        PostDomTree(AM.getAnalysis<PostDominanceInfo>()) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
     Worklist.enqueue(&Function.getBlocks().front());
   }
@@ -226,9 +231,7 @@ private:
         if (const StateEvent *NewEvent =
                 addTransition(AffectedValue, Op, CheckerID, From, To);
             NewEvent != nullptr && To.isError())
-          // TODO: use domination relationship to figure out whether
-          //       we can guarantee that the issue can happen.
-          FoundIssues.push_back({*NewEvent, true});
+          addIssue(*NewEvent);
       }
     }
   }
@@ -264,6 +267,21 @@ private:
     }
 
     return nullptr;
+  }
+
+  void addIssue(const StateEvent &ErrorEvent) {
+    bool Guaranteed = true;
+
+    for (const StateEvent *Prev = &ErrorEvent, *Current = ErrorEvent.Parent;
+         Current; Prev = Current, Current = Current->Parent) {
+      // TODO: this is a very strict condition for a guaranteed issue,
+      //       we can definitely relax it.
+      Guaranteed &=
+          DomTree.dominates(Current->Location, Prev->Location) &&
+          PostDomTree.postDominates(Prev->Location, Current->Location);
+    }
+
+    FoundIssues.push_back({ErrorEvent, Guaranteed});
   }
 
   static Value getOperandByIdx(Operation &Op, unsigned Index) {

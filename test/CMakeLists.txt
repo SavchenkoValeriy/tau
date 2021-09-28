@@ -8,7 +8,6 @@ configure_lit_site_cfg(
 
 list(APPEND TAU_TEST_DEPS
   tau-cc
-  unittests
   )
 
 add_lit_testsuite(check-cc "Running regression tests"
