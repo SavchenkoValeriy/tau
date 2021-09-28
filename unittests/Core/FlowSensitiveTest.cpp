@@ -100,6 +100,7 @@ public:
     REQUIRE(IR != nullptr);
 
     MLIRContext &Context = IR->Context;
+    Context.disableMultithreading();
     PassManager PM(&Context);
 
     CheckerT TestChecker;
@@ -155,4 +156,36 @@ void test(int x) {
   CHECK(Foo.callee().startswith("void foo"));
 
   CHECK(FooEvent.Parent == nullptr);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest,
+                 "Events always following one another",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  foo(x);
+
+  if (x > 0) {
+    z = x + y;
+  } else if (y < 10) {
+    z = 42;
+  } else {
+    z = x;
+  }
+
+  bar(x);
+
+  if (z + 10 == y)
+    return;
+
+  foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
 }
