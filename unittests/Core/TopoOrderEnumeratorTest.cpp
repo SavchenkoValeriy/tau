@@ -172,7 +172,7 @@ void foo(bool x) {
 }
 
 TEST_CASE_METHOD(TopoOrderEnumeratorTest, "Order for if in loop",
-                 "[analysis][order][!shouldfail]") {
+                 "[analysis][order]") {
   run(R"(
 void foo(bool x, bool y) {
   1;
@@ -210,7 +210,7 @@ void foo(bool x, bool y) {
 }
 
 TEST_CASE_METHOD(TopoOrderEnumeratorTest, "Order for nested loops",
-                 "[analysis][order][!shouldfail]") {
+                 "[analysis][order]") {
   run(R"(
 void foo(bool x, bool y) {
   1;
