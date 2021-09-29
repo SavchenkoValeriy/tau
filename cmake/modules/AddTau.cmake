@@ -20,7 +20,13 @@ function(add_tau_unittest name)
     PRIVATE
     LLVMSupport
     Catch2::Catch2
+    trompeloeil::trompeloeil
     Catch2WithMain
+    )
+  # trompeloeil cannot be build without exceptions
+  set_property(TARGET ${name}
+    APPEND_STRING PROPERTY
+    COMPILE_FLAGS " -fexceptions"
     )
   set_target_properties(${name}
     PROPERTIES

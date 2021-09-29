@@ -47,6 +47,14 @@ FetchContent_Declare(
 set(CATCH_BUILD_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(Catch2)
 
+# Fetch trompeloeil
+FetchContent_Declare(
+  trompeloeil
+  GIT_REPOSITORY https://github.com/rollbear/trompeloeil.git
+  GIT_TAG        v41
+)
+FetchContent_MakeAvailable(trompeloeil)
+
 # Add path to MLIR modules
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 # Add path to LLVM modules
