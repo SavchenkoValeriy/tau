@@ -188,3 +188,43 @@ void test(int x, int y, int &z) {
   REQUIRE(FoundIssues.size() == 1);
   CHECK(FoundIssues[0].Guaranteed);
 }
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Sequential events in a branch",
+                 "[analysis][flowsen]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  if (y > 0) {
+    foo(x);
+    bar(x);
+    foobar(x);
+  }
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Sequential events in a loop",
+                 "[analysis][flowsen]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  while (x > 0) {
+    foo(x);
+    bar(x);
+    foobar(x);
+  }
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
