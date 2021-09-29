@@ -230,7 +230,7 @@ void test(int x, int y, int &z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Events domintating one another",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -254,8 +254,7 @@ void test(int x, int y, int z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest,
-                 "Events post-domintating one another",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "Events post-domintating one another", "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -279,7 +278,7 @@ void test(int x, int y, int z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #1",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -299,7 +298,7 @@ void test(int x, int y, int &z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #2",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -319,7 +318,7 @@ void test(int x, int y, int &z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #3",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -339,7 +338,7 @@ void test(int x, int y, int &z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #4",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}
@@ -359,7 +358,7 @@ void test(int x, int y, int &z) {
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #5",
-                 "[analysis][flowsen][!shouldfail]") {
+                 "[analysis][flowsen]") {
   run<SimpleChecker>(R"(
 void foobar(int &x) {}
 void foo(int &x) {}

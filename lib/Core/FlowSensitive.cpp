@@ -270,18 +270,22 @@ private:
   }
 
   void addIssue(const StateEvent &ErrorEvent) {
-    bool Guaranteed = true;
+    FoundIssues.push_back({ErrorEvent, isGuaranteed(ErrorEvent)});
+  }
 
-    for (const StateEvent *Prev = &ErrorEvent, *Current = ErrorEvent.Parent;
-         Current; Prev = Current, Current = Current->Parent) {
-      // TODO: this is a very strict condition for a guaranteed issue,
-      //       we can definitely relax it.
-      Guaranteed &=
-          DomTree.dominates(Current->Location, Prev->Location) &&
-          PostDomTree.postDominates(Prev->Location, Current->Location);
-    }
+  bool isGuaranteed(const StateEvent &ErrorEvent) const {
+    const StateEvent *Prev = &ErrorEvent, *Current = Prev->Parent;
+    for (; Current; Prev = Current, Current = Current->Parent)
+      // TODO: describe the logic
+      if (!PostDomTree.postDominates(Prev->Location, Current->Location))
+        break;
 
-    FoundIssues.push_back({ErrorEvent, Guaranteed});
+    for (; Current; Prev = Current, Current = Current->Parent)
+      // TODO: describe the logic
+      if (!DomTree.dominates(Current->Location, Prev->Location))
+        return false;
+
+    return true;
   }
 
   static Value getOperandByIdx(Operation &Op, unsigned Index) {
