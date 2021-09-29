@@ -228,3 +228,192 @@ void test(int x, int y, int &z) {
   REQUIRE(FoundIssues.size() == 1);
   CHECK(FoundIssues[0].Guaranteed);
 }
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Events domintating one another",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int z) {
+  if (z > 0) {
+    foo(x);
+    if (y > 0) {
+      bar(x);
+      if (z > 0) {
+        foobar(x);
+      }
+    }
+  }
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest,
+                 "Events post-domintating one another",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int z) {
+  if (z > 0) {
+    if (y > 0) {
+      if (z > 0) {
+        foo(x);
+      }
+      bar(x);
+    }
+    foobar(x);
+  }
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #1",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  if (y > 0) {
+    foo(x);
+  }
+  bar(x);
+  foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #2",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  foo(x);
+  if (y > 0) {
+    bar(x);
+  }
+  foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #3",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  foo(x);
+  bar(x);
+  if (y > 0) {
+    foobar(x);
+  }
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #4",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  if (y > 0) {
+    foo(x);
+    bar(x);
+  }
+  foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Conditional event #5",
+                 "[analysis][flowsen][!shouldfail]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  foo(x);
+  if (y > 0) {
+    bar(x);
+    foobar(x);
+  }
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Mutually exclusive events",
+                 "[analysis][flowsen]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  if (x > 0)
+    foo(x);
+  else
+    bar(x);
+  foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 0);
+}
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest,
+                 "Potentially mutually exclusive events",
+                 "[analysis][flowsen]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  if (x > 0)
+    foo(x);
+  bar(x);
+  if (y < 0)
+    foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(!FoundIssues[0].Guaranteed);
+}
