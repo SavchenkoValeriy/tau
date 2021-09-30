@@ -416,3 +416,22 @@ void test(int x, int y, int &z) {
   REQUIRE(FoundIssues.size() == 1);
   CHECK(!FoundIssues[0].Guaranteed);
 }
+
+TEST_CASE_METHOD(FlowSensitiveAnalysisTest, "Error event inside of a loop",
+                 "[analysis][flowsen]") {
+  run<SimpleChecker>(R"(
+void foobar(int &x) {}
+void foo(int &x) {}
+void bar(int &x) {}
+
+void test(int x, int y, int &z) {
+  foo(x);
+  bar(x);
+  while (x < 0)
+    foobar(x);
+}
+)");
+
+  REQUIRE(FoundIssues.size() == 1);
+  CHECK(FoundIssues[0].Guaranteed);
+}

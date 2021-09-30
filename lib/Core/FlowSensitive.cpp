@@ -241,6 +241,12 @@ private:
                                   StateID To) {
     Events Current = CurrentState[ForValue];
 
+    // TODO: This is a very crude deduplication method, but it helps to
+    //       prevent infinite loops with re-creating the same events over
+    //       and over.
+    if (Current.contains(CheckerID, To))
+      return nullptr;
+
     if (!From) {
       // The lack of the state here means that it's the initial
       // transition, and we should check that among the tracked
