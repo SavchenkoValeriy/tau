@@ -11,8 +11,6 @@
 #include <clang/AST/StmtVisitor.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
-#include <immer/map.hpp>
-#include <iterator>
 #include <llvm/ADT/None.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
@@ -28,6 +26,8 @@
 #include <mlir/IR/Value.h>
 #include <mlir/IR/Verifier.h>
 #include <mlir/Interfaces/ControlFlowInterfaces.h>
+
+#include <iterator>
 #include <utility>
 
 using namespace clang;

@@ -1,7 +1,9 @@
 function(tau_set_compile_flags name)
+  # Ambiguous reversed operator warning is too vigilant with
+  # tau's dependencies.
   set_property(TARGET ${name} APPEND_STRING PROPERTY
-    COMPILE_FLAGS " -fno-rtti")
-  set_property(TARGET ${name} PROPERTY CXX_STANDARD 17)
+    COMPILE_FLAGS " -fno-rtti -Wno-ambiguous-reversed-operator")
+  set_property(TARGET ${name} PROPERTY CXX_STANDARD 20)
 endfunction()
 
 function(add_tau_executable name)
@@ -35,3 +37,12 @@ function(add_tau_unittest name)
   catch_discover_tests(${name})
   add_dependencies(unittests ${name})
 endfunction()
+
+function(tau_target_link_system_libraries target scope)
+  set(libs ${ARGN})
+  foreach(lib ${libs})
+    get_target_property(lib_include_dirs ${lib} INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(${target} SYSTEM ${scope} ${lib_include_dirs})
+    target_link_libraries(${target} ${scope} ${lib})
+  endforeach(lib)
+endfunction(tau_target_link_system_libraries)

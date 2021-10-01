@@ -9,8 +9,6 @@ project(tau
   ${cmake_3_0_LANGUAGES}
   CXX)
 
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard to conform to")
-
 # Shut up warning from linking with MLIR
 set(CMAKE_CXX_VISIBILITY_PRESET default)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON CACHE BOOL "Hide inlines")
@@ -101,9 +99,9 @@ endif()
 
 set(LLVM_DEFAULT_EXTERNAL_LIT ${LIT_TOOL})
 
-include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${CLANG_INCLUDE_DIRS})
-include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
+include_directories(SYSTEM ${MLIR_INCLUDE_DIRS})
 
 # Tau's own include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)

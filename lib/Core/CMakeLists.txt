@@ -8,8 +8,8 @@ add_tau_library(tauCore
   State.cpp
 )
 
-target_link_libraries(
+tau_target_link_system_libraries(
   tauCore
   PRIVATE
   immer
-  )
+)
