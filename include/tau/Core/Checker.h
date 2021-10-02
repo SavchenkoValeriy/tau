@@ -32,7 +32,7 @@
 
 namespace tau::core {
 
-class Checker {
+class AbstractChecker {
 public:
   /// Process the given operation.
   virtual void process(mlir::Operation *) = 0;
@@ -58,24 +58,24 @@ public:
   /// Return the command line description used when registering this checker.
   virtual llvm::StringRef getDescription() const { return ""; }
 
-  virtual ~Checker() = default;
+  virtual ~AbstractChecker() = default;
 
 protected:
-  explicit Checker(mlir::TypeID CheckerID) : CheckerID(CheckerID) {}
+  explicit AbstractChecker(mlir::TypeID CheckerID) : CheckerID(CheckerID) {}
 
 private:
   mlir::TypeID CheckerID;
 };
 
 template <class CheckerT, class State, class... Ops>
-class CheckerWrapper : public Checker {
+class CheckerWrapper : public AbstractChecker {
 public:
   /// Support isa/dyn_cast functionality for the derived pass class.
-  static bool classof(const Checker *ToTest) {
+  static bool classof(const AbstractChecker *ToTest) {
     return ToTest->getTypeID() == mlir::TypeID::get<CheckerT>();
   }
 
-  CheckerWrapper() : Checker(mlir::TypeID::get<CheckerT>()) {}
+  CheckerWrapper() : AbstractChecker(mlir::TypeID::get<CheckerT>()) {}
   CheckerWrapper(const CheckerWrapper &) = default;
 
   /// Mark the given operation as changing the state.

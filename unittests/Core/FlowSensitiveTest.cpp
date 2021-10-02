@@ -104,7 +104,7 @@ public:
     PassManager PM(&Context);
 
     CheckerT TestChecker;
-    SmallVector<Checker *, 1> Checkers{&TestChecker};
+    SmallVector<AbstractChecker *, 1> Checkers{&TestChecker};
 
     PM.addNestedPass<FuncOp>(createCheckerPass(Checkers));
     PM.addNestedPass<FuncOp>(std::make_unique<FlowSensitiveIssuesHarvester>(

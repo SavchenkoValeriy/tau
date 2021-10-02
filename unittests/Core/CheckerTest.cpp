@@ -39,7 +39,7 @@ public:
     Context.disableMultithreading();
     PassManager PM(&Context);
 
-    SmallVector<Checker *, 1> Checkers{&TestChecker};
+    SmallVector<AbstractChecker *, 1> Checkers{&TestChecker};
 
     PM.addNestedPass<FuncOp>(createCheckerPass(Checkers));
 

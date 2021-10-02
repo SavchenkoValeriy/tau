@@ -21,9 +21,9 @@ class Pass;
 
 namespace tau::core {
 
-class Checker;
+class AbstractChecker;
 
 [[nodiscard]] std::unique_ptr<mlir::Pass>
-createCheckerPass(llvm::ArrayRef<Checker *> CheckersToRun);
+createCheckerPass(llvm::ArrayRef<AbstractChecker *> CheckersToRun);
 
 } // end namespace tau::core

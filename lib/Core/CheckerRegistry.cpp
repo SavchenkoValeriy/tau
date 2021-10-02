@@ -27,11 +27,12 @@ using namespace llvm;
 //                             Checker registration
 //===----------------------------------------------------------------------===//
 
-static ManagedStatic<StringMap<std::unique_ptr<Checker>>> CheckerRegistry;
+static ManagedStatic<StringMap<std::unique_ptr<AbstractChecker>>>
+    CheckerRegistry;
 static ManagedStatic<StringMap<TypeID>> CheckerIDRegistry;
 
 void tau::core::registerChecker(const CheckerAllocatorFunction &Constructor) {
-  std::unique_ptr<Checker> NewChecker = Constructor();
+  std::unique_ptr<AbstractChecker> NewChecker = Constructor();
   StringRef Argument = NewChecker->getArgument();
   if (Argument.empty())
     report_fatal_error(
@@ -87,7 +88,7 @@ public:
   }
 
   void addEnabledCheckers(PassManager &PM) {
-    SmallVector<Checker *, 20> ListOfEnabledCheckers;
+    SmallVector<AbstractChecker *, 20> ListOfEnabledCheckers;
     // First get a subset of checkers enabled by options.
     auto FilteredCheckers =
         llvm::make_filter_range(*CheckerRegistry, [this](auto &Entry) -> bool {
@@ -124,7 +125,7 @@ void CheckerCLParser::addEnabledCheckers(mlir::PassManager &PM) {
 //                              Find checker by ID
 //===----------------------------------------------------------------------===//
 
-Checker &tau::core::findChecker(llvm::StringRef ID) {
+AbstractChecker &tau::core::findChecker(llvm::StringRef ID) {
   auto It = CheckerRegistry->find(ID);
   assert(It != CheckerRegistry->end() &&
          "Got request about a non-registered checker");

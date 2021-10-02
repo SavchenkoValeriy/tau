@@ -26,13 +26,13 @@ class PassManager;
 
 namespace tau::core {
 
-class Checker;
+class AbstractChecker;
 
 using CheckerAllocatorFunction =
-    std::function<std::unique_ptr<core::Checker>()>;
+    std::function<std::unique_ptr<core::AbstractChecker>()>;
 
 void registerChecker(const CheckerAllocatorFunction &Constructor);
-core::Checker &findChecker(llvm::StringRef Argument);
+core::AbstractChecker &findChecker(llvm::StringRef Argument);
 
 template <typename ConcreteChecker> struct CheckerRegistration {
   CheckerRegistration(const CheckerAllocatorFunction &Constructor) {

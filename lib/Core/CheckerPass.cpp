@@ -12,9 +12,9 @@ using namespace llvm;
 class CheckersPass final
     : public PassWrapper<CheckersPass, OperationPass<FuncOp>> {
 public:
-  using Checkers = SmallVector<Checker *, 32>;
+  using Checkers = SmallVector<AbstractChecker *, 32>;
 
-  CheckersPass(ArrayRef<Checker *> CheckersToRun)
+  CheckersPass(ArrayRef<AbstractChecker *> CheckersToRun)
       : EnabledCheckers(CheckersToRun.begin(), CheckersToRun.end()) {}
 
   StringRef getArgument() const override { return "run-enabled-checkers"; }
@@ -25,7 +25,7 @@ public:
     FuncOp Function = getOperation();
 
     Function.walk([this](Operation *Op) {
-      for (Checker *EnabledChecker : EnabledCheckers) {
+      for (AbstractChecker *EnabledChecker : EnabledCheckers) {
         EnabledChecker->process(Op);
       }
     });
@@ -36,6 +36,6 @@ private:
 };
 
 std::unique_ptr<Pass>
-tau::core::createCheckerPass(ArrayRef<Checker *> CheckersToRun) {
+tau::core::createCheckerPass(ArrayRef<AbstractChecker *> CheckersToRun) {
   return std::make_unique<CheckersPass>(CheckersToRun);
 }
