@@ -17,10 +17,10 @@ using namespace llvm;
 
 namespace {
 
-using MockState = State<0, 0>;
+using TrivialState = State<0, 0>;
+using MockState = TrivialState;
 
-class MockChecker
-    : public CheckerWrapper<MockChecker, MockState, ConstantIntOp> {
+class MockChecker : public CheckerBase<MockChecker, MockState, ConstantIntOp> {
 public:
   StringRef getName() const override { return "Simple test checker"; }
   StringRef getArgument() const override { return "test-checker"; }
@@ -132,4 +132,92 @@ void foo(bool x, bool y, bool z) {
 }
 )");
   }
+}
+
+namespace {
+class TrivialChecker : public CheckerBase<TrivialChecker, TrivialState> {
+public:
+  StringRef getName() const override { return "Simple test checker"; }
+  StringRef getArgument() const override { return "test-checker"; }
+  StringRef getDescription() const override { return "Simple test checker"; }
+
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+    return {};
+  }
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+};
+
+class CheckerWithOps
+    : public CheckerBase<CheckerWithOps, TrivialState, LoadOp, StoreOp> {
+public:
+  StringRef getName() const override { return "Simple test checker"; }
+  StringRef getArgument() const override { return "test-checker"; }
+  StringRef getDescription() const override { return "Simple test checker"; }
+
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+    return {};
+  }
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+
+  void process(LoadOp X) const {}
+  void process(StoreOp X) const {}
+};
+
+class CheckerWithNoSpecialMethods
+    : public CheckerBase<CheckerWithNoSpecialMethods, TrivialState, LoadOp,
+                         StoreOp> {
+public:
+  StringRef getName() const override { return "Simple test checker"; }
+  StringRef getArgument() const override { return "test-checker"; }
+  StringRef getDescription() const override { return "Simple test checker"; }
+};
+
+class CheckerWithNoEmitError
+    : public CheckerBase<CheckerWithNoEmitError, TrivialState> {
+public:
+  StringRef getName() const override { return "Simple test checker"; }
+  StringRef getArgument() const override { return "test-checker"; }
+  StringRef getDescription() const override { return "Simple test checker"; }
+
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+};
+
+class CheckerWithNoEmitNote
+    : public CheckerBase<CheckerWithNoEmitNote, TrivialState> {
+public:
+  StringRef getName() const override { return "Simple test checker"; }
+  StringRef getArgument() const override { return "test-checker"; }
+  StringRef getDescription() const override { return "Simple test checker"; }
+
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+    return {};
+  }
+};
+
+class CheckerWithNoProcessMethods
+    : public CheckerBase<CheckerWithNoProcessMethods, TrivialState, LoadOp,
+                         StoreOp> {
+public:
+  StringRef getName() const override { return "Simple test checker"; }
+  StringRef getArgument() const override { return "test-checker"; }
+  StringRef getDescription() const override { return "Simple test checker"; }
+
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+    return {};
+  }
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+};
+} // end anonymous namespace
+
+TEST_CASE("Checker concept validation") {
+  STATIC_REQUIRE(Checker<TrivialChecker>);
+  STATIC_REQUIRE(Checker<CheckerWithOps>);
+
+  STATIC_REQUIRE_FALSE(Checker<int>);
+  STATIC_REQUIRE_FALSE(Checker<CheckerTest>);
+
+  STATIC_REQUIRE_FALSE(Checker<CheckerWithNoSpecialMethods>);
+  STATIC_REQUIRE_FALSE(Checker<CheckerWithNoEmitError>);
+  STATIC_REQUIRE_FALSE(Checker<CheckerWithNoEmitNote>);
+  STATIC_REQUIRE_FALSE(Checker<CheckerWithNoProcessMethods>);
 }

@@ -28,6 +28,7 @@
 #include <mlir/Pass/Pass.h>
 #include <mlir/Support/LLVM.h>
 
+#include <concepts>
 #include <memory>
 
 namespace tau::core {
@@ -68,15 +69,15 @@ private:
 };
 
 template <class CheckerT, class State, class... Ops>
-class CheckerWrapper : public AbstractChecker {
+class CheckerBase : public AbstractChecker {
 public:
   /// Support isa/dyn_cast functionality for the derived pass class.
   static bool classof(const AbstractChecker *ToTest) {
     return ToTest->getTypeID() == mlir::TypeID::get<CheckerT>();
   }
 
-  CheckerWrapper() : AbstractChecker(mlir::TypeID::get<CheckerT>()) {}
-  CheckerWrapper(const CheckerWrapper &) = default;
+  CheckerBase() : AbstractChecker(mlir::TypeID::get<CheckerT>()) {}
+  CheckerBase(const CheckerBase &) = default;
 
   /// Mark the given operation as changing the state.
   ///
@@ -89,7 +90,7 @@ public:
   /// any state.
   void markChange(mlir::Operation *Where, mlir::Value What, State To) const {
     unsigned WhatIdx = findOperand(Where, What);
-    markChangeImpl(Where, WhatIdx, To);
+    markChangeImpl(Where, WhatIdx, To.ID);
   }
 
   /// Mark the result of given operation as changing the state.
@@ -102,7 +103,7 @@ public:
   /// any state.
   void markResultChange(mlir::Operation *Where, State To) const {
     unsigned ResultIdx = getResultIdx(Where);
-    markChangeImpl(Where, ResultIdx, To);
+    markChangeImpl(Where, ResultIdx, To.ID);
   }
 
   /// Mark the given operation as changing the state.
@@ -115,7 +116,7 @@ public:
   void markChange(mlir::Operation *Where, mlir::Value What, State From,
                   State To) const {
     unsigned WhatIdx = findOperand(Where, What);
-    markChangeImpl(Where, WhatIdx, From, To);
+    markChangeImpl(Where, WhatIdx, From.ID, To.ID);
   }
 
   /// Mark the result of given operation as changing the state.
@@ -126,7 +127,7 @@ public:
   /// @param To -- target state to change the operand to
   void markResultChange(mlir::Operation *Where, State From, State To) const {
     unsigned WhatIdx = getResultIdx(Where);
-    markChangeImpl(Where, WhatIdx, From, To);
+    markChangeImpl(Where, WhatIdx, From.ID, To.ID);
   }
 
   void process(mlir::Operation *) override;
@@ -196,9 +197,61 @@ private:
 };
 
 template <class CheckerT, class State, class... Ops>
-void CheckerWrapper<CheckerT, State, Ops...>::process(mlir::Operation *BaseOp) {
+void CheckerBase<CheckerT, State, Ops...>::process(mlir::Operation *BaseOp) {
   TypeSwitch Switch(BaseOp);
-  processAsDerived<Ops...>(Switch);
+  if constexpr (sizeof...(Ops) > 0)
+    processAsDerived<Ops...>(Switch);
 }
+
+namespace detail {
+template <class T, class Op>
+concept OpProcessor = requires(const T &Candidate, Op ToProcess) {
+  // Check that the checker has a process method for the operation
+  // it requested.
+  Candidate.process(ToProcess);
+};
+
+// Check that the checker has process methods for all the operations
+// it requested.
+template <class T, class... Ops>
+concept OpsProcessor = (... && OpProcessor<T, Ops>);
+
+template <class T> struct CheckerVerifier {
+  // If it's not derived from CheckerBase - it's not a checker.
+  static constexpr bool DerivedFromCheckerBase = false;
+};
+
+template <class T, class State, class... Ops>
+struct CheckerVerifier<CheckerBase<T, State, Ops...>> {
+  static constexpr bool DerivedFromCheckerBase = true;
+
+  // Check that the checker has emit methods in place.
+  static constexpr bool HasEmitMethods =
+      requires(T Candidate, State S, mlir::Operation *Op,
+               mlir::InFlightDiagnostic &Diag) {
+    { Candidate.emitError(Op, S) } -> std::same_as<mlir::InFlightDiagnostic>;
+    { Candidate.emitNote(Diag, Op, S) };
+  };
+
+  // And all the process methods for operations it requested.
+  static constexpr bool HasAllProcessMethods = OpsProcessor<T, Ops...>;
+};
+
+// We cannot write specialization for each checker, and specialization
+// for CheckerBase will never be chosen in favor of a more generic template.
+// Instead we use these two functions to choose exactly the types derived
+// from CheckerBase.  For all other types, it will choose variadic function
+// that has the lowest priority in terms of overloads.
+CheckerVerifier<void> checkerDetector(...);
+
+template <class T, class State, class... Ops>
+CheckerVerifier<CheckerBase<T, State, Ops...>>
+checkerDetector(CheckerBase<T, State, Ops...> &&);
+} // end namespace detail
+
+template <class T,
+          class Traits = decltype(detail::checkerDetector(std::declval<T>()))>
+concept Checker = Traits::DerivedFromCheckerBase && Traits::HasEmitMethods &&
+    Traits::HasAllProcessMethods;
 
 } // end namespace tau::core

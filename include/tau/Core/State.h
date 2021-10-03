@@ -34,7 +34,7 @@ template <unsigned NumberOfNonErrorStates, unsigned NumberOfErrorStates>
 class State {
 public:
   /* implicit */ constexpr State(air::StateID From) : ID(From) {}
-  operator air::StateID() const { return ID; }
+  explicit operator air::StateID() const { return ID; }
 
   static constexpr State getNonErrorState(unsigned Idx) {
     assert(Idx < NumberOfNonErrorStates &&
@@ -50,14 +50,15 @@ public:
 
   bool isError() const { return ID.isError(); }
 
-private:
   air::StateID ID;
+
+private:
   static constexpr unsigned ErrorMask = 1;
 };
 
 template <unsigned X, unsigned Y>
 inline bool operator==(const State<X, Y> &LHS, const State<X, Y> &RHS) {
-  return air::StateID(LHS) == RHS;
+  return LHS.ID == RHS.ID;
 }
 
 template <unsigned X, unsigned Y>

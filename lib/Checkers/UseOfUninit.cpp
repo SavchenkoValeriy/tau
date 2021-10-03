@@ -26,7 +26,7 @@ constexpr UninitState ERROR = UninitState::getErrorState(0);
 namespace {
 
 class UseOfUninit
-    : public CheckerWrapper<UseOfUninit, UninitState, StoreOp, LoadOp> {
+    : public CheckerBase<UseOfUninit, UninitState, StoreOp, LoadOp> {
 public:
   StringRef getName() const override {
     return "Use of uninitialized value checker";

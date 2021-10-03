@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "tau/Core/Checker.h"
+
 #include <llvm/ADT/StringRef.h>
 
 #include <functional>
@@ -26,21 +28,18 @@ class PassManager;
 
 namespace tau::core {
 
-class AbstractChecker;
-
 using CheckerAllocatorFunction =
     std::function<std::unique_ptr<core::AbstractChecker>()>;
 
 void registerChecker(const CheckerAllocatorFunction &Constructor);
 core::AbstractChecker &findChecker(llvm::StringRef Argument);
 
-template <typename ConcreteChecker> struct CheckerRegistration {
+template <Checker T> struct CheckerRegistration {
   CheckerRegistration(const CheckerAllocatorFunction &Constructor) {
     registerChecker(Constructor);
   }
   CheckerRegistration()
-      : CheckerRegistration(
-            [] { return std::make_unique<ConcreteChecker>(); }) {}
+      : CheckerRegistration([] { return std::make_unique<T>(); }) {}
 };
 
 class CheckerCLParser {

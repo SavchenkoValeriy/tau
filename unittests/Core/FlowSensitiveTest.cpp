@@ -36,7 +36,7 @@ constexpr SimpleCheckerState BAR = SimpleCheckerState::getNonErrorState(1);
 constexpr SimpleCheckerState FOOBAR = SimpleCheckerState::getErrorState(0);
 
 class SimpleChecker
-    : public CheckerWrapper<SimpleChecker, SimpleCheckerState, mlir::CallOp> {
+    : public CheckerBase<SimpleChecker, SimpleCheckerState, mlir::CallOp> {
 public:
   StringRef getName() const override { return "Simple test checker"; }
   StringRef getArgument() const override { return "test-checker"; }
