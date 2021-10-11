@@ -281,13 +281,68 @@ private:
 
   bool isGuaranteed(const StateEvent &ErrorEvent) const {
     const StateEvent *Prev = &ErrorEvent, *Current = Prev->Parent;
+    // This part of the algorithm checks whether the flow-sensitive
+    // framework is enough to report the issue.  It uses (post-)domination
+    // relationship to figure this out.
+    //
+    // The key assumption that we make here is that every condition
+    // and every branch in the code that are written, are actually possible.
+    // If the error "occurs" in the dead part of the code, and the user
+    // relies on it being dead, there is no reason in keeping that code.
+    //
+    // The main problem in here is to detect the situations when events
+    // appear on mutually exclusive paths, ie we need to make contradictory
+    // assumptions.  In order to prevent this, we forbid consecutive non-nested
+    // assumptions.
+    //
+    // But first let's start with (post-)domination.  If event A dominates B,
+    // and B happened, A also happened.  If event B post-dominates A, and A
+    // happened, B also happened.  Thus, if all events in the chain dominate and
+    // post-dominate one another, they are guaranteed to happen together and we
+    // can always assume that the topmost event can happen.
+    //
+    // This condition can be significantly relaxed though.  If we assume that
+    // the topmost event happens, we can simply check for post-domination of
+    // all the following events, since it will also guarantee us that they
+    // will follow no matter what concrete execution we are in.
+    //
+    // In order to understand the next relaxation of the rule, let's consider
+    // the following example:
+    //
+    // ```
+    // if (x) {
+    //   ... // event A
+    //   if (y) {
+    //     ... // event B
+    //     if (z) {
+    //       ... // event C
+    //     }
+    //   }
+    // }
+    // ```
+    //
+    // What can we say about code like this?  Can we safely assume that
+    // conditions `x`, `y`, and `z` are true at the same time?  Well, yes!
+    // We can do this because if they couldn't be true at the same time, this
+    // code wouldn't've been structured like this.  We can also notice that
+    // events in such conditions dominate one another (A dominates B,
+    // B dominates C).
+    //
+    // Joining this reasoning with out previous solution, we can say that
+    // in the chain of events { A_1, A_2, ... , A_n } if there exists
+    // 1 <= k <= n such that A_i dominates A_i+1 for all i < k, and
+    // A_i post-dominates A_i+1 for all k <= i < n, then we can guarantee
+    // that the given chain doesn't include mutually exclusive assumptions.
     for (; Current; Prev = Current, Current = Current->Parent)
-      // TODO: describe the logic
+      // We start from the very last event of the chain, so in order to find
+      // A_k, we need to check for post-dominance.
       if (!PostDomTree.postDominates(Prev->Location, Current->Location))
         break;
 
     for (; Current; Prev = Current, Current = Current->Parent)
-      // TODO: describe the logic
+      // If we got here, we found an event A_i, so that A_i+1 doesn't
+      // post-dominate it.  Now we need to "flip the switch" and check
+      // for dominance.
       if (!DomTree.dominates(Current->Location, Prev->Location))
         return false;
 
