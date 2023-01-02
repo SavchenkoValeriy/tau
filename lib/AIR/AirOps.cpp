@@ -4,6 +4,7 @@
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/Interfaces/ControlFlowInterfaces.h>
 #include <mlir/Support/LogicalResult.h>
 
 namespace {
@@ -23,12 +24,9 @@ Type getPointee(Type Pointer) {
 //                                  ConstantOp
 //===----------------------------------------------------------------------===//
 
-static void print(OpAsmPrinter &P, ConstantOp &Op) {
-  P << "air.constant " << Op.getValue();
-}
+void ConstantOp::print(OpAsmPrinter &P) { P << " " << getValue(); }
 
-static ParseResult parseConstantOp(OpAsmParser &Parser,
-                                   OperationState &Result) {
+ParseResult ConstantOp::parse(OpAsmParser &Parser, OperationState &Result) {
   Attribute ValueAttr;
   if (Parser.parseAttribute(ValueAttr, "value", Result.attributes))
     return failure();
@@ -78,14 +76,14 @@ bool ConstantFloatOp::classof(Operation *Op) {
 //                                    LoadOp
 //===----------------------------------------------------------------------===//
 
-static void print(OpAsmPrinter &P, LoadOp &Op) {
-  P << "air.load ";
-  P.printOptionalAttrDict(Op->getAttrs());
-  P << " " << Op.from() << " : " << Op.from().getType();
+void LoadOp::print(OpAsmPrinter &P) {
+  P << " ";
+  P.printOptionalAttrDict((*this)->getAttrs());
+  P << " " << from() << " : " << from().getType();
 }
 
-static ParseResult parseLoad(OpAsmParser &Parser, OperationState &Result) {
-  OpAsmParser::OperandType From;
+ParseResult LoadOp::parse(OpAsmParser &Parser, OperationState &Result) {
+  OpAsmParser::UnresolvedOperand From;
   Type FromType;
   if (Parser.parseOptionalAttrDict(Result.attributes) ||
       Parser.parseOperand(From) || Parser.parseColon() ||
@@ -115,15 +113,14 @@ static LogicalResult verify(StoreOp &Store) {
                            << ")";
 }
 
-static void print(OpAsmPrinter &P, StoreOp &Op) {
-  P << "air.store ";
-  P.printOptionalAttrDict(Op->getAttrs());
-  P << " " << Op.what() << " -> " << Op.where() << " : "
-    << Op.where().getType();
+void StoreOp::print(OpAsmPrinter &P) {
+  P << " ";
+  P.printOptionalAttrDict((*this)->getAttrs());
+  P << " " << what() << " -> " << where() << " : " << where().getType();
 }
 
-static ParseResult parseStore(OpAsmParser &Parser, OperationState &Result) {
-  OpAsmParser::OperandType What, Where;
+ParseResult StoreOp::parse(OpAsmParser &Parser, OperationState &Result) {
+  OpAsmParser::UnresolvedOperand What, Where;
   Type WhereType;
   if (Parser.parseOptionalAttrDict(Result.attributes) ||
       Parser.parseOperand(What) || Parser.parseArrow() ||
@@ -182,11 +179,12 @@ bool TruncateOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
 //                              Conditional branch
 //===----------------------------------------------------------------------===//
 
-Optional<MutableOperandRange>
-CondBranchOp::getMutableSuccessorOperands(unsigned Index) {
+mlir::SuccessorOperands CondBranchOp::getSuccessorOperands(unsigned Index) {
   assert(Index < getNumSuccessors() && "invalid successor index");
-  return Index == TrueIndex ? trueDestOperandsMutable()
-                            : falseDestOperandsMutable();
+  const MutableOperandRange Range =
+      (Index == TrueIndex ? trueDestOperandsMutable()
+                          : falseDestOperandsMutable());
+  return SuccessorOperands{Range};
 }
 
 Block *CondBranchOp::getSuccessorForOperands(ArrayRef<Attribute> Operands) {

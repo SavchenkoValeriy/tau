@@ -14,9 +14,9 @@ int test_multiple_args(int a) { return foo(10, a, a + 10); }
 // CHECK-DAG:        %[[#SECOND:]] = air.load
 // CHECK-DAG:        %[[#THIRD:]] = air.addi
 // CHECK-DAG:        %[[#RES:]] = call @"int foo(int, int, int)"(%[[#FIRST]], %[[#SECOND]], %[[#THIRD]])
-// CHECK-DAG:        br ^bb[[#EXIT:]](%[[#RES]] : si32)
+// CHECK-DAG:        cf.br ^bb[[#EXIT:]](%[[#RES]] : si32)
 
 int test_recursion() { return test_recursion(); }
 // CHECK-LABEL:    @"int test_recursion()"
 // CHECK-DAG:        %[[#RES:]] = call @"int test_recursion()"
-// CHECK-NEXT:       br ^bb[[#EXIT:]](%[[#RES]] : si32)
+// CHECK-NEXT:       cf.br ^bb[[#EXIT:]](%[[#RES]] : si32)

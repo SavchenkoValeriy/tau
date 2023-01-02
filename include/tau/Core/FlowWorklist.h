@@ -16,6 +16,7 @@
 #include <llvm/ADT/BitVector.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/PriorityQueue.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Block.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/AnalysisManager.h>
@@ -38,7 +39,8 @@ private:
 public:
   WorklistBase(mlir::Operation *Function, mlir::AnalysisManager &AM)
       : Enumeration(AM.getAnalysis<TopoOrderBlockEnumerator>()),
-        EnqueuedBlocks(llvm::cast<mlir::FuncOp>(Function).getBlocks().size()),
+        EnqueuedBlocks(
+            llvm::cast<mlir::func::FuncOp>(Function).getBlocks().size()),
         WorkList(this->getDerived().getComparator()) {}
 
   void enqueue(mlir::Block *BB) {

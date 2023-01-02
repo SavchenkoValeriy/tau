@@ -14,6 +14,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <mlir/Analysis/DataFlowAnalysis.h>
+#include <mlir/Analysis/DataFlowFramework.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -31,6 +32,7 @@ using namespace tau;
 using namespace air;
 using namespace core;
 using namespace mlir;
+using namespace mlir::func;
 using namespace llvm;
 
 namespace {

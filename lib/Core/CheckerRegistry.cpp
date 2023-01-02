@@ -4,13 +4,12 @@
 #include "tau/Core/Checker.h"
 #include "tau/Core/CheckerPass.h"
 
-#include <iterator>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/ManagedStatic.h>
-#include <memory>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
@@ -18,9 +17,13 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Support/TypeID.h>
 
+#include <iterator>
+#include <memory>
+
 using namespace tau;
 using namespace core;
 using namespace mlir;
+using namespace mlir::func;
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//

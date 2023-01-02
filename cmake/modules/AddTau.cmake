@@ -3,7 +3,6 @@ function(tau_set_compile_flags name)
   # tau's dependencies.
   set_property(TARGET ${name} APPEND_STRING PROPERTY
     COMPILE_FLAGS " -fno-rtti -Wno-ambiguous-reversed-operator")
-  set_property(TARGET ${name} PROPERTY CXX_STANDARD 20)
 endfunction()
 
 function(add_tau_executable name)

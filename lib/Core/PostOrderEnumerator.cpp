@@ -1,12 +1,14 @@
 #include "tau/Core/PostOrderEnumerator.h"
 
 #include <llvm/ADT/PostOrderIterator.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/RegionGraphTraits.h>
 
 using namespace llvm;
 using namespace mlir;
+using namespace mlir::func;
 
 tau::core::PostOrderBlockEnumerator::PostOrderBlockEnumerator(Operation *Op) {
   assert(isa<FuncOp>(Op) &&

@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include <mlir/IR/BuiltinOps.h>
+#include "tau/Frontend/Clang/OwningModuleRef.h"
+
 #include <mlir/IR/MLIRContext.h>
 
 #include <clang/Tooling/Tooling.h>
@@ -28,7 +29,7 @@ public:
 
 private:
   mlir::MLIRContext &Context;
-  mlir::OwningModuleRef Module;
+  OwningModuleRef Module;
 };
 
 } // end namespace frontend

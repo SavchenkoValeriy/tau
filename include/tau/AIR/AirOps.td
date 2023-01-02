@@ -13,15 +13,19 @@
 #define AIROPS_H
 
 include "AirDialect.td"
-include "mlir/IR/OpBase.td"
+include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/LoopLikeInterface.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 //                               Unary operations
 //===----------------------------------------------------------------------===//
 
-class UnaryIntOp<string mnemonic, list<OpTrait> traits = []> :
+class UnaryIntOp<string mnemonic, list<Trait> traits = []> :
       Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
                                             SameOperandsAndResultType])> {
   let arguments = (ins AnyInteger:$operand);
@@ -75,7 +79,7 @@ def Air_NegIOp : UnaryIntOp<"negi"> {
 //                              Binary operations
 //===----------------------------------------------------------------------===//
 
-class BinaryIntOp<string mnemonic, list<OpTrait> traits = []> :
+class BinaryIntOp<string mnemonic, list<Trait> traits = []> :
       Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
                                             SameOperandsAndResultType])> {
   let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
@@ -83,12 +87,12 @@ class BinaryIntOp<string mnemonic, list<OpTrait> traits = []> :
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
 }
 
-class BinarySIntOp<string mnemonic, list<OpTrait> traits = []> :
+class BinarySIntOp<string mnemonic, list<Trait> traits = []> :
       BinaryIntOp<mnemonic, traits> {
   let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
 }
 
-class BinaryUIntOp<string mnemonic, list<OpTrait> traits = []> :
+class BinaryUIntOp<string mnemonic, list<Trait> traits = []> :
       BinaryIntOp<mnemonic, traits> {
   let arguments = (ins AnyUnsignedInteger:$lhs, AnyUnsignedInteger:$rhs);
 }
@@ -350,33 +354,29 @@ def Air_LogicalShiftRightOp : BinaryIntOp<"lshr"> {
 //                        Integer comparison operations
 //===----------------------------------------------------------------------===//
 
-class ComparisonOp<string mnemonic, list<OpTrait> traits = []> :
+class ComparisonOp<string mnemonic, list<Trait> traits = []> :
       Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
                                             SameTypeOperands])> {
   let results = (outs UI1:$res);
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($lhs)";
-  let builders = [
-    OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs),
-    [{ build($_builder, $_state, $_builder.getIntegerType(1, false), lhs, rhs); }]>
-  ];
 }
 
-class ComparisonIntOp<string mnemonic, list<OpTrait> traits = []> :
+class ComparisonIntOp<string mnemonic, list<Trait> traits = []> :
       ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
 }
 
-class ComparisonSIntOp<string mnemonic, list<OpTrait> traits = []> :
+class ComparisonSIntOp<string mnemonic, list<Trait> traits = []> :
       ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnySignedInteger:$lhs, AnySignedInteger:$rhs);
 }
 
-class ComparisonUIntOp<string mnemonic, list<OpTrait> traits = []> :
+class ComparisonUIntOp<string mnemonic, list<Trait> traits = []> :
       ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnyUnsignedInteger:$lhs, AnyUnsignedInteger:$rhs);
 }
 
-class ComparisonFloatOp<string mnemonic, list<OpTrait> traits = []> :
+class ComparisonFloatOp<string mnemonic, list<Trait> traits = []> :
       ComparisonOp<mnemonic, traits> {
   let arguments = (ins AnyFloat:$lhs, AnyFloat:$rhs);
 }
@@ -788,7 +788,7 @@ def CondBranchOp : Air_Op<"cond_br",
     }]>];
 
   // CondBranchOp is fully verified by traits.
-  let verifier = ?;
+  let hasVerifier = 0;
 
   let extraClassDeclaration = [{
     // These are the indices into the dests list.
@@ -868,7 +868,7 @@ def CondBranchOp : Air_Op<"cond_br",
 //                           Integer cast operations
 //===----------------------------------------------------------------------===//
 
-class AirCastOp<string mnemonic, list<OpTrait> traits = []> :
+class AirCastOp<string mnemonic, list<Trait> traits = []> :
     Air_Op<mnemonic, traits # [
       NoSideEffect, SameOperandsAndResultShape,
       DeclareOpInterfaceMethods<CastOpInterface>]> {
@@ -994,7 +994,7 @@ def Air_AllocaOp : Air_Op<"alloca"> {
     ```
     }];
     let assemblyFormat = "($length^ `:` type($length))? attr-dict `:` type($res)";
-    let verifier = ?;
+    let hasVerifier = 0;
 }
 
 def Air_StoreOp : Air_Op<"store"> {
@@ -1012,9 +1012,8 @@ def Air_StoreOp : Air_Op<"store"> {
     that should differ only in pointer type. It has no results and
     standard attributes.
     }];
-  let verifier = [{ return ::verify(*this); }];
-  let printer = [{ return ::print(p, *this); }];
-  let parser = [{ return ::parseStore(parser, result); }];
+
+  let hasCustomAssemblyFormat = 1;
 
   let extraClassDeclaration = [{
     mlir::Value getValue() {
@@ -1048,9 +1047,8 @@ def Air_LoadOp : Air_Op<"load"> {
       [{
         build($_builder, $_state, from.getType().cast<PointerType>().getElementType(), from);
       }]>];
-  let verifier = ?;
-  let printer = [{ return ::print(p, *this); }];
-  let parser = [{ return ::parseLoad(parser, result); }];
+  let hasVerifier = 0;
+  let hasCustomAssemblyFormat = 1;
 
   let extraClassDeclaration = [{
     mlir::Value getAddress() {
@@ -1129,6 +1127,8 @@ def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
 
   let arguments = (ins AnyAttr:$value);
   let results = (outs AnyType:$res);
+  
+  let hasCustomAssemblyFormat = 1;
 
   let builders = [
     OpBuilder<(ins "mlir::Attribute":$value),
@@ -1140,9 +1140,6 @@ def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
   let extraClassDeclaration = [{
     mlir::Attribute getValue() { return (*this)->getAttr("value"); }
   }];
-
-  let printer = [{ return ::print(p, *this); }];
-  let parser = [{ return ::parseConstantOp(parser, result); }];
 }
 
 def Air_UndefOp : Air_Op<"undef", [NoSideEffect]> {

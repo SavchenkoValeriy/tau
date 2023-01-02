@@ -7,11 +7,14 @@ endif()
 project(tau
   ${cmake_3_0_PROJ_VERSION}
   ${cmake_3_0_LANGUAGES}
+  C
   CXX)
 
 # Shut up warning from linking with MLIR
 set(CMAKE_CXX_VISIBILITY_PRESET default)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON CACHE BOOL "Hide inlines")
+
+set(CMAKE_CXX_STANDARD 20)
 
 # Set path for custom Tau-specific modules
 set(CMAKE_MODULE_PATH

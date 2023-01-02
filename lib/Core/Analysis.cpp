@@ -4,6 +4,7 @@
 #include "tau/Core/FlowSensitive.h"
 #include "tau/Core/StateEventForest.h"
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Pass/Pass.h>
 
 #include <memory>
@@ -11,6 +12,7 @@
 using namespace tau;
 using namespace tau::core;
 using namespace mlir;
+using namespace mlir::func;
 
 namespace {
 

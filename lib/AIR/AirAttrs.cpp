@@ -53,7 +53,8 @@ StateTransferAttr StateTransferAttr::get(mlir::MLIRContext *Context,
                                          llvm::StringRef CheckerID,
                                          unsigned FromOperandIdx,
                                          unsigned ToOperandIdx) {
-  return Base::get(Context, CheckerID, FromOperandIdx, ToOperandIdx);
+  return Base::get(Context, CheckerID, FromOperandIdx, ToOperandIdx,
+                   StateID::fromRaw(0));
 }
 
 StringRef StateTransferAttr::getCheckerID() const {

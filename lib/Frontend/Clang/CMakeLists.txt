@@ -8,6 +8,8 @@ target_link_libraries(
   tauFrontendClang
   PRIVATE
   tauAir
-  MLIRStandard
   immer
+  MLIRArithmeticDialect
+  MLIRControlFlowDialect
+  MLIRFuncDialect
 )

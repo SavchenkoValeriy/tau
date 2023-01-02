@@ -12,7 +12,8 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/Support/Casting.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Support/LLVM.h>
@@ -26,6 +27,7 @@
 using namespace tau;
 using namespace core;
 using namespace mlir;
+using namespace mlir::func;
 using namespace llvm;
 
 namespace {
@@ -36,7 +38,7 @@ constexpr SimpleCheckerState BAR = SimpleCheckerState::getNonErrorState(1);
 constexpr SimpleCheckerState FOOBAR = SimpleCheckerState::getErrorState(0);
 
 class SimpleChecker
-    : public CheckerBase<SimpleChecker, SimpleCheckerState, mlir::CallOp> {
+    : public CheckerBase<SimpleChecker, SimpleCheckerState, CallOp> {
 public:
   StringRef getName() const override { return "Simple test checker"; }
   StringRef getArgument() const override { return "test-checker"; }
@@ -141,19 +143,19 @@ void test(int x) {
 
   auto Foobar = dyn_cast_or_null<CallOp>(Issue.ErrorEvent.Location);
   REQUIRE(Foobar);
-  CHECK(Foobar.callee().startswith("void foobar"));
+  CHECK(Foobar.getCallee().startswith("void foobar"));
 
   REQUIRE(Issue.ErrorEvent.Parent != nullptr);
   auto BarEvent = *Issue.ErrorEvent.Parent;
   auto Bar = dyn_cast_or_null<CallOp>(BarEvent.Location);
   REQUIRE(Bar);
-  CHECK(Bar.callee().startswith("void bar"));
+  CHECK(Bar.getCallee().startswith("void bar"));
 
   REQUIRE(BarEvent.Parent != nullptr);
   auto FooEvent = *BarEvent.Parent;
   auto Foo = dyn_cast_or_null<CallOp>(FooEvent.Location);
   REQUIRE(Foo);
-  CHECK(Foo.callee().startswith("void foo"));
+  CHECK(Foo.getCallee().startswith("void foo"));
 
   CHECK(FooEvent.Parent == nullptr);
 }

@@ -14,7 +14,11 @@
 #include <llvm/ADT/None.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+
+#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/ControlFlow/IR/ControlFlow.h>
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -32,6 +36,9 @@
 
 using namespace clang;
 using namespace mlir;
+using namespace mlir::arith;
+using namespace mlir::cf;
+using namespace mlir::func;
 using namespace tau;
 using namespace tau::frontend;
 
@@ -146,7 +153,7 @@ private:
     Block *CurrentBlock = Builder.getBlock();
 
     if (needToAddExtraReturn(CurrentBlock))
-      Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Exit);
+      Builder.create<mlir::cf::BranchOp>(Builder.getUnknownLoc(), Exit);
 
     if (CurrentBlock->hasNoPredecessors() && CurrentBlock != Entry)
       CurrentBlock->erase();
@@ -156,11 +163,11 @@ private:
     Builder.setInsertionPointToStart(Exit);
     mlir::Location Loc = Builder.getUnknownLoc();
     if (Target.getNumResults() == 0)
-      Builder.create<mlir::ReturnOp>(Loc);
+      Builder.create<ReturnOp>(Loc);
     else {
       BlockArgument ReturnValue =
-          Exit->addArgument(Target.getType().getResult(0));
-      Builder.create<mlir::ReturnOp>(Loc, ReturnValue);
+          Exit->addArgument(Target.getResultTypes()[0], Loc);
+      Builder.create<ReturnOp>(Loc, ReturnValue);
     }
   }
 
@@ -270,7 +277,7 @@ mlir::Location TopLevelGenerator::loc(clang::SourceRange R) {
 
 mlir::Location TopLevelGenerator::loc(clang::SourceLocation L) {
   const SourceManager &SM = Context.getSourceManager();
-  return mlir::FileLineColLoc::get(Builder.getIdentifier(SM.getFilename(L)),
+  return mlir::FileLineColLoc::get(Builder.getStringAttr(SM.getFilename(L)),
                                    SM.getSpellingLineNumber(L),
                                    SM.getSpellingColumnNumber(L));
 }
@@ -391,7 +398,8 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
 
 OwningModuleRef AIRGenerator::generate(MLIRContext &MContext,
                                        ASTContext &Context) {
-  MContext.loadDialect<mlir::StandardOpsDialect>();
+  MContext.loadDialect<mlir::func::FuncDialect>();
+  MContext.loadDialect<mlir::cf::ControlFlowDialect>();
   MContext.loadDialect<air::AirDialect>();
   TopLevelGenerator ActualGenerator(MContext, Context);
   return ActualGenerator.generateModule();
@@ -411,9 +419,9 @@ mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
 mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
   mlir::Value Operand =
       Return->getRetValue() ? Visit(Return->getRetValue()) : mlir::Value{};
-  Builder.create<mlir::BranchOp>(loc(Return), Exit,
-                                 Operand ? llvm::makeArrayRef(Operand)
-                                         : ArrayRef<mlir::Value>());
+  Builder.create<BranchOp>(loc(Return), Exit,
+                           Operand ? llvm::makeArrayRef(Operand)
+                                   : ArrayRef<mlir::Value>());
   return {};
 }
 
@@ -440,7 +448,7 @@ mlir::Value FunctionGenerator::VisitCallExpr(const CallExpr *Call) {
     FuncOp Callee = Parent.getFunctionByDecl(DirectCallee);
     Values Args = visitRange(Call->arguments());
 
-    auto Result = Builder.create<mlir::CallOp>(loc(Call), Callee, Args);
+    auto Result = Builder.create<CallOp>(loc(Call), Callee, Args);
 
     // Return result of the call if the call has any.
     // We couldn't have more than one result by construction.
@@ -494,7 +502,7 @@ mlir::Value FunctionGenerator::VisitUnaryOperator(const UnaryOperator *UnExpr) {
     // Unary plus is a no-op operation
     return Sub;
   case UnaryOperatorKind::UO_Minus:
-    return builtinOp<air::NegIOp, mlir::NegFOp>(ResultType, Loc, Sub);
+    return builtinOp<air::NegIOp, NegFOp>(ResultType, Loc, Sub);
 
   case UnaryOperatorKind::UO_Not:
     return Builder.create<air::NotOp>(Loc, Sub);
@@ -541,9 +549,9 @@ mlir::Value FunctionGenerator::generateIncDec(mlir::Location Loc,
         Loc, 1.0, ValueType.cast<FloatType>());
 
     if (IsInc)
-      Result = Builder.create<mlir::AddFOp>(Loc, StoredValue, One);
+      Result = Builder.create<AddFOp>(Loc, StoredValue, One);
     else
-      Result = Builder.create<mlir::SubFOp>(Loc, StoredValue, One);
+      Result = Builder.create<SubFOp>(Loc, StoredValue, One);
   }
 
   // No matter whar - store the new value.
@@ -587,11 +595,11 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_MulAssign:
   case BinaryOperatorKind::BO_Mul:
-    Result = builtinOp<air::MulIOp, mlir::MulFOp>(ResultType, Loc, LHS, RHS);
+    Result = builtinOp<air::MulIOp, MulFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_DivAssign:
   case BinaryOperatorKind::BO_Div:
-    Result = builtinOp<air::SignedDivIOp, air::UnsignedDivIOp, mlir::DivFOp>(
+    Result = builtinOp<air::SignedDivIOp, air::UnsignedDivIOp, DivFOp>(
         ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_RemAssign:
@@ -601,11 +609,11 @@ FunctionGenerator::VisitBinaryOperator(const BinaryOperator *BinExpr) {
     break;
   case BinaryOperatorKind::BO_AddAssign:
   case BinaryOperatorKind::BO_Add:
-    Result = builtinOp<air::AddIOp, mlir::AddFOp>(ResultType, Loc, LHS, RHS);
+    Result = builtinOp<air::AddIOp, AddFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_SubAssign:
   case BinaryOperatorKind::BO_Sub:
-    Result = builtinOp<air::SubIOp, mlir::SubFOp>(ResultType, Loc, LHS, RHS);
+    Result = builtinOp<air::SubIOp, SubFOp>(ResultType, Loc, LHS, RHS);
     break;
   case BinaryOperatorKind::BO_ShlAssign:
   case BinaryOperatorKind::BO_Shl:
@@ -812,7 +820,7 @@ mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
     // Block can have early exits in them and might not need a branch to Next
     if (BB->hasNoSuccessors()) {
       Builder.setInsertionPointToEnd(BB);
-      Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Next);
+      Builder.create<BranchOp>(Builder.getUnknownLoc(), Next);
     }
   };
 
@@ -847,7 +855,7 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
   Block *Next = Target.addBlock();
 
   // First, let's generate the loop's header.
-  Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Header);
+  Builder.create<BranchOp>(Builder.getUnknownLoc(), Header);
   Builder.setInsertionPointToStart(Header);
 
   // Loop variables...
@@ -874,7 +882,7 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
   // And if yes, we might need to put a jump to the header block.
   else if (hasNoTerminator(Current)) {
     Builder.setInsertionPointToEnd(Current);
-    Builder.create<mlir::BranchOp>(Builder.getUnknownLoc(), Header);
+    Builder.create<BranchOp>(Builder.getUnknownLoc(), Header);
   }
 
   // All further generation should happen here.

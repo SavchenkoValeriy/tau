@@ -3,10 +3,13 @@
 #include "tau/Core/Checker.h"
 
 #include <llvm/ADT/SmallVector.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
+
 #include <memory>
 
 using namespace tau::core;
 using namespace mlir;
+using namespace mlir::func;
 using namespace llvm;
 
 class CheckersPass final

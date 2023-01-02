@@ -24,6 +24,6 @@ struct C {
 } // end namespace c
 
 template class c::C<int>::D<double>;
-// CHECK: builtin.func @"static void c::C<int>::D<double>::foo(a::b::A param1, a::b::B<double, int> param2)"
+// CHECK: func.func @"static void c::C<int>::D<double>::foo(a::b::A param1, a::b::B<double, int> param2)"
 template class c::C<bool>::D<a::b::A>;
-// CHECK: builtin.func @"static void c::C<bool>::D<a::b::A>::foo(a::b::A param1, a::b::B<a::b::A, bool> param2)"
+// CHECK: func.func @"static void c::C<bool>::D<a::b::A>::foo(a::b::A param1, a::b::B<a::b::A, bool> param2)"

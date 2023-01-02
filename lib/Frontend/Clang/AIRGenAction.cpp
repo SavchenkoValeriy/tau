@@ -10,7 +10,7 @@ using namespace tau::frontend;
 namespace {
 class AIRGenASTConsumer final : public clang::ASTConsumer {
 public:
-  AIRGenASTConsumer(clang::CompilerInstance &CI, mlir::OwningModuleRef &ToInit,
+  AIRGenASTConsumer(clang::CompilerInstance &CI, OwningModuleRef &ToInit,
                     mlir::MLIRContext &Context)
       : ToInit(ToInit), Context(Context) {}
 
@@ -19,13 +19,13 @@ public:
   }
 
 private:
-  mlir::OwningModuleRef &ToInit;
+  OwningModuleRef &ToInit;
   mlir::MLIRContext &Context;
 };
 
 class AIRGenActionImpl final : public clang::SyntaxOnlyAction {
 public:
-  AIRGenActionImpl(mlir::OwningModuleRef &ToInit, mlir::MLIRContext &Context)
+  AIRGenActionImpl(OwningModuleRef &ToInit, mlir::MLIRContext &Context)
       : ToInit(ToInit), Context(Context) {}
 
   std::unique_ptr<clang::ASTConsumer>
@@ -34,7 +34,7 @@ public:
   }
 
 private:
-  mlir::OwningModuleRef &ToInit;
+  OwningModuleRef &ToInit;
   mlir::MLIRContext &Context;
 };
 } // end anonymous namespace

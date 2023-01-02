@@ -6,7 +6,7 @@
 
 #include <clang/Tooling/Tooling.h>
 #include <llvm/ADT/DenseMap.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
@@ -17,6 +17,7 @@ using namespace tau;
 using namespace core;
 using namespace llvm;
 using namespace mlir;
+using namespace mlir::func;
 
 namespace {
 

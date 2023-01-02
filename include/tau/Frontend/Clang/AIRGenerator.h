@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <mlir/IR/BuiltinOps.h>
+#include "tau/Frontend/Clang/OwningModuleRef.h"
 
 namespace mlir {
 class MLIRContext;
@@ -26,8 +26,7 @@ namespace frontend {
 
 class AIRGenerator {
 public:
-  static mlir::OwningModuleRef generate(mlir::MLIRContext &,
-                                        clang::ASTContext &);
+  static OwningModuleRef generate(mlir::MLIRContext &, clang::ASTContext &);
 };
 } // end namespace frontend
 } // end namespace tau

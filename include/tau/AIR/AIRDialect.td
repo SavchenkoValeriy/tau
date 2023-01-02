@@ -26,13 +26,15 @@ def Air_Dialect : Dialect {
     Static analysis-purposed IR for Tau.        
     }];
     let cppNamespace = "tau::air";
+    let useDefaultTypePrinterParser = 1;
+    let useDefaultAttributePrinterParser = 1;
 }
 
 //===----------------------------------------------------------------------===//
 //                          Base operation definition
 //===----------------------------------------------------------------------===//
 
-class Air_Op<string mnemonic, list<OpTrait> traits = []> :
+class Air_Op<string mnemonic, list<Trait> traits = []> :
     Op<Air_Dialect, mnemonic, traits> {
 }
 

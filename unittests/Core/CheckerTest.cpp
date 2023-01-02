@@ -4,6 +4,7 @@
 #include "tau/Frontend/Clang/Clang.h"
 #include "tau/Frontend/Output.h"
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Pass/PassManager.h>
 
 #include <catch2/catch.hpp>
@@ -13,6 +14,7 @@ using namespace tau;
 using namespace air;
 using namespace core;
 using namespace mlir;
+using namespace mlir::func;
 using namespace llvm;
 
 namespace {
