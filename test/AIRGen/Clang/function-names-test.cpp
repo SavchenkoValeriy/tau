@@ -3,10 +3,12 @@
 
 namespace a {
 namespace b {
-class A {};
+class A { int x; float y; };
+// CHECK: air.def @"a::b::A" : !air.rec<x : si32, y : f32>
 
 template <class T, class U>
 class B {};
+// TODO: generate defintion for B as well
 } // end namespace b
 } // end namespace a
 
@@ -24,6 +26,10 @@ struct C {
 } // end namespace c
 
 template class c::C<int>::D<double>;
+// CHECK: air.def @"c::C<int>::D" : !air.rec<>
+// TODO: add D's own template parameters to the FQN
 // CHECK: func.func @"static void c::C<int>::D<double>::foo(a::b::A param1, a::b::B<double, int> param2)"
 template class c::C<bool>::D<a::b::A>;
+// CHECK: air.def @"c::C<bool>::D" : !air.rec<>
+// TODO: add D's own template parameters to the FQN
 // CHECK: func.func @"static void c::C<bool>::D<a::b::A>::foo(a::b::A param1, a::b::B<a::b::A, bool> param2)"

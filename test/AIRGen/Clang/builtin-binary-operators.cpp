@@ -98,8 +98,8 @@ int test_or(int a, int b) { return a | b; }
 
 int test_comma(int a, int b) { return a, b; }
 // CHECK:       func.func @"int test_comma(int a, int b)"(%arg0: si32, %arg1: si32) -> si32 {
-// CHECK:         air.store %arg1 -> %[[#B:]] : !air.ptr<si32>
-// CHECK-NEXT:    %[[#RES:]] = air.load %[[#B]] : !air.ptr<si32>
+// CHECK:         air.store %arg1 -> %[[#B:]] : !air<ptr si32>
+// CHECK-NEXT:    %[[#RES:]] = air.load %[[#B]] : !air<ptr si32>
 // CHECK-NEXT:    br ^bb[[#EXIT:]](%[[#RES]] : si32)
 
 int test_nested(int a, int b, int c) {

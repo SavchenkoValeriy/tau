@@ -18,5 +18,5 @@ double test_neg(double a) { return -a; }
 
 int test_unary_plus(int a) { return +a; }
 // CHECK:       func.func @"int test_unary_plus(int a)"(%arg0: si32) -> si32 {
-// CHECK:         %[[#REG:]] = air.load %[[#OP:]] : !air.ptr<si32>
+// CHECK:         %[[#REG:]] = air.load %[[#OP:]] : !air<ptr si32>
 // CHECK-NEXT:    br ^bb[[#EXIT:]](%[[#REG]] : si32)

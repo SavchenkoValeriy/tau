@@ -988,9 +988,9 @@ def Air_AllocaOp : Air_Op<"alloca"> {
     Example:
 
     ```mlir
-    %a = alloca : !air.ptr<i32>
+    %a = alloca : !air<ptr i32>
 
-    %b = alloca %length : !air.ptr<f64>
+    %b = alloca %length : !air<ptr f64>
     ```
     }];
     let assemblyFormat = "($length^ `:` type($length))? attr-dict `:` type($res)";
@@ -1127,7 +1127,7 @@ def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
 
   let arguments = (ins AnyAttr:$value);
   let results = (outs AnyType:$res);
-  
+
   let hasCustomAssemblyFormat = 1;
 
   let builders = [
@@ -1182,11 +1182,68 @@ def Air_NullOp : Air_Op<"null", [NoSideEffect]> {
 
     Example:
     ```mlir
-    %1 = "air.null" : !air.ptr<si32>
+    %1 = "air.null" : !air<ptr si32>
     ```
   }];
 
   let assemblyFormat = "attr-dict `:` type($res)";
+}
+
+//===----------------------------------------------------------------------===//
+//                         Type definition/declaration
+//===----------------------------------------------------------------------===//
+
+def Air_RecordDeclOp : Air_Op<"decl", [Symbol]> {
+  let arguments = (ins SymbolNameAttr:$sym_name);
+  //let builders = [OpBuilder<(ins "llvm::StringRef":$name)>];
+
+  let summary = "type declaration";
+  let description = [{
+    Syntax:
+
+    ```
+    `air.decl`
+    ```
+
+    This operation has no operands and simply declares a type. It doesn't have
+    standard attributes.
+
+    Example:
+    ```mlir
+    "air.decl" @"a::A"
+    ```
+  }];
+
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDeclaration = [{
+    static RecordDeclOp create(mlir::Location Loc, llvm::StringRef Name);
+  }];
+}
+
+def Air_RecordDefOp : Air_Op<"def", [Symbol]> {
+  let arguments = (ins SymbolNameAttr:$sym_name);
+  let results = (outs Air_AnyRecord:$res);
+
+  let summary = "type definition";
+  let description = [{
+    Syntax:
+
+    ```
+    `air.def`
+    ```
+
+    This operation has defines a named type. It doesn't have standard attributes.
+
+    Example:
+    ```mlir
+    "air.def" @"a::A" : "air<rec <b:si32>>"
+    ```
+  }];
+
+  let hasCustomAssemblyFormat = 1;
+  let extraClassDeclaration = [{
+    static RecordDefOp create(mlir::Location Loc, llvm::StringRef Name, RecordType Record);
+  }];
 }
 
 #endif /* AIROPS_H */

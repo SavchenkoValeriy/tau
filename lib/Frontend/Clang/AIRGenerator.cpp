@@ -64,6 +64,7 @@ public:
 
   mlir::Type getPointerType(clang::QualType);
   mlir::Type getBuiltinType(clang::QualType);
+  mlir::Type getRecordType(clang::QualType);
 
   ShortString getFullyQualifiedName(const NamedDecl *ND);
 
@@ -293,6 +294,13 @@ mlir::Type TopLevelGenerator::type(clang::QualType T) {
     return getPointerType(T);
   case clang::Type::Builtin:
     return getBuiltinType(T);
+  case clang::Type::Record:
+    return getRecordType(T);
+  case clang::Type::TemplateSpecialization:
+    // TODO: revise this in the future, we drop arguments out
+    //       of the name.
+    return getRecordType(
+        T->castAs<clang::TemplateSpecializationType>()->desugar());
   default:
     return Builder.getNoneType();
   }
@@ -323,6 +331,12 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
 mlir::Type TopLevelGenerator::getPointerType(clang::QualType T) {
   mlir::Type NestedType = type(T->getPointeeType());
   return air::PointerType::get(NestedType);
+}
+
+mlir::Type TopLevelGenerator::getRecordType(clang::QualType T) {
+  const auto *Record = T->castAs<clang::RecordType>();
+  const std::string Name = Record->getDecl()->getQualifiedNameAsString();
+  return air::RecordRefType::get(Builder.getContext(), Name);
 }
 
 //===----------------------------------------------------------------------===//
@@ -368,6 +382,23 @@ void TopLevelGenerator::generateNamespace(const NamespaceDecl *NS) {
 }
 
 void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
+  const auto *Def = RD->getDefinition();
+  if (Def == RD) {
+    llvm::SmallVector<air::RecordField, 4> Fields;
+    for (const auto *Field : RD->fields()) {
+      Fields.push_back({Field->getName(), type(Field->getType())});
+    }
+    air::RecordType T = air::RecordType::get(Builder.getContext(), Fields);
+    const auto D =
+        air::RecordDefOp::create(loc(RD), RD->getQualifiedNameAsString(), T);
+    Module.push_back(D);
+  } else if (Def == nullptr) {
+    // TODO: there might be multiple forward declarations
+    //       of the same type, we should keep only one
+    const auto D =
+        air::RecordDeclOp::create(loc(RD), RD->getQualifiedNameAsString());
+    Module.push_back(D);
+  }
   for (const auto *NestedDecl : RD->decls())
     generateDecl(NestedDecl);
 }
@@ -445,8 +476,8 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
 mlir::Value FunctionGenerator::VisitCallExpr(const CallExpr *Call) {
   if (const FunctionDecl *DirectCallee = Call->getDirectCallee()) {
 
-    FuncOp Callee = Parent.getFunctionByDecl(DirectCallee);
-    Values Args = visitRange(Call->arguments());
+    const FuncOp Callee = Parent.getFunctionByDecl(DirectCallee);
+    const Values Args = visitRange(Call->arguments());
 
     auto Result = Builder.create<CallOp>(loc(Call), Callee, Args);
 

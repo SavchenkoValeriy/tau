@@ -4,6 +4,7 @@
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/IR/OperationSupport.h>
 #include <mlir/Interfaces/ControlFlowInterfaces.h>
 #include <mlir/Support/LogicalResult.h>
 
@@ -191,6 +192,54 @@ Block *CondBranchOp::getSuccessorForOperands(ArrayRef<Attribute> Operands) {
   if (IntegerAttr CondAttr = Operands.front().dyn_cast_or_null<IntegerAttr>())
     return CondAttr.getValue().isOneValue() ? trueDest() : falseDest();
   return nullptr;
+}
+
+//===----------------------------------------------------------------------===//
+//                        Record declaration/definition
+//===----------------------------------------------------------------------===//
+
+void RecordDeclOp::print(OpAsmPrinter &P) {
+  const auto Name =
+      getOperation()
+          ->getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName())
+          .getValue();
+  P << " ";
+  P.printSymbolName(Name);
+}
+
+ParseResult RecordDeclOp::parse(OpAsmParser &Parser, OperationState &Result) {
+  // TODO: support decl parsing
+  return failure();
+}
+
+RecordDefOp RecordDefOp::create(Location Loc, llvm::StringRef Name,
+                                RecordType Record) {
+  OpBuilder Builder(Loc->getContext());
+  OperationState State(Loc, getOperationName());
+  RecordDefOp::build(Builder, State, Record, Name);
+  return cast<RecordDefOp>(Operation::create(State));
+}
+
+RecordDeclOp RecordDeclOp::create(Location Loc, llvm::StringRef Name) {
+  OpBuilder Builder(Loc->getContext());
+  OperationState State(Loc, getOperationName());
+  RecordDeclOp::build(Builder, State, Name);
+  return cast<RecordDeclOp>(Operation::create(State));
+}
+
+void RecordDefOp::print(OpAsmPrinter &P) {
+  const auto Name =
+      getOperation()
+          ->getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName())
+          .getValue();
+  P << " ";
+  P.printSymbolName(Name);
+  P << " : ";
+  P.printType(getType());
+}
+
+ParseResult RecordDefOp::parse(OpAsmParser &Parser, OperationState &Result) {
+  return failure();
 }
 
 #define GET_OP_CLASSES

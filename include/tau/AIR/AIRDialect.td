@@ -13,6 +13,7 @@
 #define AIRDIALECT_H
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/AttrTypeBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
@@ -23,11 +24,17 @@ def Air_Dialect : Dialect {
     let name = "air";
     let summary = "Analysis-purposed MLIR dialect.";
     let description = [{
-    Static analysis-purposed IR for Tau.        
+    Static analysis-purposed IR for Tau.
     }];
     let cppNamespace = "tau::air";
     let useDefaultTypePrinterParser = 1;
     let useDefaultAttributePrinterParser = 1;
+    let extraClassDeclaration = [{
+    private:
+      void registerTypes();
+
+    public:
+    }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -40,6 +47,58 @@ class Air_Op<string mnemonic, list<Trait> traits = []> :
 
 //===----------------------------------------------------------------------===//
 //                                Air own types
+//===----------------------------------------------------------------------===//
+
+class Air_TypeDef<string name, string typeMnemonic,
+                  list<Trait> traits = [],
+                  string baseCppClass = "::mlir::Type">
+    : TypeDef<Air_Dialect, name, traits, baseCppClass> {
+  let mnemonic = typeMnemonic;
+}
+
+def Air_PointerType : Air_TypeDef<"Pointer", "ptr"> {
+  let parameters = (ins "mlir::Type":$elementType);
+  let assemblyFormat = "$elementType";
+  let builders = [
+    TypeBuilderWithInferredContext<(ins "mlir::Type":$type), [{
+      return $_get(type.getContext(), type);
+    }]>
+  ];
+}
+
+def Air_RecordRefType : Air_TypeDef<"RecordRef", "recref"> {
+  let parameters = (ins "mlir::FlatSymbolRefAttr":$name);
+  let assemblyFormat = "$name";
+  let builders = [
+    TypeBuilderWithInferredContext<(ins "mlir::MLIRContext *":$context, "llvm::StringRef":$name), [{
+      return $_get(context, SymbolRefAttr::get(context, name));
+    }]>
+  ];
+}
+
+def Air_RecordType : Air_TypeDef<"Record", "rec"> {
+  let parameters = (ins "llvm::ArrayRef<RecordField>":$Fields);
+  let hasCustomAssemblyFormat = 1;
+  let genStorageClass = 0;
+
+  let extraClassDeclaration = [{
+    RecordField getFieldByIndex(unsigned Index) const;
+    mlir::Type getTypeByIndex(unsigned Index) const {
+      return getFieldByIndex(Index).Type;
+    }
+    llvm::StringRef getFieldNameByIndex(unsigned Index) const {
+      return getFieldByIndex(Index).Name;
+    }
+
+    RecordField getFieldByName(llvm::StringRef Name) const;
+    mlir::Type getTypeByName(llvm::StringRef Name) const {
+      return getFieldByName(Name).Type;
+    }
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+//                             Air type predicates
 //===----------------------------------------------------------------------===//
 
 def Air_Type : DialectType<Air_Dialect,
@@ -59,6 +118,12 @@ class Air_PointerTo<Type pointee> : Type<
          "$_self.cast<tau::air::PointerType>().getElementType()",
          pointee.predicate>]>,
   "Air pointer to " # pointee.summary>;
+
+def Air_AnyRecord : Type<CPred<"$_self.isa<tau::air::RecordType>()">,
+                         "Air record type">;
+
+def Air_AnyRecordRef : Type<CPred<"$_self.isa<tau::air::RecordRefType>()">,
+                            "Air record reference type">;
 
 //===----------------------------------------------------------------------===//
 //                                Air attributes
