@@ -216,7 +216,7 @@ RecordDefOp RecordDefOp::create(Location Loc, llvm::StringRef Name,
                                 RecordType Record) {
   OpBuilder Builder(Loc->getContext());
   OperationState State(Loc, getOperationName());
-  RecordDefOp::build(Builder, State, Record, Name);
+  RecordDefOp::build(Builder, State, Name, Record);
   return cast<RecordDefOp>(Operation::create(State));
 }
 
@@ -233,9 +233,9 @@ void RecordDefOp::print(OpAsmPrinter &P) {
           ->getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName())
           .getValue();
   P << " ";
-  P.printSymbolName(Name);
+  P.printSymbolName(sym_nameAttr());
   P << " : ";
-  P.printType(getType());
+  P.printType(type());
 }
 
 ParseResult RecordDefOp::parse(OpAsmParser &Parser, OperationState &Result) {

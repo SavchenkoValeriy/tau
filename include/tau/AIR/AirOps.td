@@ -1195,7 +1195,6 @@ def Air_NullOp : Air_Op<"null", [NoSideEffect]> {
 
 def Air_RecordDeclOp : Air_Op<"decl", [Symbol]> {
   let arguments = (ins SymbolNameAttr:$sym_name);
-  //let builders = [OpBuilder<(ins "llvm::StringRef":$name)>];
 
   let summary = "type declaration";
   let description = [{
@@ -1221,8 +1220,8 @@ def Air_RecordDeclOp : Air_Op<"decl", [Symbol]> {
 }
 
 def Air_RecordDefOp : Air_Op<"def", [Symbol]> {
-  let arguments = (ins SymbolNameAttr:$sym_name);
-  let results = (outs Air_AnyRecord:$res);
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       TypeAttrOf<Air_RecordType>:$type);
 
   let summary = "type definition";
   let description = [{
