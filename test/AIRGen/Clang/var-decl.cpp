@@ -21,7 +21,7 @@ void test_vars() { int a, b; }
 // CHECK-NEXT:  }
 
 void test_param(int a) { return; }
-// CHECK:       func.func @"void test_param(int a)"(%arg0: si32) {
+// CHECK:       func.func @"void test_param(int)"(%arg0: si32) {
 // CHECK-NEXT:    %0 = air.alloca : !air<ptr si32>
 // CHECK-NEXT:    air.store %arg0 -> %0 : !air<ptr si32>
 // CHECK:         return

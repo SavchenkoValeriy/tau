@@ -3,7 +3,7 @@
 
 int test_basic(int a) {
   int b;
-  // CHECK-LABEL:   @"int test_basic(int a)"
+  // CHECK-LABEL:   @"int test_basic(int)"
   // CHECK-DAG:       %[[#UNDEF:]] = air.undef
   // CHECK-DAG:       air.store %[[#UNDEF]] -> %[[#B:]]
   // CHECK-DAG:       %[[#COND:]] = air.sgt %[[#LHS:]], %[[#RHS:]] : si32
@@ -28,7 +28,7 @@ int test_basic(int a) {
 }
 
 int test_early_return(int a) {
-  // CHECK-LABEL:   @"int test_early_return(int a)"
+  // CHECK-LABEL:   @"int test_early_return(int)"
   // CHECK-DAG:       %[[#COND:]] = air.sgt %[[#LHS:]], %[[#RHS:]] : si32
   // CHECK-NEXT:      air.cond_br %[[#COND]], ^bb[[#THEN:]], ^bb[[#ELSE:]]
   if (a > 42) {
@@ -44,7 +44,7 @@ int test_early_return(int a) {
 }
 
 bool test_var_decl(int a) {
-  // CHECK-LABEL:   @"bool test_var_decl(int a)"
+  // CHECK-LABEL:   @"bool test_var_decl(int)"
   // CHECK-DAG:       %[[#EQ:]] = air.eqi
   // CHECK-DAG:       air.store %[[#EQ]] -> %[[#B:]]
   // CHECK-DAG:       %[[#COND:]] = air.load %[[#B]]
@@ -63,7 +63,7 @@ bool test_var_decl(int a) {
 }
 
 int test_var_decl2(int a) {
-  // CHECK-LABEL:   @"int test_var_decl2(int a)"
+  // CHECK-LABEL:   @"int test_var_decl2(int)"
   // CHECK-DAG:       %[[#ADD:]] = air.addi
   // CHECK-DAG:       air.store %[[#ADD]] -> %[[#B:]]
   // CHECK-DAG:       %[[#COND:]] = air.eqi

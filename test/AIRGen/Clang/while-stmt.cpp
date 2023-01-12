@@ -2,7 +2,7 @@
 // RUN: FileCheck %s < %t.out
 
 void test_basic(int a) {
-  // CHECK-LABEL:   @"void test_basic(int a)"
+  // CHECK-LABEL:   @"void test_basic(int)"
   // CHECK-DAG:       br ^bb[[#HEADER:]]
   // CHECK-DAG:     ^bb[[#HEADER]]:
   // CHECK-DAG:       %[[#COND:]] = air.slt
@@ -17,7 +17,7 @@ void test_basic(int a) {
 }
 
 void test_empty(int a) {
-  // CHECK-LABEL:   @"void test_empty(int a)"
+  // CHECK-LABEL:   @"void test_empty(int)"
   // CHECK-DAG:       br ^bb[[#HEADER:]]
   // CHECK-DAG:     ^bb[[#HEADER]]:
   // CHECK-DAG:       %[[#COND:]] = air.slt
@@ -31,7 +31,7 @@ void test_empty(int a) {
 }
 
 void test_null(int a) {
-  // CHECK-LABEL:   @"void test_null(int a)"
+  // CHECK-LABEL:   @"void test_null(int)"
   // CHECK-DAG:       br ^bb[[#HEADER:]]
   // CHECK-DAG:     ^bb[[#HEADER]]:
   // CHECK-DAG:       %[[#COND:]] = air.slt
@@ -45,7 +45,7 @@ void test_null(int a) {
 }
 
 void test_decl(int a) {
-  // CHECK-LABEL:   @"void test_decl(int a)"
+  // CHECK-LABEL:   @"void test_decl(int)"
   // CHECK-DAG:       br ^bb[[#HEADER:]]
   // CHECK-DAG:     ^bb[[#HEADER]]:
   // CHECK-DAG:       %[[#COND:]] = air.slt
@@ -62,7 +62,7 @@ void test_decl(int a) {
 }
 
 void test_nested(int a, int b) {
-  // CHECK-LABEL:   @"void test_nested(int a, int b)"
+  // CHECK-LABEL:   @"void test_nested(int, int)"
   // CHECK-DAG:       br ^bb[[#HEADER:]]
   // CHECK-DAG:     ^bb[[#HEADER]]:
   // CHECK-DAG:       %[[#COND:]] = air.slt

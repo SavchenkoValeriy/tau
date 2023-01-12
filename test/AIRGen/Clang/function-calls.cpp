@@ -9,7 +9,7 @@ void test_simple() { bar(); }
 // CHECK-DAG:        call @"void bar()"
 
 int test_multiple_args(int a) { return foo(10, a, a + 10); }
-// CHECK-LABEL:    @"int test_multiple_args(int a)"
+// CHECK-LABEL:    @"int test_multiple_args(int)"
 // CHECK-DAG:        %[[#FIRST:]] = air.constant 10
 // CHECK-DAG:        %[[#SECOND:]] = air.load
 // CHECK-DAG:        %[[#THIRD:]] = air.addi

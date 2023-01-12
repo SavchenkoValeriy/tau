@@ -15,6 +15,7 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
 
+#include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlow.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -66,7 +67,9 @@ public:
   mlir::Type getBuiltinType(clang::QualType);
   mlir::Type getRecordType(clang::QualType);
 
-  ShortString getFullyQualifiedName(const NamedDecl *ND);
+  ShortString getFullyQualifiedName(const FunctionDecl *ND) const;
+  ShortString getFullyQualifiedName(QualType T) const;
+  void getFullyQualifiedName(QualType T, llvm::raw_svector_ostream &SS) const;
 
   inline mlir::Location loc(clang::SourceRange);
   inline mlir::Location loc(clang::SourceLocation);
@@ -258,18 +261,39 @@ private:
 //                                  Utiliities
 //===----------------------------------------------------------------------===//
 
-ShortString TopLevelGenerator::getFullyQualifiedName(const NamedDecl *ND) {
+ShortString
+TopLevelGenerator::getFullyQualifiedName(const FunctionDecl *FD) const {
   ShortString Result;
   llvm::raw_svector_ostream SS{Result};
 
+  getFullyQualifiedName(FD->getReturnType(), SS);
+  SS << " ";
+  SS << FD->getQualifiedNameAsString();
+  SS << "(";
+  llvm::interleaveComma(FD->parameters(), SS,
+                        [&SS, this](const ParmVarDecl *PD) {
+                          getFullyQualifiedName(PD->getType(), SS);
+                        });
+  SS << ")";
+
+  return Result;
+}
+
+ShortString TopLevelGenerator::getFullyQualifiedName(QualType T) const {
+  ShortString Result;
+  llvm::raw_svector_ostream SS{Result};
+  getFullyQualifiedName(T, SS);
+  return Result;
+}
+
+void TopLevelGenerator::getFullyQualifiedName(
+    QualType T, llvm::raw_svector_ostream &SS) const {
   PrintingPolicy Policy = Context.getPrintingPolicy();
   Policy.TerseOutput = true;
   Policy.FullyQualifiedName = true;
   Policy.PrintCanonicalTypes = true;
 
-  ND->print(SS, Policy);
-
-  return Result;
+  T.print(SS, Policy);
 }
 
 mlir::Location TopLevelGenerator::loc(clang::SourceRange R) {
@@ -329,14 +353,13 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
 }
 
 mlir::Type TopLevelGenerator::getPointerType(clang::QualType T) {
-  mlir::Type NestedType = type(T->getPointeeType());
+  const mlir::Type NestedType = type(T->getPointeeType());
   return air::PointerType::get(NestedType);
 }
 
 mlir::Type TopLevelGenerator::getRecordType(clang::QualType T) {
-  const auto *Record = T->castAs<clang::RecordType>();
-  const std::string Name = Record->getDecl()->getQualifiedNameAsString();
-  return air::RecordRefType::get(Builder.getContext(), Name);
+  return air::RecordRefType::get(Builder.getContext(),
+                                 getFullyQualifiedName(T));
 }
 
 //===----------------------------------------------------------------------===//

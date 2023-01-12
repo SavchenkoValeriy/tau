@@ -3,7 +3,7 @@
 
 int test_then_nested(int a) {
   int b;
-  // CHECK-LABEL:   @"int test_then_nested(int a)"
+  // CHECK-LABEL:   @"int test_then_nested(int)"
   // CHECK-DAG:       %[[#UNDEF:]] = air.undef
   // CHECK-DAG:       air.store %[[#UNDEF]] -> %[[#B:]]
   // CHECK-DAG:       %[[#COND:]] = air.sgt %[[#LHS:]], %[[#RHS:]] : si32
@@ -34,7 +34,7 @@ int test_then_nested(int a) {
 
 int test_else_nested(int a) {
   int b;
-  // CHECK-LABEL:   @"int test_else_nested(int a)"
+  // CHECK-LABEL:   @"int test_else_nested(int)"
   // CHECK-DAG:       %[[#UNDEF:]] = air.undef
   // CHECK-DAG:       air.store %[[#UNDEF]] -> %[[#B:]]
   // CHECK-DAG:       %[[#COND:]] = air.sgt %[[#LHS:]], %[[#RHS:]] : si32

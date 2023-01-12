@@ -28,8 +28,8 @@ struct C {
 template class c::C<int>::D<double>;
 // CHECK: air.def @"c::C<int>::D" : !air.rec<>
 // TODO: add D's own template parameters to the FQN
-// CHECK: func.func @"static void c::C<int>::D<double>::foo(a::b::A param1, a::b::B<double, int> param2)"
+// CHECK: func.func @"void c::C<int>::D<double>::foo(a::b::A, a::b::B<double, int>)"
 template class c::C<bool>::D<a::b::A>;
 // CHECK: air.def @"c::C<bool>::D" : !air.rec<>
 // TODO: add D's own template parameters to the FQN
-// CHECK: func.func @"static void c::C<bool>::D<a::b::A>::foo(a::b::A param1, a::b::B<a::b::A, bool> param2)"
+// CHECK: func.func @"void c::C<bool>::D<a::b::A>::foo(a::b::A, a::b::B<a::b::A, bool>)"
