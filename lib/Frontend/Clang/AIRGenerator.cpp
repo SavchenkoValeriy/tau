@@ -6,9 +6,11 @@
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
+#include <clang/AST/DeclTemplate.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/OperationKinds.h>
 #include <clang/AST/StmtVisitor.h>
+#include <clang/AST/TemplateBase.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
 #include <llvm/ADT/None.h>
@@ -67,7 +69,8 @@ public:
   mlir::Type getBuiltinType(clang::QualType);
   mlir::Type getRecordType(clang::QualType);
 
-  ShortString getFullyQualifiedName(const FunctionDecl *ND) const;
+  ShortString getFullyQualifiedName(const RecordDecl *RD) const;
+  ShortString getFullyQualifiedName(const FunctionDecl *FD) const;
   ShortString getFullyQualifiedName(QualType T) const;
   void getFullyQualifiedName(QualType T, llvm::raw_svector_ostream &SS) const;
 
@@ -262,6 +265,31 @@ private:
 //===----------------------------------------------------------------------===//
 
 ShortString
+TopLevelGenerator::getFullyQualifiedName(const RecordDecl *RD) const {
+  ShortString Result;
+  llvm::raw_svector_ostream SS{Result};
+
+  SS << RD->getQualifiedNameAsString();
+  if (const auto *AsTemplateSpecialization =
+          dyn_cast<ClassTemplateSpecializationDecl>(RD)) {
+    PrintingPolicy Policy = Context.getPrintingPolicy();
+    Policy.TerseOutput = true;
+    Policy.FullyQualifiedName = true;
+    Policy.PrintCanonicalTypes = true;
+
+    SS << "<";
+    llvm::interleaveComma(AsTemplateSpecialization->getTemplateArgs().asArray(),
+                          SS,
+                          [&SS, &Policy, this](const TemplateArgument &Arg) {
+                            Arg.print(Policy, SS, true);
+                          });
+    SS << ">";
+  }
+
+  return Result;
+}
+
+ShortString
 TopLevelGenerator::getFullyQualifiedName(const FunctionDecl *FD) const {
   ShortString Result;
   llvm::raw_svector_ostream SS{Result};
@@ -413,13 +441,13 @@ void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
     }
     air::RecordType T = air::RecordType::get(Builder.getContext(), Fields);
     const auto D =
-        air::RecordDefOp::create(loc(RD), RD->getQualifiedNameAsString(), T);
+        air::RecordDefOp::create(loc(RD), getFullyQualifiedName(RD), T);
     Module.push_back(D);
   } else if (Def == nullptr) {
     // TODO: there might be multiple forward declarations
     //       of the same type, we should keep only one
     const auto D =
-        air::RecordDeclOp::create(loc(RD), RD->getQualifiedNameAsString());
+        air::RecordDeclOp::create(loc(RD), getFullyQualifiedName(RD));
     Module.push_back(D);
   }
   for (const auto *NestedDecl : RD->decls())

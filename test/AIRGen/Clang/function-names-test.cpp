@@ -26,10 +26,8 @@ struct C {
 } // end namespace c
 
 template class c::C<int>::D<double>;
-// CHECK: air.def @"c::C<int>::D" : !air.rec<>
-// TODO: add D's own template parameters to the FQN
+// CHECK: air.def @"c::C<int>::D<double>" : !air.rec<>
 // CHECK: func.func @"void c::C<int>::D<double>::foo(a::b::A, a::b::B<double, int>)"
 template class c::C<bool>::D<a::b::A>;
-// CHECK: air.def @"c::C<bool>::D" : !air.rec<>
-// TODO: add D's own template parameters to the FQN
+// CHECK: air.def @"c::C<bool>::D<a::b::A>" : !air.rec<>
 // CHECK: func.func @"void c::C<bool>::D<a::b::A>::foo(a::b::A, a::b::B<a::b::A, bool>)"
