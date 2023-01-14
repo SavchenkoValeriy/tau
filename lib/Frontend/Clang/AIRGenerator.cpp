@@ -128,6 +128,8 @@ public:
   mlir::Value VisitCStyleCastExpr(const CStyleCastExpr *Cast);
   mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
 
+  mlir::Value VisitCXXThisExpr(const CXXThisExpr *ThisExpr);
+
   mlir::Value generateIncDec(mlir::Location Loc, mlir::Value Var, bool IsPre,
                              bool IsInc);
 
@@ -153,6 +155,13 @@ private:
     DeclScope ParamScope(Declarations);
 
     Builder.setInsertionPointToStart(Entry);
+    auto Arguments = llvm::make_range(Entry->getArguments().begin(),
+                                      Entry->getArguments().end());
+
+    if (isa<CXXMethodDecl>(&Original)) {
+      declareThis(*Arguments.begin());
+      Arguments = llvm::drop_begin(Arguments);
+    }
     for (const auto &[Param, BlockArg] :
          llvm::zip(Original.parameters(), Entry->getArguments())) {
       declare(Param, BlockArg);
@@ -194,13 +203,27 @@ private:
     // location instead of D->getBeginLoc().
     mlir::Location Loc = loc(SourceRange{D->getLocation(), D->getEndLoc()});
     mlir::Type T = type(D);
+    mlir::Value Result =
+        allocaOrRef(T, Loc, InitValue, D->getType()->isLValueReferenceType());
+    Declarations.insert(D, Result);
+    return Result;
+  }
 
+  mlir::Value declareThis(mlir::Value InitValue) {
+    // this pointer is not assignable, so we can express this as air.ref
+    ThisParam = allocaOrRef(type(cast<CXXMethodDecl>(Original).getThisType()),
+                            loc(&Original), InitValue, true);
+    return ThisParam;
+  }
+
+  mlir::Value allocaOrRef(mlir::Type T, mlir::Location Loc,
+                          mlir::Value InitValue, bool AsRef = true) {
     if (!InitValue) {
       InitValue = Builder.create<air::UndefOp>(Loc, T);
     }
 
     mlir::Value Result;
-    if (D->getType()->isLValueReferenceType()) {
+    if (AsRef) {
       Result = Builder.create<air::RefOp>(Loc, InitValue);
     } else {
       // TODO: support array types
@@ -208,7 +231,7 @@ private:
                                              mlir::Value{});
       store(InitValue, Result, Loc);
     }
-    Declarations.insert(D, Result);
+
     return Result;
   }
 
@@ -258,6 +281,7 @@ private:
   using DeclScope = DeclMap::ScopeTy;
   DeclMap Declarations;
   Block *Entry, *Exit;
+  mlir::Value ThisParam;
 };
 
 } // end anonymous namespace
@@ -870,6 +894,15 @@ mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
     return Builder.create<air::TruncateOp>(Loc, To, Value);
 
   return Builder.create<air::BitcastOp>(Loc, To, Value);
+}
+
+//===----------------------------------------------------------------------===//
+//                           C++-specific expressions
+//===----------------------------------------------------------------------===//
+
+mlir::Value FunctionGenerator::VisitCXXThisExpr(const CXXThisExpr *ThisExpr) {
+  assert(ThisParam);
+  return ThisParam;
 }
 
 //===----------------------------------------------------------------------===//

@@ -7,7 +7,11 @@ class A {
 public:
   int x;
   int foo(int y) { return y; }
-// CHECK-LABEL: @"int a::b::c::A::foo(a::b::c::A *, int)"
+  // CHECK-LABEL: @"int a::b::c::A::foo(a::b::c::A *, int)"
+  A *getThis() { return this; }
+  // CHECK-LABEL:  @"a::b::c::A * a::b::c::A::getThis(a::b::c::A *)"
+  // CHECK:          %[[#THIS:]] = air.ref %arg0
+  // CHECK-DAG:      br ^bb[[#EXIT:]](%[[#THIS]] : !air<ptr !air<recref @"a::b::c::A">>)
 };
 } // end namespace a::b::c
 
