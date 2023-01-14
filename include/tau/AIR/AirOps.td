@@ -1108,17 +1108,18 @@ def Air_GetFieldPtr : Air_Op<"getfieldptr", [NoSideEffect]> {
     Syntax:
 
     ```
-    operation ::= `air.getfieldptr` ssa-use `:` type `-> type
+    operation ::= `air.getfieldptr` ssa-use `->` str `:` type `-> type
     ```
 
     The `getfieldptr` operation retrieves a pointer to a field from
     a pointer to a record.
   }];
 
-  let arguments = (ins Air_PointerTo<Air_AnyRecordRef>:$record);
+  let arguments = (ins Air_PointerTo<Air_AnyRecordRef>:$record,
+                       StrAttr:$field);
   let results = (outs Air_AnyPointer:$res);
 
-  let assemblyFormat = "attr-dict $record `:` type($record) `->` type($res)";
+  let assemblyFormat = "attr-dict $record `->` $field `:` type($record) `->` type($res)";
 }
 
 //===----------------------------------------------------------------------===//

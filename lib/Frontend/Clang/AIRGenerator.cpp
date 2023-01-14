@@ -120,6 +120,7 @@ public:
   mlir::Value VisitBinaryOperator(const BinaryOperator *BinExpr);
   mlir::Value VisitUnaryOperator(const UnaryOperator *UnExpr);
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
+  mlir::Value VisitMemberExpr(const MemberExpr *Member);
 
   mlir::Value VisitIfStmt(const IfStmt *If);
   mlir::Value VisitWhileStmt(const WhileStmt *While);
@@ -163,7 +164,7 @@ private:
       Arguments = llvm::drop_begin(Arguments);
     }
     for (const auto &[Param, BlockArg] :
-         llvm::zip(Original.parameters(), Entry->getArguments())) {
+         llvm::zip(Original.parameters(), Arguments)) {
       declare(Param, BlockArg);
     }
 
@@ -828,8 +829,21 @@ mlir::Value FunctionGenerator::builtinIOp(mlir::Type OpType, Args &&...Rest) {
 }
 
 mlir::Value FunctionGenerator::VisitParenExpr(const ParenExpr *Paren) {
-  // We don't care abou parentheses at this point
+  // We don't care about parentheses at this point
   return Visit(Paren->getSubExpr());
+}
+
+mlir::Value FunctionGenerator::VisitMemberExpr(const MemberExpr *Member) {
+  mlir::Value Result;
+
+  if (const auto *MemberDecl = Member->getMemberDecl()) {
+    mlir::Value Base = Visit(Member->getBase());
+    mlir::Type T = air::PointerType::get(type(Member));
+    Result = Builder.create<air::GetFieldPtr>(loc(Member), T, Base,
+                                              MemberDecl->getName());
+  }
+  // TODO: support member access of static data and via pointers.
+  return Result;
 }
 
 //===----------------------------------------------------------------------===//

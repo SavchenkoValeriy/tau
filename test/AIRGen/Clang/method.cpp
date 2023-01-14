@@ -6,8 +6,12 @@ class A {
 // CHECK-LABEL: air.def @"a::b::c::A" : !air.rec<x : si32>
 public:
   int x;
-  int foo(int y) { return y; }
-  // CHECK-LABEL: @"int a::b::c::A::foo(a::b::c::A *, int)"
+  int foo(int y) { return x + y; }
+  // CHECK-LABEL:  @"int a::b::c::A::foo(a::b::c::A *, int)"
+  // CHECK:          %[[#THIS:]] = air.ref %arg0
+  // CHECK-DAG:      %[[#XPTR:]] = air.getfieldptr %[[#THIS]] -> "x"
+  // CHECK-DAG:      %[[#X:]] = air.load %[[#XPTR]]
+  // CHECK-DAG:      %[[#ADD:]] = air.addi %[[#X]], %[[#Y:]]
   A *getThis() { return this; }
   // CHECK-LABEL:  @"a::b::c::A * a::b::c::A::getThis(a::b::c::A *)"
   // CHECK:          %[[#THIS:]] = air.ref %arg0
