@@ -1102,6 +1102,25 @@ def Air_NoOp : Air_Op<"noop", [NoSideEffect, SameOperandsAndResultType]> {
   let assemblyFormat = "attr-dict $value `:` type($value)";
 }
 
+def Air_GetFieldPtr : Air_Op<"getfieldptr", [NoSideEffect]> {
+  let summary = "getfieldptr";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.getfieldptr` ssa-use `:` type `-> type
+    ```
+
+    The `getfieldptr` operation retrieves a pointer to a field from
+    a pointer to a record.
+  }];
+
+  let arguments = (ins Air_PointerTo<Air_AnyRecordRef>:$record);
+  let results = (outs Air_AnyPointer:$res);
+
+  let assemblyFormat = "attr-dict $record `:` type($record) `->` type($res)";
+}
+
 //===----------------------------------------------------------------------===//
 //                                   Constant
 //===----------------------------------------------------------------------===//

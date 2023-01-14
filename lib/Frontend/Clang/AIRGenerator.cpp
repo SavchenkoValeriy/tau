@@ -6,8 +6,10 @@
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
+#include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
 #include <clang/AST/Expr.h>
+#include <clang/AST/ExprCXX.h>
 #include <clang/AST/OperationKinds.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/AST/TemplateBase.h>
@@ -294,14 +296,23 @@ TopLevelGenerator::getFullyQualifiedName(const FunctionDecl *FD) const {
   ShortString Result;
   llvm::raw_svector_ostream SS{Result};
 
+  llvm::SmallVector<clang::QualType> ParameterTypes;
+  if (const auto *MD = dyn_cast<CXXMethodDecl>(FD)) {
+    if (!MD->isStatic()) {
+      ParameterTypes.push_back(MD->getThisType());
+    }
+  }
+  ParameterTypes.reserve(FD->getNumParams());
+  llvm::transform(FD->parameters(), std::back_inserter(ParameterTypes),
+                  [](const ParmVarDecl *PD) { return PD->getType(); });
+
   getFullyQualifiedName(FD->getReturnType(), SS);
   SS << " ";
   SS << FD->getQualifiedNameAsString();
   SS << "(";
-  llvm::interleaveComma(FD->parameters(), SS,
-                        [&SS, this](const ParmVarDecl *PD) {
-                          getFullyQualifiedName(PD->getType(), SS);
-                        });
+  llvm::interleaveComma(ParameterTypes, SS, [&SS, this](clang::QualType T) {
+    getFullyQualifiedName(T, SS);
+  });
   SS << ")";
 
   return Result;
@@ -349,10 +360,10 @@ mlir::Type TopLevelGenerator::type(clang::QualType T) {
   case clang::Type::Record:
     return getRecordType(T);
   case clang::Type::TemplateSpecialization:
-    // TODO: revise this in the future, we drop arguments out
-    //       of the name.
     return getRecordType(
         T->castAs<clang::TemplateSpecializationType>()->desugar());
+  case clang::Type::Elaborated:
+    return type(T->castAs<clang::ElaboratedType>()->desugar());
   default:
     return Builder.getNoneType();
   }
@@ -403,7 +414,7 @@ ModuleOp TopLevelGenerator::generateModule() {
 
   if (failed(mlir::verify(Module))) {
     Module.emitError("Generated incorrect module");
-    return nullptr;
+    return Module;
   }
   return Module;
 }
@@ -455,13 +466,15 @@ void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
 }
 
 void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
-  mlir::FunctionType T;
   ShortString Name = getFullyQualifiedName(F);
 
-  llvm::SmallVector<mlir::Type, 4> ArgTypes;
-  ArgTypes.reserve(F->getNumParams());
+  llvm::SmallVector<mlir::Type, 4> ParamTypes;
+  if (const auto *MD = dyn_cast<CXXMethodDecl>(F)) {
+    ParamTypes.push_back(type(MD->getThisType()));
+  }
+  ParamTypes.reserve(F->getNumParams());
   for (const auto &Param : F->parameters()) {
-    ArgTypes.push_back(type(Param));
+    ParamTypes.push_back(type(Param));
   }
 
   mlir::TypeRange ReturnType = llvm::None;
@@ -469,7 +482,7 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
     ReturnType = type(F->getReturnType());
 
   auto Result = FuncOp::create(loc(F), Name,
-                               Builder.getFunctionType(ArgTypes, ReturnType));
+                               Builder.getFunctionType(ParamTypes, ReturnType));
   // It is important to do this BEFORE we generate function's body
   // because of possible recursions.
   Functions[F] = Result;
@@ -528,7 +541,13 @@ mlir::Value FunctionGenerator::VisitCallExpr(const CallExpr *Call) {
   if (const FunctionDecl *DirectCallee = Call->getDirectCallee()) {
 
     const FuncOp Callee = Parent.getFunctionByDecl(DirectCallee);
-    const Values Args = visitRange(Call->arguments());
+    Values Args;
+    if (const auto *MethodCall = dyn_cast<CXXMemberCallExpr>(Call)) {
+      if (const auto *ME = dyn_cast<MemberExpr>(MethodCall->getCallee())) {
+        Args.push_back(Visit(ME->getBase()));
+      }
+    }
+    Args.append(visitRange(Call->arguments()));
 
     auto Result = Builder.create<CallOp>(loc(Call), Callee, Args);
 
