@@ -78,7 +78,6 @@ bool ConstantFloatOp::classof(Operation *Op) {
 //===----------------------------------------------------------------------===//
 
 void LoadOp::print(OpAsmPrinter &P) {
-  P << " ";
   P.printOptionalAttrDict((*this)->getAttrs());
   P << " " << from() << " : " << from().getType();
 }
@@ -115,7 +114,6 @@ static LogicalResult verify(StoreOp &Store) {
 }
 
 void StoreOp::print(OpAsmPrinter &P) {
-  P << " ";
   P.printOptionalAttrDict((*this)->getAttrs());
   P << " " << what() << " -> " << where() << " : " << where().getType();
 }

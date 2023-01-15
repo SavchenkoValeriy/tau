@@ -19,6 +19,8 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
 
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlow.h>
@@ -86,12 +88,23 @@ public:
     return Functions.lookup(F);
   }
 
+  air::RecordDefOp getRecordByType(const RecordType *RT) {
+    return getRecordByDecl(RT->getDecl());
+  }
+  air::RecordDefOp getRecordByDecl(const RecordDecl *RD) {
+    if (const auto *Def = RD->getDefinition()) {
+      return Records.lookup(Def);
+    }
+    return {};
+  }
+
   ModuleOp &getModule() { return Module; }
   OpBuilder &getBuilder() { return Builder; }
   ASTContext &getContext() { return Context; }
 
 private:
   DenseMap<const FunctionDecl *, FuncOp> Functions;
+  DenseMap<const RecordDecl *, air::RecordDefOp> Records;
   ModuleOp Module;
   OpBuilder Builder;
   ASTContext &Context;
@@ -121,6 +134,9 @@ public:
   mlir::Value VisitUnaryOperator(const UnaryOperator *UnExpr);
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
   mlir::Value VisitMemberExpr(const MemberExpr *Member);
+  mlir::Value
+  VisitImplicitValueInitExpr(const ImplicitValueInitExpr *ImplicitValueInit);
+  mlir::Value VisitCXXDefaultInitExpr(const CXXDefaultInitExpr *CXXDefaultInit);
 
   mlir::Value VisitIfStmt(const IfStmt *If);
   mlir::Value VisitWhileStmt(const WhileStmt *While);
@@ -199,45 +215,61 @@ private:
   }
 
   mlir::Value declare(const ValueDecl *D, mlir::Value InitValue) {
-    // Here we want to point to the value name, not its type.
-    // For this reason, we use D->getLocation() as the start
-    // location instead of D->getBeginLoc().
-    mlir::Location Loc = loc(SourceRange{D->getLocation(), D->getEndLoc()});
+
     mlir::Type T = type(D);
-    mlir::Value Result =
-        allocaOrRef(T, Loc, InitValue, D->getType()->isLValueReferenceType());
+
+    if (D->getType()->isLValueReferenceType()) {
+      assert(InitValue);
+      mlir::Value Result =
+          Builder.create<air::RefOp>(loc(&Original), InitValue);
+      Declarations.insert(D, Result);
+      return Result;
+    }
+
+    mlir::Value Result = declare(D);
+    if (!InitValue) {
+      InitValue = Builder.create<air::UndefOp>(Result.getLoc(), T);
+    }
+    store(InitValue, Result, Result.getLoc());
+    return Result;
+  }
+
+  mlir::Value declare(const ValueDecl *D) {
+    mlir::Value Result = alloca(D);
     Declarations.insert(D, Result);
     return Result;
   }
 
-  mlir::Value declareThis(mlir::Value InitValue) {
-    // this pointer is not assignable, so we can express this as air.ref
-    ThisParam = allocaOrRef(type(cast<CXXMethodDecl>(Original).getThisType()),
-                            loc(&Original), InitValue, true);
-    return ThisParam;
+  mlir::Value alloca(const ValueDecl *D) {
+    // Here we want to point to the value name, not its type.
+    // For this reason, we use D->getLocation() as the start
+    // location instead of D->getBeginLoc().
+    mlir::Location Loc = loc(SourceRange{D->getLocation(), D->getEndLoc()});
+
+    // TODO: support array types
+    return Builder.create<air::AllocaOp>(Loc, air::PointerType::get(type(D)),
+                                         mlir::Value{});
   }
 
-  mlir::Value allocaOrRef(mlir::Type T, mlir::Location Loc,
-                          mlir::Value InitValue, bool AsRef = true) {
-    if (!InitValue) {
-      InitValue = Builder.create<air::UndefOp>(Loc, T);
-    }
-
-    mlir::Value Result;
-    if (AsRef) {
-      Result = Builder.create<air::RefOp>(Loc, InitValue);
-    } else {
-      // TODO: support array types
-      Result = Builder.create<air::AllocaOp>(Loc, air::PointerType::get(T),
-                                             mlir::Value{});
-      store(InitValue, Result, Loc);
-    }
-
-    return Result;
+  mlir::Value declareThis(mlir::Value InitValue) {
+    // this pointer is not assignable, so we can express this as air.ref
+    ThisParam = Builder.create<air::RefOp>(loc(&Original), InitValue);
+    return ThisParam;
   }
 
   mlir::Value getPointer(const ValueDecl *D) const {
     return Declarations.lookup(D);
+  }
+
+  mlir::Value getMemberPointer(mlir::Location Loc, mlir::Value Base,
+                               air::RecordField Member) {
+    return getMemberPointer(Loc, Base, Member.Name, Member.Type);
+  }
+
+  mlir::Value getMemberPointer(mlir::Location Loc, mlir::Value Base,
+                               llvm::StringRef Name, mlir::Type MemberTy) {
+    mlir::Type PtrTy = air::PointerType::get(MemberTy);
+    return Builder.create<air::GetFieldPtr>(Loc, PtrTy, Base, Name);
   }
 
   void store(mlir::Value V, const ValueDecl *D, Location Loc) {
@@ -439,7 +471,6 @@ ModuleOp TopLevelGenerator::generateModule() {
 
   if (failed(mlir::verify(Module))) {
     Module.emitError("Generated incorrect module");
-    return Module;
   }
   return Module;
 }
@@ -478,8 +509,10 @@ void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
     air::RecordType T = air::RecordType::get(Builder.getContext(), Fields);
     const auto D =
         air::RecordDefOp::create(loc(RD), getFullyQualifiedName(RD), T);
+
+    Records[RD] = D;
     Module.push_back(D);
-  } else if (Def == nullptr) {
+  } else if (Def == nullptr && !RD->isImplicit()) {
     // TODO: there might be multiple forward declarations
     //       of the same type, we should keep only one
     const auto D =
@@ -550,10 +583,40 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
       mlir::Location Loc = loc(Var);
       mlir::Value Init;
-      if (Var->getInit()) {
-        Init = Visit(Var->getInit());
+
+      if (Var->getType()->isRecordType()) {
+        mlir::Value RecordObject = declare(Var);
+        air::RecordDefOp Def =
+            Parent.getRecordByType(Var->getType()->castAs<RecordType>());
+        if (!Def) {
+          // This shouldn't really happen, we should've seen record
+          // definition at this point.
+          continue;
+        }
+        // Initialization with init lists.
+        if (const auto *InitList =
+                llvm::dyn_cast_if_present<InitListExpr>(Var->getInit())) {
+          assert(Def.getRecordType().getFields().size() ==
+                     InitList->inits().size() &&
+                 "Initializer list should cover all field, even the ones not "
+                 "mentioned explicitly");
+
+          for (const auto &[Field, Init] :
+               llvm::zip(Def.getRecordType().getFields(), InitList->inits())) {
+            const mlir::Location Loc = loc(Init);
+            const mlir::Value FieldMemory =
+                getMemberPointer(Loc, RecordObject, Field);
+
+            mlir::Value FieldInit = Visit(Init);
+            store(FieldInit, FieldMemory, Loc);
+          }
+        }
+      } else {
+        if (Var->getInit()) {
+          Init = Visit(Var->getInit());
+        }
+        declare(Var, Init);
       }
-      mlir::Value Address = declare(Var, Init);
     }
   return {};
 }
@@ -837,13 +900,23 @@ mlir::Value FunctionGenerator::VisitMemberExpr(const MemberExpr *Member) {
   mlir::Value Result;
 
   if (const auto *MemberDecl = Member->getMemberDecl()) {
-    mlir::Value Base = Visit(Member->getBase());
-    mlir::Type T = air::PointerType::get(type(Member));
-    Result = Builder.create<air::GetFieldPtr>(loc(Member), T, Base,
-                                              MemberDecl->getName());
+    Result = getMemberPointer(loc(Member), Visit(Member->getBase()),
+                              MemberDecl->getName(), type(Member));
   }
   // TODO: support member access of static data and via pointers.
   return Result;
+}
+
+mlir::Value FunctionGenerator::VisitImplicitValueInitExpr(
+    const ImplicitValueInitExpr *ImplicitValueInit) {
+  // TODO: check it for non-trivial types
+  return Builder.create<air::UndefOp>(loc(ImplicitValueInit),
+                                      type(ImplicitValueInit));
+}
+
+mlir::Value FunctionGenerator::VisitCXXDefaultInitExpr(
+    const CXXDefaultInitExpr *CXXDefaultInit) {
+  return Visit(CXXDefaultInit->getExpr());
 }
 
 //===----------------------------------------------------------------------===//

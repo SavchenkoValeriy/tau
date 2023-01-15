@@ -1262,6 +1262,7 @@ def Air_RecordDefOp : Air_Op<"def", [Symbol]> {
   let hasCustomAssemblyFormat = 1;
   let extraClassDeclaration = [{
     static RecordDefOp create(mlir::Location Loc, llvm::StringRef Name, RecordType Record);
+    RecordType getRecordType() { return type(); }
   }];
 }
 
