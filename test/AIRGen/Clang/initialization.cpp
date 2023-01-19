@@ -86,3 +86,21 @@ int no_init_A(int x, float y) {
 }
 // CHECK-LABEL:  @"int no_init_A(int, float)"
 // TODO: generate the same code as for @"int init_list_A_4(int, float)"
+
+int designated_init(int x, float y) {
+  A a{.y = y, .x = x};
+  return a.x;
+}
+// CHECK-LABEL:  @"int designated_init(int, float)"
+// CHECK-DAG:      air.store %arg0 -> %[[#XPTR:]] : !air<ptr si32>
+// CHECK-DAG:      air.store %arg1 -> %[[#YPTR:]] : !air<ptr f32>
+// CHECK:          %[[#A:]] = air.alloca : !air<ptr !air<recref @A>>
+// CHECK-DAG:      %[[#AX:]] = air.getfieldptr %[[#A]] -> "x"
+// CHECK:          %[[#X:]] = air.load %[[#XPTR]]
+// CHECK:          air.store %[[#X]] -> %[[#AX]]
+// CHECK-DAG:      %[[#AY:]] = air.getfieldptr %[[#A]] -> "y"
+// CHECK:          %[[#Y:]] = air.load %[[#YPTR]]
+// CHECK:          air.store %[[#Y]] -> %[[#AY]]
+// CHECK-DAG:      %[[#AZ:]] = air.getfieldptr %[[#A]] -> "z"
+// CHECK:          %[[#Z:]] = air.constant 42
+// CHECK:          air.store %[[#Z]] -> %[[#AZ]]
