@@ -104,3 +104,33 @@ int designated_init(int x, float y) {
 // CHECK-DAG:      %[[#AZ:]] = air.getfieldptr %[[#A]] -> "z"
 // CHECK:          %[[#Z:]] = air.constant 42
 // CHECK:          air.store %[[#Z]] -> %[[#AZ]]
+
+struct B {
+  int a;
+  A b;
+  int c;
+};
+
+int init_list_B(int x) {
+  B b{x};
+  return b.b.x;
+}
+// CHECK-LABEL:  @"int init_list_B(int)"
+// CHECK-DAG:      air.store %arg0 -> %[[#XPTR:]] : !air<ptr si32>
+// CHECK:          %[[#B:]] = air.alloca : !air<ptr !air<recref @B>>
+// CHECK-DAG:      %[[#BA:]] = air.getfieldptr %[[#B]] -> "a"
+// CHECK:          %[[#X:]] = air.load %[[#XPTR]]
+// CHECK:          air.store %[[#X]] -> %[[#BA]]
+// CHECK-DAG:      %[[#BB:]] = air.getfieldptr %[[#B]] -> "b"
+// CHECK-DAG:      %[[#BBX:]] = air.getfieldptr %[[#BB]] -> "x"
+// CHECK:          %[[#X:]] = air.undef
+// CHECK:          air.store %[[#X]] -> %[[#BBX]]
+// CHECK-DAG:      %[[#BBY:]] = air.getfieldptr %[[#BB]] -> "y"
+// CHECK:          %[[#Y:]] = air.undef
+// CHECK:          air.store %[[#Y]] -> %[[#BBY]]
+// CHECK-DAG:      %[[#BBZ:]] = air.getfieldptr %[[#BB]] -> "z"
+// CHECK:          %[[#Z:]] = air.constant 42
+// CHECK:          air.store %[[#Z]] -> %[[#BBZ]]
+// CHECK-DAG:      %[[#BC:]] = air.getfieldptr %[[#B]] -> "c"
+// CHECK:          %[[#C:]] = air.undef
+// CHECK:          air.store %[[#C]] -> %[[#BC]]

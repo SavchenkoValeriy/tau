@@ -227,10 +227,26 @@ private:
     }
 
     mlir::Value Result = declare(D);
-    if (!InitValue) {
-      InitValue = Builder.create<air::UndefOp>(Result.getLoc(), T);
-    }
     store(InitValue, Result, Result.getLoc());
+    return Result;
+  }
+
+  mlir::Value declare(const ValueDecl *D, const Expr *Init) {
+
+    mlir::Type T = type(D);
+
+    if (D->getType()->isLValueReferenceType()) {
+      assert(Init);
+      return declare(D, Visit(Init));
+    }
+
+    mlir::Value Result = declare(D);
+    if (Init) {
+      init(Result, Init);
+    } else {
+      mlir::Value InitValue = Builder.create<air::UndefOp>(Result.getLoc(), T);
+      store(InitValue, Result, Result.getLoc());
+    }
     return Result;
   }
 
@@ -257,6 +273,8 @@ private:
     return ThisParam;
   }
 
+  void init(mlir::Value Memory, const Expr *InitExpr);
+
   mlir::Value getPointer(const ValueDecl *D) const {
     return Declarations.lookup(D);
   }
@@ -277,6 +295,7 @@ private:
   }
 
   void store(mlir::Value What, mlir::Value Where, Location Loc) {
+    assert(What && Where && "Don't store null values");
     Builder.create<air::StoreOp>(Loc, What, Where);
   }
 
@@ -582,41 +601,7 @@ mlir::Value FunctionGenerator::VisitDeclStmt(const DeclStmt *DS) {
   for (const auto *D : DS->decls())
     if (const auto *Var = dyn_cast<VarDecl>(D)) {
       mlir::Location Loc = loc(Var);
-      mlir::Value Init;
-
-      if (Var->getType()->isRecordType()) {
-        mlir::Value RecordObject = declare(Var);
-        air::RecordDefOp Def =
-            Parent.getRecordByType(Var->getType()->castAs<RecordType>());
-        if (!Def) {
-          // This shouldn't really happen, we should've seen record
-          // definition at this point.
-          continue;
-        }
-        // Initialization with init lists.
-        if (const auto *InitList =
-                llvm::dyn_cast_if_present<InitListExpr>(Var->getInit())) {
-          assert(Def.getRecordType().getFields().size() ==
-                     InitList->inits().size() &&
-                 "Initializer list should cover all field, even the ones not "
-                 "mentioned explicitly");
-
-          for (const auto &[Field, Init] :
-               llvm::zip(Def.getRecordType().getFields(), InitList->inits())) {
-            const mlir::Location Loc = loc(Init);
-            const mlir::Value FieldMemory =
-                getMemberPointer(Loc, RecordObject, Field);
-
-            mlir::Value FieldInit = Visit(Init);
-            store(FieldInit, FieldMemory, Loc);
-          }
-        }
-      } else {
-        if (Var->getInit()) {
-          Init = Visit(Var->getInit());
-        }
-        declare(Var, Init);
-      }
+      declare(Var, Var->getInit());
     }
   return {};
 }
@@ -990,6 +975,45 @@ mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
 mlir::Value FunctionGenerator::VisitCXXThisExpr(const CXXThisExpr *ThisExpr) {
   assert(ThisParam);
   return ThisParam;
+}
+
+//===----------------------------------------------------------------------===//
+//                                Initialization
+//===----------------------------------------------------------------------===//
+
+void FunctionGenerator::init(mlir::Value Memory, const Expr *Init) {
+  assert(Init != nullptr);
+  mlir::Location Loc{loc(Init)};
+
+  const auto *InitList = dyn_cast<InitListExpr>(Init);
+  if (InitList == nullptr) {
+    // TODO: support constructor calls
+    if (isa<CXXConstructExpr>(Init))
+      return;
+
+    store(Visit(Init), Memory, Loc);
+    return;
+  }
+
+  // TODO: Support array initialization
+  air::RecordDefOp Def =
+      Parent.getRecordByType(InitList->getType()->castAs<RecordType>());
+  if (!Def) {
+    // This shouldn't really happen, we should've seen record
+    // definition at this point.
+    return;
+  }
+
+  assert(Def.getRecordType().getFields().size() == InitList->inits().size() &&
+         "Initializer list should cover all field, even the ones not "
+         "mentioned explicitly");
+
+  for (const auto &[Field, FieldInit] :
+       llvm::zip(Def.getRecordType().getFields(), InitList->inits())) {
+    const mlir::Location Loc = loc(FieldInit);
+    const mlir::Value FieldMemory = getMemberPointer(Loc, Memory, Field);
+    init(FieldMemory, FieldInit);
+  }
 }
 
 //===----------------------------------------------------------------------===//
