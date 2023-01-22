@@ -25,6 +25,9 @@ public:
   }
 
   void runOnOperation() override {
+    if (getOperation().isDeclaration())
+      return;
+
     auto &FlowSen = getAnalysis<FlowSensitiveAnalysis>();
 
     // TODO: the last stage should be path-sensitive analysis.

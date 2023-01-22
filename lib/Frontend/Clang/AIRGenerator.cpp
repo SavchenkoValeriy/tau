@@ -19,6 +19,7 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
 
+#include <llvm/ADT/ScopeExit.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
@@ -33,6 +34,7 @@
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/Location.h>
 #include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/SymbolTable.h>
 #include <mlir/IR/Types.h>
 #include <mlir/IR/Value.h>
 #include <mlir/IR/Verifier.h>
@@ -76,7 +78,8 @@ public:
   ShortString getFullyQualifiedName(const RecordDecl *RD) const;
   ShortString getFullyQualifiedName(const FunctionDecl *FD) const;
   ShortString getFullyQualifiedName(QualType T) const;
-  void getFullyQualifiedName(QualType T, llvm::raw_svector_ostream &SS) const;
+  void getFullyQualifiedName(QualType T, llvm::raw_svector_ostream &SS,
+                             bool IncludeCV = false) const;
 
   inline mlir::Location loc(clang::SourceRange);
   inline mlir::Location loc(clang::SourceLocation);
@@ -88,6 +91,11 @@ public:
     return Functions.lookup(F);
   }
 
+  air::RecordDefOp getRecordByType(clang::QualType T) {
+    if (T->isRecordType())
+      return getRecordByDecl(T->getAsRecordDecl());
+    return {};
+  }
   air::RecordDefOp getRecordByType(const RecordType *RT) {
     return getRecordByDecl(RT->getDecl());
   }
@@ -115,8 +123,10 @@ class FunctionGenerator
 public:
   static void generate(FuncOp &ToGenerate, const FunctionDecl &Original,
                        TopLevelGenerator &Parent) {
-    if (!Original.hasBody())
+    if (!Original.hasBody()) {
+      ToGenerate.setVisibility(mlir::SymbolTable::Visibility::Private);
       return;
+    }
 
     FunctionGenerator G{ToGenerate, Original, Parent};
     G.generate();
@@ -146,6 +156,8 @@ public:
   mlir::Value VisitImplicitCastExpr(const ImplicitCastExpr *Cast);
 
   mlir::Value VisitCXXThisExpr(const CXXThisExpr *ThisExpr);
+  mlir::Value VisitCXXConstructExpr(const CXXConstructExpr *CtorCall);
+  mlir::Value VisitInitListExpr(const InitListExpr *InitList);
 
   mlir::Value generateIncDec(mlir::Location Loc, mlir::Value Var, bool IsPre,
                              bool IsInc);
@@ -182,6 +194,20 @@ private:
     for (const auto &[Param, BlockArg] :
          llvm::zip(Original.parameters(), Arguments)) {
       declare(Param, BlockArg);
+    }
+
+    if (const auto *Ctor = dyn_cast<CXXConstructorDecl>(&Original)) {
+      for (const auto *Init : Ctor->inits()) {
+        if (!Init->isMemberInitializer())
+          continue;
+
+        const mlir::Location Loc = loc(Init);
+        const auto *Field = Init->getMember();
+
+        const mlir::Value FieldPtr = getMemberPointer(
+            Loc, ThisParam, Field->getName(), type(Init->getInit()->getType()));
+        store(Visit(Init->getInit()), FieldPtr, Loc);
+      }
     }
 
     Visit(Original.getBody());
@@ -334,6 +360,7 @@ private:
   DeclMap Declarations;
   Block *Entry, *Exit;
   mlir::Value ThisParam;
+  std::stack<mlir::Value> InitializedValues;
 };
 
 } // end anonymous namespace
@@ -387,7 +414,7 @@ TopLevelGenerator::getFullyQualifiedName(const FunctionDecl *FD) const {
   SS << FD->getQualifiedNameAsString();
   SS << "(";
   llvm::interleaveComma(ParameterTypes, SS, [&SS, this](clang::QualType T) {
-    getFullyQualifiedName(T, SS);
+    getFullyQualifiedName(T, SS, true);
   });
   SS << ")";
 
@@ -401,8 +428,12 @@ ShortString TopLevelGenerator::getFullyQualifiedName(QualType T) const {
   return Result;
 }
 
-void TopLevelGenerator::getFullyQualifiedName(
-    QualType T, llvm::raw_svector_ostream &SS) const {
+void TopLevelGenerator::getFullyQualifiedName(QualType T,
+                                              llvm::raw_svector_ostream &SS,
+                                              bool IncludeCV) const {
+  if (!IncludeCV)
+    T = T.getUnqualifiedType();
+
   PrintingPolicy Policy = Context.getPrintingPolicy();
   Policy.TerseOutput = true;
   Policy.FullyQualifiedName = true;
@@ -497,6 +528,7 @@ ModuleOp TopLevelGenerator::generateModule() {
 void TopLevelGenerator::generateDecl(const Decl *D) {
   switch (D->getKind()) {
   case Decl::CXXMethod:
+  case Decl::CXXConstructor:
   case Decl::Function:
     generateFunction(cast<FunctionDecl>(D));
     break;
@@ -543,6 +575,11 @@ void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
 }
 
 void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
+  if (const auto *Ctor = dyn_cast<CXXConstructorDecl>(F)) {
+    // TODO: support r-value references and move constructors
+    if (Ctor->isMoveConstructor())
+      return;
+  }
   ShortString Name = getFullyQualifiedName(F);
 
   llvm::SmallVector<mlir::Type, 4> ParamTypes;
@@ -950,6 +987,8 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
     // We don't actually care what kind of null is actually casted to pointer.
     // What we care is that it's a null.
     return Builder.create<air::NullOp>(Loc, To);
+  case CastKind::CK_NoOp:
+    return Sub;
   default:
     return {};
   }
@@ -977,31 +1016,28 @@ mlir::Value FunctionGenerator::VisitCXXThisExpr(const CXXThisExpr *ThisExpr) {
   return ThisParam;
 }
 
-//===----------------------------------------------------------------------===//
-//                                Initialization
-//===----------------------------------------------------------------------===//
+mlir::Value
+FunctionGenerator::VisitCXXConstructExpr(const CXXConstructExpr *CtorCall) {
+  assert(!InitializedValues.empty());
 
-void FunctionGenerator::init(mlir::Value Memory, const Expr *Init) {
-  assert(Init != nullptr);
-  mlir::Location Loc{loc(Init)};
+  const FuncOp Callee = Parent.getFunctionByDecl(CtorCall->getConstructor());
+  Values Args;
+  Args.push_back(InitializedValues.top());
+  Args.append(visitRange(CtorCall->arguments()));
 
-  const auto *InitList = dyn_cast<InitListExpr>(Init);
-  if (InitList == nullptr) {
-    // TODO: support constructor calls
-    if (isa<CXXConstructExpr>(Init))
-      return;
+  Builder.create<CallOp>(loc(CtorCall), Callee, Args);
+  return {};
+}
 
-    store(Visit(Init), Memory, Loc);
-    return;
-  }
-
+mlir::Value FunctionGenerator::VisitInitListExpr(const InitListExpr *InitList) {
+  assert(!InitializedValues.empty());
   // TODO: Support array initialization
   air::RecordDefOp Def =
       Parent.getRecordByType(InitList->getType()->castAs<RecordType>());
   if (!Def) {
     // This shouldn't really happen, we should've seen record
     // definition at this point.
-    return;
+    return {};
   }
 
   assert(Def.getRecordType().getFields().size() == InitList->inits().size() &&
@@ -1011,9 +1047,30 @@ void FunctionGenerator::init(mlir::Value Memory, const Expr *Init) {
   for (const auto &[Field, FieldInit] :
        llvm::zip(Def.getRecordType().getFields(), InitList->inits())) {
     const mlir::Location Loc = loc(FieldInit);
-    const mlir::Value FieldMemory = getMemberPointer(Loc, Memory, Field);
+    const mlir::Value FieldMemory =
+        getMemberPointer(Loc, InitializedValues.top(), Field);
     init(FieldMemory, FieldInit);
   }
+
+  return {};
+}
+
+//===----------------------------------------------------------------------===//
+//                                Initialization
+//===----------------------------------------------------------------------===//
+
+void FunctionGenerator::init(mlir::Value Memory, const Expr *Init) {
+  assert(Init != nullptr);
+
+  InitializedValues.push(Memory);
+  const auto RemoveInitializedValue = llvm::make_scope_exit([this, Memory]() {
+    assert(!InitializedValues.empty() && InitializedValues.top() == Memory);
+    InitializedValues.pop();
+  });
+  mlir::Value InitValue = Visit(Init);
+
+  if (InitValue)
+    store(InitValue, Memory, loc(Init));
 }
 
 //===----------------------------------------------------------------------===//
