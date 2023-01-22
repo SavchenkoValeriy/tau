@@ -206,7 +206,7 @@ private:
 
         const mlir::Value FieldPtr = getMemberPointer(
             Loc, ThisParam, Field->getName(), type(Init->getInit()->getType()));
-        store(Visit(Init->getInit()), FieldPtr, Loc);
+        init(FieldPtr, Init->getInit());
       }
     }
 

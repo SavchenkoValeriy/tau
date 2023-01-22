@@ -63,3 +63,37 @@ void simple_copy() {
 // CHECK:         call @"void Simple::Simple(Simple *)"(%[[#A]])
 // CHECK-DAG:     %[[#B:]] = air.alloca : !air<ptr !air<recref @Simple>>
 // CHECK:         call @"void Simple::Simple(Simple *, const Simple &)"(%[[#B]], %[[#A]])
+
+struct NestedTrivial {
+  Trivial x;
+};
+// CHECK-LABEL: air.def @NestedTrivial : !air.rec<x : !air<recref @Trivial>>
+//
+// CHECK-LABEL: "void NestedTrivial::NestedTrivial(NestedTrivial *)"
+// CHECK:         %[[#XPTR:]] = air.getfieldptr %[[#THIS:]] -> "x"
+// CHECK:         call @"void Trivial::Trivial(Trivial *)"(%[[#XPTR]])
+//
+// CHECK-LABEL: "void NestedTrivial::NestedTrivial(NestedTrivial *, const NestedTrivial &)"
+// CHECK-DAG:       %[[#THIS:]] = air.ref %arg0
+// CHECK-DAG:       %[[#OTHER:]] = air.ref %arg1
+//
+// CHECK-DAG:       %[[#THISX:]] = air.getfieldptr %[[#THIS]] -> "x"
+// CHECK-DAG:       %[[#OTHERX:]] = air.getfieldptr %[[#OTHER]] -> "x"
+// CHECK-DAG:       call @"void Trivial::Trivial(Trivial *, const Trivial &)"(%[[#THISX]], %[[#OTHERX]])
+//
+// TODO: generate move constructors and destructors
+
+void nested_ctor() { NestedTrivial a; }
+// CHECK-LABEL: "void nested_ctor()"
+// CHECK:         %[[#A:]] = air.alloca : !air<ptr !air<recref @NestedTrivial>>
+// CHECK:         call @"void NestedTrivial::NestedTrivial(NestedTrivial *)"(%[[#A]])
+
+void nested_copy() {
+  NestedTrivial a;
+  NestedTrivial b = a;
+}
+// CHECK-LABEL: "void nested_copy()"
+// CHECK-DAG:     %[[#A:]] = air.alloca : !air<ptr !air<recref @NestedTrivial>>
+// CHECK:         call @"void NestedTrivial::NestedTrivial(NestedTrivial *)"(%[[#A]])
+// CHECK-DAG:     %[[#B:]] = air.alloca : !air<ptr !air<recref @NestedTrivial>>
+// CHECK:         call @"void NestedTrivial::NestedTrivial(NestedTrivial *, const NestedTrivial &)"(%[[#B]], %[[#A]])
