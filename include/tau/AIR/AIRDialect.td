@@ -77,7 +77,8 @@ def Air_RecordRefType : Air_TypeDef<"RecordRef", "recref"> {
 }
 
 def Air_RecordType : Air_TypeDef<"Record", "rec"> {
-  let parameters = (ins "llvm::ArrayRef<RecordField>":$Fields);
+  let parameters = (ins "llvm::ArrayRef<mlir::Type>":$Bases,
+                        "llvm::ArrayRef<RecordField>":$Fields);
   let hasCustomAssemblyFormat = 1;
   let genStorageClass = 0;
 

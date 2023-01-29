@@ -553,11 +553,21 @@ void TopLevelGenerator::generateNamespace(const NamespaceDecl *NS) {
 void TopLevelGenerator::generateRecord(const RecordDecl *RD) {
   const auto *Def = RD->getDefinition();
   if (Def == RD) {
-    llvm::SmallVector<air::RecordField, 4> Fields;
+    llvm::SmallVector<air::RecordField, 8> Fields;
+    llvm::SmallVector<mlir::Type, 4> Bases;
+
+    if (const auto *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
+      for (const auto &Base : CXXRD->bases()) {
+        // TODO: handle virtual bases differently
+        Bases.push_back(type(Base.getType()));
+      }
+    }
+
     for (const auto *Field : RD->fields()) {
       Fields.push_back({Field->getName(), type(Field->getType())});
     }
-    air::RecordType T = air::RecordType::get(Builder.getContext(), Fields);
+    air::RecordType T =
+        air::RecordType::get(Builder.getContext(), Bases, Fields);
     const auto D =
         air::RecordDefOp::create(loc(RD), getFullyQualifiedName(RD), T);
 
@@ -987,6 +997,10 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
     // We don't actually care what kind of null is actually casted to pointer.
     // What we care is that it's a null.
     return Builder.create<air::NullOp>(Loc, To);
+  case CastKind::CK_DerivedToBase:
+  case CastKind::CK_UncheckedDerivedToBase:
+    return Builder.create<air::CastToBaseOp>(Loc, air::PointerType::get(To),
+                                             Sub);
   case CastKind::CK_NoOp:
     return Sub;
   default:

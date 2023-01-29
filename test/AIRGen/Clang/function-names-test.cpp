@@ -4,7 +4,7 @@
 namespace a {
 namespace b {
 class A { int x; float y; };
-// CHECK: air.def @"a::b::A" : !air.rec<x : si32, y : f32>
+// CHECK: air.def @"a::b::A" : !air.rec<><x : si32, y : f32>
 
 template <class T, class U>
 class B {};

@@ -6,7 +6,7 @@ struct A {
   float y;
   int z = 42;
 };
-// CHECK-LABEL:  air.def @A : !air.rec<x : si32, y : f32, z : si32>
+// CHECK-LABEL:  air.def @A : !air.rec<><x : si32, y : f32, z : si32>
 
 int init_list_A(int x, float y) {
   A a{x, y, 10};

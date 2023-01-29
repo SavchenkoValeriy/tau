@@ -43,22 +43,28 @@ inline ::llvm::hash_code hash_value(tau::air::RecordField Field) {
 
 namespace detail {
 struct RecordTypeStorage : public mlir::TypeStorage {
+  using BasesTy = llvm::ArrayRef<mlir::Type>;
   using FieldsTy = llvm::ArrayRef<RecordField>;
-  using KeyTy = FieldsTy;
+  using KeyTy = std::pair<BasesTy, FieldsTy>;
 
-  RecordTypeStorage(const FieldsTy &Fields) : Fields(Fields) {}
+  RecordTypeStorage(const BasesTy &Bases, const FieldsTy &Fields)
+      : Bases(Bases), Fields(Fields) {}
 
   static RecordTypeStorage *construct(mlir::TypeStorageAllocator &Allocator,
                                       const KeyTy &Key) {
-    // Copy StringRef and ArrayRef into the allocator.
-    const auto Fields = Allocator.copyInto(Key);
+    // Copy both arrays into the allocator.
+    const auto Bases = Allocator.copyInto(Key.first);
+    const auto Fields = Allocator.copyInto(Key.second);
 
     return new (Allocator.allocate<RecordTypeStorage>())
-        RecordTypeStorage(Fields);
+        RecordTypeStorage(Bases, Fields);
   }
 
-  bool operator==(const KeyTy &Key) const { return Key == Fields; }
+  bool operator==(const KeyTy &Key) const {
+    return Key.first == Bases && Key.second == Fields;
+  }
 
+  BasesTy Bases;
   FieldsTy Fields;
 };
 } // end namespace detail

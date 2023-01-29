@@ -2,7 +2,7 @@
 // RUN: FileCheck %s < %t.out
 
 class Trivial {};
-// CHECK-LABEL: air.def @Trivial : !air.rec<>
+// CHECK-LABEL: air.def @Trivial : !air.rec<><>
 // CHECK-LABEL: "void Trivial::Trivial(Trivial *)"
 // CHECK-LABEL: "void Trivial::Trivial(Trivial *, const Trivial &)"
 // TODO: generate move constructors and destructors
@@ -25,7 +25,7 @@ void trivial_copy() {
 struct Simple {
   int x, y = 42;
 };
-// CHECK-LABEL: air.def @Simple : !air.rec<x : si32, y : si32>
+// CHECK-LABEL: air.def @Simple : !air.rec<><x : si32, y : si32>
 //
 // CHECK-LABEL: "void Simple::Simple(Simple *)"
 // TODO:          put undef into field x
@@ -67,7 +67,7 @@ void simple_copy() {
 struct NestedTrivial {
   Trivial x;
 };
-// CHECK-LABEL: air.def @NestedTrivial : !air.rec<x : !air<recref @Trivial>>
+// CHECK-LABEL: air.def @NestedTrivial : !air.rec<><x : !air<recref @Trivial>>
 //
 // CHECK-LABEL: "void NestedTrivial::NestedTrivial(NestedTrivial *)"
 // CHECK:         %[[#XPTR:]] = air.getfieldptr %[[#THIS:]] -> "x"

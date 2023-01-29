@@ -3,7 +3,7 @@
 
 namespace a::b::c {
 class A {
-// CHECK-LABEL: air.def @"a::b::c::A" : !air.rec<x : si32>
+// CHECK-LABEL: air.def @"a::b::c::A" : !air.rec<><x : si32>
 public:
   int x;
   int foo(int y) { return x + y; }

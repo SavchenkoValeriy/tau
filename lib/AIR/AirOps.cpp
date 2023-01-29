@@ -174,6 +174,22 @@ bool TruncateOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          From.getIntOrFloatBitWidth() > To.getIntOrFloatBitWidth();
 }
 
+bool CastToBaseOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
+  assert(Inputs.size() == 1 && Outputs.size() == 1 &&
+         "tobase op expects one operand and result");
+  Type From = Inputs.front(), To = Outputs.front();
+
+  if (!From.isa<air::PointerType>() || !To.isa<air::PointerType>())
+    return false;
+
+  Type FromPointee = From.cast<air::PointerType>().getElementType(),
+       ToPointee = To.cast<air::PointerType>().getElementType();
+
+  // TODO: actually check inheritance hierarchy
+  return !(!FromPointee.isa<air::RecordRefType>() ||
+           !ToPointee.isa<air::RecordRefType>());
+}
+
 //===----------------------------------------------------------------------===//
 //                              Conditional branch
 //===----------------------------------------------------------------------===//

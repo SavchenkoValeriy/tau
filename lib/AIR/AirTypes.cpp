@@ -31,6 +31,8 @@ ArrayRef<RecordField> RecordType::getFields() const {
   return getImpl()->Fields;
 }
 
+ArrayRef<Type> RecordType::getBases() const { return getImpl()->Bases; }
+
 RecordField RecordType::getFieldByIndex(unsigned Index) const {
   assert(Index < getImpl()->Fields.size() && "accessing unknown field");
   return getImpl()->Fields[Index];
@@ -45,8 +47,18 @@ RecordField RecordType::getFieldByName(StringRef Name) const {
 }
 
 Type tau::air::RecordType::parse(mlir::AsmParser &P) {
-  SmallVector<RecordField, 4> Fields;
+  SmallVector<Type, 4> Bases;
+  SmallVector<RecordField, 8> Fields;
   SmallVector<std::string> Names{""};
+
+  if (P.parseCommaSeparatedList(mlir::AsmParser::Delimiter::LessGreater, [&]() {
+        Type BaseType;
+        if (P.parseType(BaseType))
+          return ParseResult::failure();
+        Bases.push_back(BaseType);
+        return ParseResult::success();
+      }))
+    return Type();
 
   if (P.parseCommaSeparatedList(mlir::AsmParser::Delimiter::LessGreater, [&]() {
         StringRef Name = Names.back();
@@ -59,10 +71,13 @@ Type tau::air::RecordType::parse(mlir::AsmParser &P) {
       }))
     return Type();
 
-  return get(P.getContext(), Fields);
+  return get(P.getContext(), Bases, Fields);
 }
 
 void tau::air::RecordType::print(mlir::AsmPrinter &P) const {
+  P << "<";
+  llvm::interleaveComma(getBases(), P, [&](const Type &T) { P << T; });
+  P << ">";
   P << "<";
   llvm::interleaveComma(getFields(), P, [&](const RecordField &Field) {
     P << Field.Name << " : " << Field.Type;

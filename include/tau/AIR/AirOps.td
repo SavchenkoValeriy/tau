@@ -868,12 +868,14 @@ def CondBranchOp : Air_Op<"cond_br",
 //                           Integer cast operations
 //===----------------------------------------------------------------------===//
 
-class AirCastOp<string mnemonic, list<Trait> traits = []> :
+class AirCastOp<string mnemonic,
+      Type TypeConstraint = Type<Air_Type.predicate>,
+      list<Trait> traits = []> :
     Air_Op<mnemonic, traits # [
       NoSideEffect, SameOperandsAndResultShape,
       DeclareOpInterfaceMethods<CastOpInterface>]> {
-  let arguments = (ins AnyType:$source);
-  let results = (outs AnyType:$dest);
+  let arguments = (ins TypeConstraint:$source);
+  let results = (outs TypeConstraint:$dest);
   let assemblyFormat = "attr-dict $source `:` type($source) `to` type($dest)";
 }
 
@@ -1263,6 +1265,30 @@ def Air_RecordDefOp : Air_Op<"def", [Symbol]> {
   let extraClassDeclaration = [{
     static RecordDefOp create(mlir::Location Loc, llvm::StringRef Name, RecordType Record);
     RecordType getRecordType() { return type(); }
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+//                                    Casts
+//===----------------------------------------------------------------------===//
+
+def Air_CastToBaseOp : AirCastOp<"tobase",
+                                 Type<Air_PointerTo<Air_AnyRecordRef>.predicate>> {
+  let summary = "cast to base class operation";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.tobase` ssa-use : type `to` type
+    ```
+
+    Cast a pointer of derived type to its base type.
+
+    Example:
+
+    ```mlir
+    %b = air.tobase %a !air<ptr !air<recref @Derived>> to !air<ptr !air<recref @Base>>
+    ```
   }];
 }
 
