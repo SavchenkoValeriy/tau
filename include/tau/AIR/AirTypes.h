@@ -11,8 +11,10 @@
 
 #pragma once
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/StringRef.h>
+#include <memory>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/TypeSupport.h>
 #include <mlir/IR/Types.h>
@@ -54,7 +56,17 @@ struct RecordTypeStorage : public mlir::TypeStorage {
                                       const KeyTy &Key) {
     // Copy both arrays into the allocator.
     const auto Bases = Allocator.copyInto(Key.first);
-    const auto Fields = Allocator.copyInto(Key.second);
+    const auto OldFields = Key.second;
+    llvm::MutableArrayRef<RecordField> Fields = llvm::None;
+    if (!OldFields.empty()) {
+      RecordField *FieldsRaw = static_cast<RecordField *>(Allocator.allocate(
+          OldFields.size() * sizeof(RecordField), alignof(RecordField)));
+      std::uninitialized_copy(OldFields.begin(), OldFields.end(), FieldsRaw);
+      Fields = llvm::MutableArrayRef<RecordField>(FieldsRaw, OldFields.size());
+    }
+    for (RecordField &Field : Fields) {
+      Field.Name = Allocator.copyInto(Field.Name);
+    }
 
     return new (Allocator.allocate<RecordTypeStorage>())
         RecordTypeStorage(Bases, Fields);
