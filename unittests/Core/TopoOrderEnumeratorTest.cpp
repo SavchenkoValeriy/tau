@@ -47,6 +47,8 @@ public:
       });
   }
 
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(BlockCollector);
+
 private:
   BlocksByConst &Blocks;
   std::unique_ptr<TopoOrderBlockEnumerator> &Enumerator;

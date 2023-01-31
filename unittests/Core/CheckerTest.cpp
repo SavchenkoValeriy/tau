@@ -29,6 +29,8 @@ public:
   StringRef getDescription() const override { return "Simple test checker"; }
 
   MAKE_MOCK1(process, void(ConstantIntOp));
+
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MockChecker);
 };
 
 class CheckerTest {

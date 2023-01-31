@@ -187,7 +187,8 @@ private:
     auto Arguments = llvm::make_range(Entry->getArguments().begin(),
                                       Entry->getArguments().end());
 
-    if (isa<CXXMethodDecl>(&Original)) {
+    if (const auto *MD = dyn_cast<CXXMethodDecl>(&Original);
+        MD && MD->isInstance()) {
       declareThis(*Arguments.begin());
       Arguments = llvm::drop_begin(Arguments);
     }
@@ -593,7 +594,7 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
   ShortString Name = getFullyQualifiedName(F);
 
   llvm::SmallVector<mlir::Type, 4> ParamTypes;
-  if (const auto *MD = dyn_cast<CXXMethodDecl>(F)) {
+  if (const auto *MD = dyn_cast<CXXMethodDecl>(F); MD && MD->isInstance()) {
     ParamTypes.push_back(type(MD->getThisType()));
   }
   ParamTypes.reserve(F->getNumParams());

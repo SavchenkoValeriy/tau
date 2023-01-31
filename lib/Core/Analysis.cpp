@@ -48,6 +48,8 @@ public:
                          CurrentEvent->Key.State);
     }
   }
+
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MainAnalysis);
 };
 
 } // end anonymous namespace

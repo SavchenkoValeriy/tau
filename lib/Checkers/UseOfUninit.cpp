@@ -58,6 +58,8 @@ public:
     assert(State == UNINIT);
     Diag.attachNote(Op->getLoc()) << "Declared without initial value here";
   }
+
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(UseOfUninit);
 };
 
 } // end anonymous namespace

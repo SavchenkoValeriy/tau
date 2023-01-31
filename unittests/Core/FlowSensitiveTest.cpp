@@ -63,6 +63,8 @@ public:
         break;
       }
   }
+
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SimpleChecker);
 };
 
 class FlowSensitiveIssuesHarvester
@@ -89,6 +91,8 @@ public:
     Forest = std::move(FlowSen.getEventForest());
     markAllAnalysesPreserved();
   }
+
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(FlowSensitiveIssuesHarvester);
 
 private:
   std::vector<FlowSensitiveAnalysis::Issue> &FoundIssues;
