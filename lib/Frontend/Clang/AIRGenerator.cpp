@@ -11,6 +11,7 @@
 #include <clang/AST/Expr.h>
 #include <clang/AST/ExprCXX.h>
 #include <clang/AST/OperationKinds.h>
+#include <clang/AST/Stmt.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/AST/TemplateBase.h>
 #include <clang/AST/Type.h>
@@ -150,6 +151,7 @@ public:
 
   mlir::Value VisitIfStmt(const IfStmt *If);
   mlir::Value VisitWhileStmt(const WhileStmt *While);
+  mlir::Value VisitForStmt(const ForStmt *ForLoop);
 
   mlir::Value VisitCXXStaticCastExpr(const CXXStaticCastExpr *Cast);
   mlir::Value VisitCStyleCastExpr(const CStyleCastExpr *Cast);
@@ -1175,11 +1177,11 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
   Builder.create<BranchOp>(Builder.getUnknownLoc(), Header);
   Builder.setInsertionPointToStart(Header);
 
-  // Loop variables...
+  // Condition variables...
   if (While->getConditionVariableDeclStmt())
     Visit(While->getConditionVariableDeclStmt());
 
-  // ...and conditions belong to the header.
+  // ...and conditions belong in the header.
   mlir::Value Cond = Visit(While->getCond());
   mlir::Location Loc = loc(While);
 
@@ -1200,6 +1202,74 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
   else if (hasNoTerminator(Current)) {
     Builder.setInsertionPointToEnd(Current);
     Builder.create<BranchOp>(Builder.getUnknownLoc(), Header);
+  }
+
+  // All further generation should happen here.
+  Builder.setInsertionPointToStart(Next);
+
+  return {};
+}
+
+mlir::Value FunctionGenerator::VisitForStmt(const ForStmt *ForLoop) {
+  DeclScope ForVariableScope(Declarations);
+
+  // Here we deal with three basic blocks:
+  //   * basic block for the header of the loop
+  Block *Header = Target.addBlock();
+  //   * basic block for the loop's body
+  Block *Body = Target.addBlock();
+  //   * basic block for the code after the loop
+  Block *Tail = ForLoop->getInc() ? Target.addBlock() : Header;
+  Block *Next = Target.addBlock();
+
+  mlir::Location Loc = loc(ForLoop);
+
+  // Loop variables can be even put into a separate "preheader" block,
+  // but we are not pedantic on that part and simply put it into the
+  // current block;
+  if (ForLoop->getInit())
+    Visit(ForLoop->getInit());
+
+  // First, let's generate the loop's header.
+  Builder.create<BranchOp>(Loc, Header);
+  Builder.setInsertionPointToStart(Header);
+
+  // Condition variables...
+  if (ForLoop->getConditionVariableDeclStmt())
+    Visit(ForLoop->getConditionVariableDeclStmt());
+
+  // ... and conditions belong in the header.
+  mlir::Value Cond = {};
+  if (ForLoop->getCond())
+    Cond = Visit(ForLoop->getCond());
+
+  if (Cond)
+    // If condition is true, we should proceed with the loop's
+    // body, and skip it otherwise.
+    Builder.create<air::CondBranchOp>(Loc, Cond, Body, Next);
+  else
+    // If we don't have a condition at all, jump to the body
+    Builder.create<BranchOp>(Loc, Body);
+
+  if (ForLoop->getInc()) {
+    Builder.setInsertionPointToStart(Tail);
+    Visit(ForLoop->getInc());
+    Builder.create<BranchOp>(Loc, Header);
+  }
+
+  // Generate the body.
+  Builder.setInsertionPointToStart(Body);
+  Visit(ForLoop->getBody());
+
+  // Let's check if the current block even needed.
+  Block *Current = Builder.getBlock();
+  if (Current->hasNoPredecessors())
+    Current->erase();
+
+  // And if yes, we might need to put a jump to the header block.
+  else if (hasNoTerminator(Current)) {
+    Builder.setInsertionPointToEnd(Current);
+    Builder.create<BranchOp>(Loc, Tail);
   }
 
   // All further generation should happen here.
