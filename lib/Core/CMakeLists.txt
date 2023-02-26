@@ -13,3 +13,5 @@ tau_target_link_system_libraries(
   PRIVATE
   immer
 )
+
+add_dependencies(tauCheckers tauAir)
