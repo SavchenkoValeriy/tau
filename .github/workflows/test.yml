@@ -1,0 +1,44 @@
+name: Build & Test
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-12
+          - ubuntu-22.04
+        configuration:
+          - Release
+          - Debug
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Check LLVM cache
+        uses: actions/cache@v2
+        id: cache-llvm-deps
+        with:
+          path: .llvm
+          key: llvm-deps-${{ matrix.os }}-15
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        if: steps.cache-llvm-deps.outputs.cache-hit != 'true'
+        with:
+          version: 15
+          directory: .llvm
+      - run: pip3 install lit
+      - run: cmake . -DTAU_CLANG_PATH=.llvm -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} -Bbuild -G Ninja
+      - run: ninja check
+        working-directory: build

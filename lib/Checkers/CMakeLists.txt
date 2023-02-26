@@ -7,3 +7,5 @@ target_link_libraries(
   PRIVATE
   MLIRPass
 )
+
+add_dependencies(tauCheckers tauAir)
