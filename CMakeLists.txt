@@ -75,7 +75,22 @@ include(Catch)
 include(AddTau)
 
 
-find_package(Immer REQUIRED)
+FetchContent_Declare(
+  Immer
+  GIT_REPOSITORY https://github.com/arximboldi/immer.git
+  GIT_TAG        v0.8.0
+)
+FetchContent_GetProperties(Immer)
+if(NOT Immer_POPULATED)
+  FetchContent_Populate(Immer)
+
+  # From Immer we don't want to import all the targets, just
+  # the library itself
+  add_library(immer INTERFACE)
+  target_include_directories(immer INTERFACE
+    $<BUILD_INTERFACE:${immer_BINARY_DIR}/>
+    $<BUILD_INTERFACE:${immer_SOURCE_DIR}/>)
+endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
