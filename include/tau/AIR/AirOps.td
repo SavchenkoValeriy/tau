@@ -12,7 +12,7 @@
 #ifndef AIROPS_H
 #define AIROPS_H
 
-include "AirDialect.td"
+include "AIRDialect.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
