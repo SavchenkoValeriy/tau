@@ -126,6 +126,8 @@ endif()
 enable_testing()
 add_custom_target(check)
 
+add_subdirectory(utils/FileCheck)
+
 add_subdirectory(lib)
 add_subdirectory(include/tau)
 add_subdirectory(unittests)

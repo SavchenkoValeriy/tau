@@ -39,8 +39,6 @@ config.test_source_root = os.path.dirname(__file__)
 # test_exec_root: The root path where tests should be run.
 config.test_exec_root = os.path.join(config.tau_obj_root, 'test')
 
-llvm_config.use_default_substitutions()
-
 config.substitutions.append(('%PATH%', config.environment['PATH']))
 
 
@@ -51,7 +49,8 @@ config.substitutions.append(('%PATH%', config.environment['PATH']))
 tool_dirs = [config.tau_tools_dir]
 
 tools = [
-    'tau-cc'
+    'tau-cc',
+    'FileCheck'
 ]
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)

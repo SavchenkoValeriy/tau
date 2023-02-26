@@ -17,4 +17,5 @@ add_lit_testsuite(check-cc "Running regression tests"
   ARGS ${TAU_TEST_EXTRA_ARGS}
   )
 set_target_properties(check-cc PROPERTIES FOLDER "Tau tests")
+add_dependencies(check-cc FileCheck)
 add_dependencies(check check-cc)
