@@ -608,8 +608,8 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
   if (!F->getReturnType()->isVoidType())
     ReturnType = type(F->getReturnType());
 
-  auto Result = FuncOp::create(loc(F), Name,
-                               Builder.getFunctionType(ParamTypes, ReturnType));
+  auto FunctionType = Builder.getFunctionType(ParamTypes, ReturnType);
+  auto Result = FuncOp::create(loc(F), Name, FunctionType);
   // It is important to do this BEFORE we generate function's body
   // because of possible recursions.
   Functions[F] = Result;
