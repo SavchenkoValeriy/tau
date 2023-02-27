@@ -15,4 +15,4 @@ tau_target_link_system_libraries(
   immer
 )
 
-add_dependencies(tauCheckers tauAir)
+add_dependencies(tauCore tauAir)
