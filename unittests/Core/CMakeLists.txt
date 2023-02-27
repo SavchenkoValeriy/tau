@@ -1,4 +1,5 @@
 add_tau_unittest(CoreTests
+  AddressTakenAnalysisTest.cpp
   CheckerTest.cpp
   FlowSensitiveTest.cpp
   TopoOrderEnumeratorTest.cpp
