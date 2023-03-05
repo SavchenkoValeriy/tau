@@ -1,4 +1,4 @@
-//===- PostOrderEnumerator.h - Enumerator for basic blocks ------*- C++ -*-===//
+//===- AddressTakenAnalysis.h - Address-taken analysis ----------*- C++ -*-===//
 //
 // Part of the Tau Project, under the Apache License v2.0.
 // See LICENSE.txt for license information.
@@ -27,6 +27,10 @@ public:
   AddressTakenAnalysis(mlir::Operation *Function);
 
   [[nodiscard]] bool hasAddressBeenTaken(mlir::Value) const;
+  [[nodiscard]] const llvm::DenseSet<mlir::Value> &
+  getAddressTakenValues() const {
+    return AddressTakenValues;
+  }
 
 private:
   llvm::DenseSet<mlir::Value> AddressTakenValues;
