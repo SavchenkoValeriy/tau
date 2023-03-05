@@ -249,8 +249,7 @@ private:
 
     if (D->getType()->isLValueReferenceType()) {
       assert(InitValue);
-      mlir::Value Result =
-          Builder.create<air::RefOp>(loc(&Original), InitValue);
+      mlir::Value Result = Builder.create<air::RefOp>(loc(D), InitValue);
       Declarations.insert(D, Result);
       return Result;
     }
