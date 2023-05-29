@@ -3,6 +3,7 @@ add_tau_unittest(CoreTests
   CheckerTest.cpp
   FlowSensitiveTest.cpp
   PointsToAnalysisTest.cpp
+  ReachingDefsTest.cpp
   TopoOrderEnumeratorTest.cpp
   )
 

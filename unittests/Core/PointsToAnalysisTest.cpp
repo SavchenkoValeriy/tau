@@ -31,9 +31,9 @@ public:
                  std::unique_ptr<PointsToAnalysis> &Analysis)
       : Values(ToFill), Analysis(Analysis) {}
 
-  StringRef getArgument() const override { return "block-collector"; }
+  StringRef getArgument() const override { return "values-collector"; }
   StringRef getDescription() const override {
-    return "Gathers blocks from a function";
+    return "Gathers values from a function";
   }
 
   void runOnOperation() override {
@@ -42,9 +42,7 @@ public:
         std::make_unique<PointsToAnalysis>(getAnalysis<PointsToAnalysis>());
 
     const auto Collect = [this](Value Candidate) {
-      Candidate.dump();
       const auto Range = Candidate.getLoc().cast<FusedLoc>();
-      Range.dump();
       if (const auto &Begin =
               Range.getLocations().front().dyn_cast<FileLineColLoc>()) {
         Values[Begin.getLine()] = Candidate;

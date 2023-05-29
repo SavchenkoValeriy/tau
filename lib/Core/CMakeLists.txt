@@ -1,13 +1,15 @@
 add_tau_library(tauCore
   AddressTakenAnalysis.cpp
+  AliasAnalysis.cpp
   Analysis.cpp
   CheckerPass.cpp
   CheckerRegistry.cpp
   FlowSensitive.cpp
-  PostOrderEnumerator.cpp
   PointsToAnalysis.cpp
-  TopoOrderEnumerator.cpp
+  PostOrderEnumerator.cpp
+  ReachingDefs.cpp
   State.cpp
+  TopoOrderEnumerator.cpp
 )
 
 tau_target_link_system_libraries(

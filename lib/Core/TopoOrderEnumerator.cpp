@@ -22,6 +22,9 @@ tau::core::TopoOrderBlockEnumerator::TopoOrderBlockEnumerator(Operation *Op) {
   unsigned NextIndex = 0;
 
   FuncOp Function = cast<FuncOp>(Op);
+  if (Function.getBlocks().empty())
+    return;
+
   Block *Entry = &Function.getBlocks().front();
   Stack.push(Entry);
 

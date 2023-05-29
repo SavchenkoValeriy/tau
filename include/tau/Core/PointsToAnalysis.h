@@ -9,6 +9,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#pragma once
+
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>
@@ -35,10 +37,14 @@ public:
   }
 
 private:
-  llvm::DenseMap<mlir::Value, PointsToSet> Sets;
+  using SetsTy = llvm::DenseMap<mlir::Value, PointsToSet>;
+  SetsTy Sets;
   static PointsToSet Empty;
+
+public:
+  using iterator = SetsTy::const_iterator;
+  iterator begin() const { return Sets.begin(); }
+  iterator end() const { return Sets.end(); }
 };
 
 } // end namespace tau::core
-
-#pragma once
