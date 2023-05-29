@@ -4,6 +4,7 @@
 #include "tau/AIR/AirTypes.h"
 #include "tau/Core/AliasAnalysis.h"
 #include "tau/Core/FlowWorklist.h"
+#include "tau/Core/PointsToAnalysis.h"
 #include "tau/Core/TopoOrderEnumerator.h"
 
 #include <llvm/ADT/BitVector.h>
@@ -164,6 +165,8 @@ private:
 
   [[nodiscard]] inline State joinPreds(Block &BB);
 
+  [[nodiscard]] inline ChangeResult handleEscapes(CallOp Call);
+
   [[nodiscard]] State &lookupState(Block &BB) { return States[&BB]; }
   [[nodiscard]] State &lookupState(Operation &Op) { return States[&Op]; }
 
@@ -195,12 +198,14 @@ private:
 
   ForwardWorklist &Worklist;
   AliasAnalysis &AA;
+  PointsToAnalysis &PA;
 };
 
 ReachingDefs::Implementation::Implementation(FuncOp Function,
                                              AnalysisManager &AM)
     : Function(Function), Worklist(AM.getAnalysis<ForwardWorklist>()),
-      AA(AM.getAnalysis<AliasAnalysis>()) {}
+      AA(AM.getAnalysis<AliasAnalysis>()),
+      PA(AM.getAnalysis<PointsToAnalysis>()) {}
 
 void ReachingDefs::Implementation::initDefinitions(FuncOp Function) {
   Function.walk([this](air::StoreOp Store) {
@@ -211,19 +216,16 @@ void ReachingDefs::Implementation::initDefinitions(FuncOp Function) {
 
 ChangeResult ReachingDefs::Implementation::visit(Operation &Op) {
   ChangeResult Result = updateState(Op);
-  llvm::TypeSwitch<Operation *, void>(&Op).Case(
-      [this, &Result](air::StoreOp Store) {
+
+  llvm::TypeSwitch<Operation *, void>(&Op)
+      .Case([this, &Result](air::StoreOp Store) {
         Value Modified = getAddress(Store);
         Result |= CurrentState.set(Modified, getIndex(Store));
 
-        for (auto AlsoModified : AA.getAliases(Modified)) {
+        for (auto AlsoModified : AA.getAliases(Modified))
           Result |= CurrentState.unset(AlsoModified);
-        }
-      }).Case([this, &Result](CallOp Call) {
-        for (Value Arg : Call.getArgOperands())
-          if (Arg.getType().isa<air::PointerType>())
-            Result |= CurrentState.unset(Arg);
-      });
+      })
+      .Case([this, &Result](CallOp Call) { Result |= handleEscapes(Call); });
 
   return Result;
 }
@@ -241,6 +243,35 @@ State ReachingDefs::Implementation::joinPreds(Block &BB) {
   for (Block *Pred : BB.getPredecessors())
     Result.join(lookupState(*Pred));
 
+  return Result;
+}
+
+ChangeResult ReachingDefs::Implementation::handleEscapes(CallOp Call) {
+  ChangeResult Result;
+  std::queue<Value> Escapes;
+  for (Value Arg : Call.getArgOperands()) {
+    if (Arg.getType().isa<air::PointerType>()) {
+      Escapes.push(Arg);
+      for (Value ArgAlias : AA.getAliases(Arg))
+        Result |= CurrentState.unset(ArgAlias);
+    }
+  }
+
+  while (!Escapes.empty()) {
+    Value EscapedValue = Escapes.front();
+    Escapes.pop();
+
+    Result |= CurrentState.unset(EscapedValue);
+
+    Type PointeeType =
+        EscapedValue.getType().cast<air::PointerType>().getElementType();
+
+    if (!PointeeType.isa<air::PointerType>())
+      continue;
+
+    for (Value Pointee : PA.getPointsToSet(EscapedValue))
+      Escapes.push(Pointee);
+  }
   return Result;
 }
 
