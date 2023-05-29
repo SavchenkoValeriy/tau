@@ -322,3 +322,41 @@ void foo() {
 )");
   CHECK(getDefinitions(7) == getExpectedDefinitions({}));
 }
+
+TEST_CASE_METHOD(ReachingDefsTest, "Write to unknown pointer",
+                 "[analysis][reaching-defs]") {
+  run(R"(
+int *bar();
+void foobar(int &);
+void foo() {
+  int a = 1;
+  int b = 2;
+  foobar(a);
+  int *c = bar();
+  *c = 3;
+  int d = a;
+  int e = b;
+}
+)");
+  CHECK(getDefinitions(9) == getExpectedDefinitions({}));
+  CHECK(getDefinitions(10) == getExpectedDefinitions({5}));
+}
+
+TEST_CASE_METHOD(ReachingDefsTest, "Assume persistent escape",
+                 "[analysis][reaching-defs]") {
+  run(R"(
+void bar();
+void foobar(int &);
+void foo() {
+  int a = 1;
+  int b = 2;
+  foobar(a);
+  a = 2;
+  bar(); // might write to a
+  int c = a;
+  int d = b;
+}
+)");
+  CHECK(getDefinitions(9) == getExpectedDefinitions({}));
+  CHECK(getDefinitions(10) == getExpectedDefinitions({5}));
+}

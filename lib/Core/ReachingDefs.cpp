@@ -3,6 +3,7 @@
 #include "tau/AIR/AirOps.h"
 #include "tau/AIR/AirTypes.h"
 #include "tau/Core/AliasAnalysis.h"
+#include "tau/Core/EscapeAnalysis.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/PointsToAnalysis.h"
 #include "tau/Core/TopoOrderEnumerator.h"
@@ -197,15 +198,17 @@ private:
   FuncOp Function;
 
   ForwardWorklist &Worklist;
-  AliasAnalysis &AA;
-  PointsToAnalysis &PA;
+  const AliasAnalysis &AA;
+  const PointsToAnalysis &PA;
+  const EscapeAnalysis &Escapes;
 };
 
 ReachingDefs::Implementation::Implementation(FuncOp Function,
                                              AnalysisManager &AM)
     : Function(Function), Worklist(AM.getAnalysis<ForwardWorklist>()),
       AA(AM.getAnalysis<AliasAnalysis>()),
-      PA(AM.getAnalysis<PointsToAnalysis>()) {}
+      PA(AM.getAnalysis<PointsToAnalysis>()),
+      Escapes(AM.getAnalysis<EscapeAnalysis>()) {}
 
 void ReachingDefs::Implementation::initDefinitions(FuncOp Function) {
   Function.walk([this](air::StoreOp Store) {
@@ -248,30 +251,8 @@ State ReachingDefs::Implementation::joinPreds(Block &BB) {
 
 ChangeResult ReachingDefs::Implementation::handleEscapes(CallOp Call) {
   ChangeResult Result;
-  std::queue<Value> Escapes;
-  for (Value Arg : Call.getArgOperands()) {
-    if (Arg.getType().isa<air::PointerType>()) {
-      Escapes.push(Arg);
-      for (Value ArgAlias : AA.getAliases(Arg))
-        Result |= CurrentState.unset(ArgAlias);
-    }
-  }
-
-  while (!Escapes.empty()) {
-    Value EscapedValue = Escapes.front();
-    Escapes.pop();
-
+  for (Value EscapedValue : Escapes.getEscapeSet())
     Result |= CurrentState.unset(EscapedValue);
-
-    Type PointeeType =
-        EscapedValue.getType().cast<air::PointerType>().getElementType();
-
-    if (!PointeeType.isa<air::PointerType>())
-      continue;
-
-    for (Value Pointee : PA.getPointsToSet(EscapedValue))
-      Escapes.push(Pointee);
-  }
   return Result;
 }
 

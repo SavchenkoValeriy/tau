@@ -26,7 +26,7 @@ public:
   AliasAnalysis(mlir::Operation *Function, mlir::AnalysisManager &AM);
 
   using Aliases = llvm::SmallDenseSet<mlir::Value>;
-  [[nodiscard]] const Aliases &getAliases(mlir::Value Value) {
+  [[nodiscard]] const Aliases &getAliases(mlir::Value Value) const {
     if (const auto It = Sets.find(Value); It != Sets.end()) {
       return It->getSecond();
     }
