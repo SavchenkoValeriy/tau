@@ -295,7 +295,7 @@ void foo() {
 }
 
 TEST_CASE_METHOD(ReachingDefsTest, "Possible write on alias escape #1",
-                 "[analysis][reaching-defs][!shouldfail]") {
+                 "[analysis][reaching-defs]") {
   run(R"(
 void bar(int *);
 void foo() {
@@ -305,11 +305,11 @@ void foo() {
   int c = a;
 }
 )");
-  CHECK(getDefinitions(5) == getExpectedDefinitions({}));
+  CHECK(getDefinitions(6) == getExpectedDefinitions({}));
 }
 
 TEST_CASE_METHOD(ReachingDefsTest, "Possible write on alias escape #2",
-                 "[analysis][reaching-defs][!shouldfail]") {
+                 "[analysis][reaching-defs]") {
   run(R"(
 void bar(int ***);
 void foo() {
