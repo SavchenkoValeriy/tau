@@ -266,7 +266,7 @@ void foo() {
 }
 
 TEST_CASE_METHOD(ReachingDefsTest, "Writing to alias #4",
-                 "[analysis][reaching-defs][!shouldfail]") {
+                 "[analysis][reaching-defs]") {
   run(R"(
 void foo() {
   int a = 1;

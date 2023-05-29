@@ -3,6 +3,7 @@
 #include "tau/AIR/AirTypes.h"
 #include "tau/Core/AddressTakenAnalysis.h"
 
+#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Pass/AnalysisManager.h>
@@ -15,20 +16,33 @@ using namespace tau;
 namespace tau::core {
 PointsToAnalysis::PointsToSet PointsToAnalysis::Empty = {};
 
-PointsToAnalysis::PointsToAnalysis(Operation *Op, AnalysisManager &AM) {
-  assert(isa<FuncOp>(Op) &&
+PointsToAnalysis::PointsToAnalysis(Operation *FunctionOp, AnalysisManager &AM) {
+  assert(isa<FuncOp>(FunctionOp) &&
          "Address-taken analysis is only available for functions");
 
-  FuncOp Function = cast<FuncOp>(Op);
+  FuncOp Function = cast<FuncOp>(FunctionOp);
   const auto &AddressTaken = AM.getAnalysis<AddressTakenAnalysis>();
 
   llvm::DenseMap<Type, llvm::SmallVector<Value, 4>> PointersByType;
-  Function.walk([this, &PointersByType](air::AllocaOp Alloca) {
-    // All allocas should have pointer types by construction
-    const auto &AllocaType = Alloca.getType().cast<air::PointerType>();
-    if (AllocaType.getElementType().isa<air::PointerType>()) {
-      PointersByType[AllocaType.getElementType()].push_back(Alloca);
-    }
+  const auto AddPointerByType = [&PointersByType](Value Pointer, Type T) {
+    if (const auto PointerType = T.dyn_cast<air::PointerType>())
+      if (PointerType.getElementType().isa<air::PointerType>())
+        PointersByType[PointerType.getElementType()].push_back(Pointer);
+  };
+
+  Function.walk([this, &AddPointerByType](Operation *Op) {
+    llvm::TypeSwitch<Operation *, void>(Op)
+        .Case([&AddPointerByType](air::AllocaOp Alloca) {
+          AddPointerByType(Alloca, Alloca.getType());
+        })
+        .Case([&AddPointerByType](air::LoadOp Load) {
+          AddPointerByType(Load, Load.getType());
+        })
+        .Case([&AddPointerByType](CallOp Call) {
+          if (Call.getResults().size() == 1)
+            AddPointerByType(Call.getResults().front(),
+                             Call.getResultTypes().front());
+        });
   });
 
   for (Value Escaped : AddressTaken.getAddressTakenValues()) {
