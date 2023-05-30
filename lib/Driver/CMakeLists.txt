@@ -4,6 +4,7 @@ target_link_libraries(tau-cc PRIVATE
   tauFrontendClang
   tauCheckers
   tauCore
+  tauSimplification
   clangTooling
   MLIRPass)
 

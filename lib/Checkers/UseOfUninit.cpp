@@ -26,7 +26,7 @@ constexpr UninitState ERROR = UninitState::getErrorState(0);
 namespace {
 
 class UseOfUninit
-    : public CheckerBase<UseOfUninit, UninitState, StoreOp, LoadOp> {
+    : public CheckerBase<UseOfUninit, UninitState, StoreOp, LoadOp, NoOp> {
 public:
   StringRef getName() const override {
     return "Use of uninitialized value checker";
@@ -46,6 +46,11 @@ public:
 
   void process(LoadOp Load) const {
     markChange(Load.getOperation(), Load.getAddress(), UNINIT, ERROR);
+  }
+
+  void process(NoOp Noop) const {
+    if (Noop.value().getDefiningOp<UndefOp>())
+      markChange(Noop.getOperation(), Noop.value(), ERROR);
   }
 
   InFlightDiagnostic emitError(mlir::Operation *Op, UninitState State) {
