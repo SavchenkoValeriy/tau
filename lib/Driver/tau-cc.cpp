@@ -3,6 +3,7 @@
 #include "tau/Core/CheckerRegistry.h"
 #include "tau/Frontend/Clang/Clang.h"
 #include "tau/Frontend/Output.h"
+#include "tau/Simplification/Simplification.h"
 
 #include <clang/Basic/FileManager.h>
 #include <clang/Tooling/CompilationDatabase.h>
@@ -81,6 +82,8 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
   PassManager PM(&Context);
 
   auto ErrorHandler = [&](const Twine &Message) { return failure(); };
+
+  PM.addNestedPass<func::FuncOp>(tau::simple::createSimplification());
 
   CheckersOptions.addEnabledCheckers(PM);
   PM.addNestedPass<func::FuncOp>(tau::core::createMainAnalysis());
