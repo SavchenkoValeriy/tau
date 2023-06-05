@@ -36,9 +36,17 @@ using SimpleCheckerState = State<2, 1>;
 constexpr SimpleCheckerState FOO = SimpleCheckerState::getNonErrorState(0);
 constexpr SimpleCheckerState BAR = SimpleCheckerState::getNonErrorState(1);
 constexpr SimpleCheckerState FOOBAR = SimpleCheckerState::getErrorState(0);
+consteval auto makeStateMachine() {
+  StateMachine<SimpleCheckerState> SM;
+  SM.markInitial(FOO);
+  SM.addEdge(FOO, BAR);
+  SM.addEdge(BAR, FOOBAR);
+  return SM;
+}
+constexpr auto SimpleCheckerStateMachine = makeStateMachine();
 
-class SimpleChecker
-    : public CheckerBase<SimpleChecker, SimpleCheckerState, CallOp> {
+class SimpleChecker : public CheckerBase<SimpleChecker, SimpleCheckerState,
+                                         SimpleCheckerStateMachine, CallOp> {
 public:
   StringRef getName() const override { return "Simple test checker"; }
   StringRef getArgument() const override { return "test-checker"; }
@@ -53,13 +61,13 @@ public:
                             .Default(0))
       switch (KnownFunc) {
       case 1:
-        markChange(Call.getOperation(), Call.getOperand(0), FOO);
+        markChange<FOO>(Call.getOperation(), Call.getOperand(0));
         break;
       case 2:
-        markChange(Call.getOperation(), Call.getOperand(0), FOO, BAR);
+        markChange<FOO, BAR>(Call.getOperation(), Call.getOperand(0));
         break;
       case 3:
-        markChange(Call.getOperation(), Call.getOperand(0), BAR, FOOBAR);
+        markChange<BAR, FOOBAR>(Call.getOperation(), Call.getOperand(0));
         break;
       }
   }

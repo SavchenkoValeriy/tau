@@ -23,10 +23,21 @@ constexpr UninitState UNINIT = UninitState::getNonErrorState(0);
 constexpr UninitState INIT = UninitState::getNonErrorState(1);
 constexpr UninitState ERROR = UninitState::getErrorState(0);
 
+consteval auto makeStateMachine() {
+  StateMachine<UninitState> SM;
+  SM.addEdge(UNINIT, ERROR);
+  SM.addEdge(UNINIT, INIT);
+  SM.markInitial(UNINIT);
+  SM.markInitial(ERROR);
+  return SM;
+}
+
+constexpr auto SM = makeStateMachine();
+
 namespace {
 
 class UseOfUninit
-    : public CheckerBase<UseOfUninit, UninitState, StoreOp, LoadOp, NoOp> {
+    : public CheckerBase<UseOfUninit, UninitState, SM, StoreOp, LoadOp, NoOp> {
 public:
   StringRef getName() const override {
     return "Use of uninitialized value checker";
@@ -39,18 +50,18 @@ public:
   void process(StoreOp Store) const {
     mlir::Operation *Address = Store.getAddress().getDefiningOp();
     if (Store.getValue().getDefiningOp<UndefOp>())
-      markResultChange(Address, UNINIT);
+      markResultChange<UNINIT>(Address);
     else
-      markChange(Store, Store.getAddress(), UNINIT, INIT);
+      markChange<UNINIT, INIT>(Store, Store.getAddress());
   }
 
   void process(LoadOp Load) const {
-    markChange(Load.getOperation(), Load.getAddress(), UNINIT, ERROR);
+    markChange<UNINIT, ERROR>(Load.getOperation(), Load.getAddress());
   }
 
   void process(NoOp Noop) const {
     if (Noop.value().getDefiningOp<UndefOp>())
-      markChange(Noop.getOperation(), Noop.value(), ERROR);
+      markChange<ERROR>(Noop.getOperation(), Noop.value());
   }
 
   InFlightDiagnostic emitError(mlir::Operation *Op, UninitState State) {

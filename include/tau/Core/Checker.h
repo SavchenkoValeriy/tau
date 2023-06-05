@@ -68,13 +68,17 @@ private:
   mlir::TypeID CheckerID;
 };
 
-template <class CheckerT, class State, class... Ops>
+template <class CheckerT, ConcreteState State,
+          StateMachine<State> CheckerStateMachine, class... Ops>
 class CheckerBase : public AbstractChecker {
 public:
   /// Support isa/dyn_cast functionality for the derived pass class.
   static bool classof(const AbstractChecker *ToTest) {
     return ToTest->getTypeID() == mlir::TypeID::get<CheckerT>();
   }
+
+  static_assert(State::getNumberOfErrorStates() != 0,
+                "Checkers must have at least one error state");
 
   CheckerBase() : AbstractChecker(mlir::TypeID::get<CheckerT>()) {}
   CheckerBase(const CheckerBase &) = default;
@@ -88,7 +92,10 @@ public:
   /// Since this version doesn't specify which state the value should be in
   /// before, it will change any value to the @p To state only if it wasn't in
   /// any state.
-  void markChange(mlir::Operation *Where, mlir::Value What, State To) const {
+  template <State To>
+  void markChange(mlir::Operation *Where, mlir::Value What) const {
+    static_assert(CheckerStateMachine.isInitial(To),
+                  "This state is not mark as initial");
     unsigned WhatIdx = findOperand(Where, What);
     markChangeImpl(Where, WhatIdx, To.ID);
   }
@@ -101,7 +108,9 @@ public:
   /// Since this version doesn't specify which state the value should be in
   /// before, it will change any value to the @p To state only if it wasn't in
   /// any state.
-  void markResultChange(mlir::Operation *Where, State To) const {
+  template <State To> void markResultChange(mlir::Operation *Where) const {
+    static_assert(CheckerStateMachine.isInitial(To),
+                  "This state is not mark as initial");
     unsigned ResultIdx = getResultIdx(Where);
     markChangeImpl(Where, ResultIdx, To.ID);
   }
@@ -113,8 +122,10 @@ public:
   /// @param From -- we only change the state of the value if it
   /// is in this state
   /// @param To -- target state to change the operand to
-  void markChange(mlir::Operation *Where, mlir::Value What, State From,
-                  State To) const {
+  template <State From, State To>
+  void markChange(mlir::Operation *Where, mlir::Value What) const {
+    static_assert(CheckerStateMachine.hasEdge(From, To),
+                  "State machine doesn't have this transition");
     unsigned WhatIdx = findOperand(Where, What);
     markChangeImpl(Where, WhatIdx, From.ID, To.ID);
   }
@@ -125,7 +136,10 @@ public:
   /// @param From -- we only change the state of the value if it
   /// is in this state
   /// @param To -- target state to change the operand to
-  void markResultChange(mlir::Operation *Where, State From, State To) const {
+  template <State From, State To>
+  void markResultChange(mlir::Operation *Where) const {
+    static_assert(CheckerStateMachine.hasEdge(From, To),
+                  "State machine doesn't have this transition");
     unsigned WhatIdx = getResultIdx(Where);
     markChangeImpl(Where, WhatIdx, From.ID, To.ID);
   }
@@ -196,8 +210,10 @@ private:
   }
 };
 
-template <class CheckerT, class State, class... Ops>
-void CheckerBase<CheckerT, State, Ops...>::process(mlir::Operation *BaseOp) {
+template <class CheckerT, ConcreteState State,
+          StateMachine<State> CheckerStateMachine, class... Ops>
+void CheckerBase<CheckerT, State, CheckerStateMachine, Ops...>::process(
+    mlir::Operation *BaseOp) {
   TypeSwitch Switch(BaseOp);
   if constexpr (sizeof...(Ops) > 0)
     processAsDerived<Ops...>(Switch);
@@ -221,9 +237,17 @@ template <class T> struct CheckerVerifier {
   static constexpr bool DerivedFromCheckerBase = false;
 };
 
-template <class T, class State, class... Ops>
-struct CheckerVerifier<CheckerBase<T, State, Ops...>> {
+template <class T, ConcreteState State, StateMachine<State> CheckerStateMachine,
+          class... Ops>
+struct CheckerVerifier<CheckerBase<T, State, CheckerStateMachine, Ops...>> {
   static constexpr bool DerivedFromCheckerBase = true;
+
+  static constexpr auto StateMachineProps = CheckerStateMachine.getProperties();
+  static constexpr bool AllStatesReachable =
+      StateMachineProps.AllStatesReachable;
+  static constexpr bool AllInitialStatesHavePathToError =
+      StateMachineProps.AllInitialStatesHavePathToError;
+  static constexpr bool HasStateLoops = StateMachineProps.HasLoops;
 
   // Check that the checker has emit methods in place.
   static constexpr bool HasEmitMethods =
@@ -244,14 +268,16 @@ struct CheckerVerifier<CheckerBase<T, State, Ops...>> {
 // that has the lowest priority in terms of overloads.
 CheckerVerifier<void> checkerDetector(...);
 
-template <class T, class State, class... Ops>
-CheckerVerifier<CheckerBase<T, State, Ops...>>
-checkerDetector(CheckerBase<T, State, Ops...> &&);
+template <class T, ConcreteState State, StateMachine<State> SFA, class... Ops>
+CheckerVerifier<CheckerBase<T, State, SFA, Ops...>>
+checkerDetector(CheckerBase<T, State, SFA, Ops...> &&);
 } // end namespace detail
 
 template <class T,
           class Traits = decltype(detail::checkerDetector(std::declval<T>()))>
 concept Checker = Traits::DerivedFromCheckerBase && Traits::HasEmitMethods &&
-    Traits::HasAllProcessMethods;
+                  Traits::HasAllProcessMethods && Traits::AllStatesReachable &&
+                  !Traits::HasStateLoops &&
+                  Traits::AllInitialStatesHavePathToError;
 
 } // end namespace tau::core

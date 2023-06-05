@@ -1110,7 +1110,7 @@ def Air_GetFieldPtr : Air_Op<"getfieldptr", [NoSideEffect]> {
     Syntax:
 
     ```
-    operation ::= `air.getfieldptr` ssa-use `->` str `:` type `-> type
+    operation ::= `air.getfieldptr` ssa-use `->` str `:` type `->` type
     ```
 
     The `getfieldptr` operation retrieves a pointer to a field from

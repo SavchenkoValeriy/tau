@@ -20,7 +20,7 @@ struct StateID {
   unsigned ID;
 
   static constexpr StateID fromRaw(Raw From) { return StateID{From}; }
-  operator Raw() const { return ID; }
+  constexpr operator Raw() const { return ID; }
 
   static constexpr StateID getNonErrorState(unsigned Idx) {
     return fromRaw((Idx + 1) << 1);
@@ -31,17 +31,17 @@ struct StateID {
   }
 
   static constexpr bool isError(Raw ToTest) { return ToTest & ErrorMask; }
-  bool isError() const { return isError(ID); }
+  constexpr bool isError() const { return isError(ID); }
 
 private:
   static constexpr unsigned ErrorMask = 1;
 };
 
-inline bool operator==(const StateID &LHS, const StateID &RHS) {
+constexpr inline bool operator==(const StateID &LHS, const StateID &RHS) {
   return StateID::Raw(LHS) == RHS;
 }
 
-inline bool operator!=(const StateID &LHS, const StateID &RHS) {
+constexpr inline bool operator!=(const StateID &LHS, const StateID &RHS) {
   return !(LHS == RHS);
 }
 
