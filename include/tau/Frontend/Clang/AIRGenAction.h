@@ -12,6 +12,7 @@
 #pragma once
 
 #include "tau/Frontend/Clang/OwningModuleRef.h"
+#include "tau/Frontend/Options.h"
 
 #include <mlir/IR/MLIRContext.h>
 
@@ -22,13 +23,15 @@ namespace frontend {
 
 class AIRGenAction : public clang::tooling::FrontendActionFactory {
 public:
-  AIRGenAction(mlir::MLIRContext &Context) : Context(Context) {}
+  AIRGenAction(mlir::MLIRContext &Context, Options Opts = {})
+      : Context(Context), Opts(Opts) {}
   virtual std::unique_ptr<clang::FrontendAction> create() override;
   mlir::ModuleOp getGeneratedModule() { return Module.release(); }
   mlir::MLIRContext &getContext() { return Context; }
 
 private:
   mlir::MLIRContext &Context;
+  Options Opts;
   OwningModuleRef Module;
 };
 

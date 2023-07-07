@@ -36,22 +36,23 @@ readClangOptions(int Argc, const char **Argv) {
 }
 
 std::unique_ptr<Output> runClang(int Argc, const char **Argv,
-                                 const llvm::cl::list<std::string> &Sources) {
+                                 const llvm::cl::list<std::string> &Sources,
+                                 Options Opts) {
   auto CDB = readClangOptions(Argc, Argv);
   if (auto E = CDB.takeError()) {
     llvm::errs() << toString(std::move(E));
     return nullptr;
   }
 
-  return runClang(*CDB->get(), Sources);
+  return runClang(*CDB->get(), Sources, Opts);
 }
 
 std::unique_ptr<Output> runClang(const clang::tooling::CompilationDatabase &CDB,
-                                 ArrayRef<std::string> Sources) {
+                                 ArrayRef<std::string> Sources, Options Opts) {
   auto Result = std::make_unique<Output>();
 
   tooling::ClangTool Tool(CDB, Sources);
-  AIRGenAction Generator{Result->Context};
+  AIRGenAction Generator{Result->Context, Opts};
   if (Tool.run(&Generator))
     // TODO: output clang errors?
     return nullptr;
@@ -70,9 +71,10 @@ std::unique_ptr<Output> runClang(const clang::tooling::CompilationDatabase &CDB,
 
 std::unique_ptr<Output> runClangOnCode(const llvm::Twine &Code,
                                        const std::vector<std::string> &Args,
-                                       const llvm::Twine &FileName) {
+                                       const llvm::Twine &FileName,
+                                       Options Opts) {
   auto Result = std::make_unique<Output>();
-  AIRGenAction Generator{Result->Context};
+  AIRGenAction Generator{Result->Context, Opts};
 
   tooling::runToolOnCodeWithArgs(Generator.create(), Code, Args, FileName,
                                  "tau-cc");
@@ -82,9 +84,10 @@ std::unique_ptr<Output> runClangOnCode(const llvm::Twine &Code,
 }
 
 std::unique_ptr<Output> runClangOnCode(const llvm::Twine &Code,
-                                       const llvm::Twine &FileName) {
+                                       const llvm::Twine &FileName,
+                                       Options Opts) {
   auto Result = std::make_unique<Output>();
-  AIRGenAction Generator{Result->Context};
+  AIRGenAction Generator{Result->Context, Opts};
 
   tooling::runToolOnCode(Generator.create(), Code, FileName);
 

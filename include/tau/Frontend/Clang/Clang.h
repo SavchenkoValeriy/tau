@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "tau/Frontend/Options.h"
+
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/CommandLine.h>
@@ -32,17 +34,20 @@ llvm::Expected<std::unique_ptr<clang::tooling::CompilationDatabase>>
 readClangOptions(int Argc, const char **Argv);
 
 std::unique_ptr<Output> runClang(const clang::tooling::CompilationDatabase &,
-                                 llvm::ArrayRef<std::string> Sources);
+                                 llvm::ArrayRef<std::string> Sources,
+                                 Options = {});
 
 std::unique_ptr<Output> runClang(int Argc, const char **Argv,
-                                 const llvm::cl::list<std::string> &Sources);
+                                 const llvm::cl::list<std::string> &Sources,
+                                 Options = {});
 
-std::unique_ptr<Output>
-runClangOnCode(const llvm::Twine &Code, const std::vector<std::string> &Args,
-               const llvm::Twine &FileName = "input.cc");
+std::unique_ptr<Output> runClangOnCode(const llvm::Twine &Code,
+                                       const std::vector<std::string> &Args,
+                                       const llvm::Twine &FileName = "input.cc",
+                                       Options = {});
 
-std::unique_ptr<Output>
-runClangOnCode(const llvm::Twine &Code,
-               const llvm::Twine &FileName = "input.cc");
+std::unique_ptr<Output> runClangOnCode(const llvm::Twine &Code,
+                                       const llvm::Twine &FileName = "input.cc",
+                                       Options = {});
 
 } // end namespace tau::frontend

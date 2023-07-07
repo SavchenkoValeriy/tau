@@ -28,8 +28,6 @@ public:
 
     if (failed(PM.run(getOperation())))
       signalPassFailure();
-
-    getOperation().dump();
   }
 
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SimplificationPass);

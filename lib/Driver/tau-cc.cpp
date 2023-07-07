@@ -68,7 +68,16 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
     OS << "tau C/C++ compiler v0.0.1\n";
   });
 
-  auto IR = tau::frontend::runClang(Argc, Argv, SourcePaths);
+  auto CDB = tau::frontend::readClangOptions(Argc, Argv);
+  if (auto E = CDB.takeError()) {
+    llvm::errs() << toString(std::move(E));
+    return failure();
+  }
+
+  tau::frontend::Options Opts;
+  Opts.DumpAST = (DumpAction == DumpTarget::AST);
+
+  auto IR = tau::frontend::runClang(*CDB->get(), SourcePaths, Opts);
   if (!IR)
     return failure();
 
