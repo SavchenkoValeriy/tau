@@ -1104,6 +1104,25 @@ def Air_NoOp : Air_Op<"noop", [NoSideEffect, SameOperandsAndResultType]> {
   let assemblyFormat = "attr-dict $value `:` type($value)";
 }
 
+def Air_UnsupportedOp : Air_Op<"unsupported"> {
+  let summary = "unsupported";
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.unsupported` ssa-use str `->` type
+    ```
+
+    The `unsupported` operation is a placeholder for AST nodes that were
+    not properly converted into AIR.
+  }];
+
+  let arguments = (ins StrAttr:$name);
+  let results = (outs AnyType:$res);
+
+  let assemblyFormat = "attr-dict $name `->` type($res)";
+}
+
 def Air_GetFieldPtr : Air_Op<"getfieldptr", [NoSideEffect]> {
   let summary = "getfieldptr";
   let description = [{

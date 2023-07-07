@@ -161,6 +161,8 @@ public:
   mlir::Value VisitCXXConstructExpr(const CXXConstructExpr *CtorCall);
   mlir::Value VisitInitListExpr(const InitListExpr *InitList);
 
+  mlir::Value VisitExpr(const Expr *E);
+
   mlir::Value generateIncDec(mlir::Location Loc, mlir::Value Var, bool IsPre,
                              bool IsInc);
 
@@ -1275,4 +1277,10 @@ mlir::Value FunctionGenerator::VisitForStmt(const ForStmt *ForLoop) {
   Builder.setInsertionPointToStart(Next);
 
   return {};
+}
+
+mlir::Value FunctionGenerator::VisitExpr(const Expr *UnsupportedExpr) {
+  const std::string Name = UnsupportedExpr->getStmtClassName();
+  return Builder.create<air::UnsupportedOp>(loc(UnsupportedExpr),
+                                            type(UnsupportedExpr), Name);
 }
