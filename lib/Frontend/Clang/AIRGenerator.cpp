@@ -159,6 +159,7 @@ public:
 
   mlir::Value VisitCXXThisExpr(const CXXThisExpr *ThisExpr);
   mlir::Value VisitCXXConstructExpr(const CXXConstructExpr *CtorCall);
+  mlir::Value VisitCXXNewExpr(const CXXNewExpr *NewExpr);
   mlir::Value VisitInitListExpr(const InitListExpr *InitList);
 
   mlir::Value VisitExpr(const Expr *E);
@@ -498,6 +499,9 @@ mlir::Type TopLevelGenerator::getBuiltinType(clang::QualType T) {
 
   if (T->isFloat16Type())
     return Builder.getF16Type();
+
+  if (T->isVoidType())
+    return air::VoidType::get(Builder.getContext());
 
   return Builder.getNoneType();
 }
@@ -1047,30 +1051,62 @@ FunctionGenerator::VisitCXXConstructExpr(const CXXConstructExpr *CtorCall) {
   return {};
 }
 
+mlir::Value FunctionGenerator::VisitCXXNewExpr(const CXXNewExpr *NewExpr) {
+  const auto Loc = loc(NewExpr);
+  // TODO: support placement new
+  // TODO: support array types
+  mlir::Value Memory =
+      Builder.create<air::HeapAllocaOp>(Loc, type(NewExpr), mlir::Value{});
+  InitializedValues.push(Memory);
+
+  const auto RemoveInitializedValue = llvm::make_scope_exit([this, Memory]() {
+    assert(!InitializedValues.empty() && InitializedValues.top() == Memory);
+    InitializedValues.pop();
+  });
+
+  const auto *ConstructExpr = NewExpr->getConstructExpr();
+  const auto *Initializer = NewExpr->getInitializer();
+
+  if (ConstructExpr != nullptr)
+    Visit(ConstructExpr);
+  else if (Initializer != nullptr) {
+    Initializer->dump();
+    store(Visit(Initializer), Memory, loc(Initializer));
+  }
+
+  return Memory;
+}
+
 mlir::Value FunctionGenerator::VisitInitListExpr(const InitListExpr *InitList) {
   assert(!InitializedValues.empty());
   // TODO: Support array initialization
-  air::RecordDefOp Def =
-      Parent.getRecordByType(InitList->getType()->castAs<RecordType>());
-  if (!Def) {
-    // This shouldn't really happen, we should've seen record
-    // definition at this point.
+  switch (InitList->getType()->getTypeClass()) {
+  case clang::Type::Record: {
+    air::RecordDefOp Def =
+        Parent.getRecordByType(InitList->getType()->castAs<RecordType>());
+    if (!Def) {
+      // This shouldn't really happen, we should've seen record
+      // definition at this point.
+      return {};
+    }
+
+    assert(Def.getRecordType().getFields().size() == InitList->inits().size() &&
+           "Initializer list should cover all field, even the ones not "
+           "mentioned explicitly");
+
+    for (const auto &[Field, FieldInit] :
+         llvm::zip(Def.getRecordType().getFields(), InitList->inits())) {
+      const mlir::Location Loc = loc(FieldInit);
+      const mlir::Value FieldMemory =
+          getMemberPointer(Loc, InitializedValues.top(), Field);
+      init(FieldMemory, FieldInit);
+    }
+
     return {};
   }
-
-  assert(Def.getRecordType().getFields().size() == InitList->inits().size() &&
-         "Initializer list should cover all field, even the ones not "
-         "mentioned explicitly");
-
-  for (const auto &[Field, FieldInit] :
-       llvm::zip(Def.getRecordType().getFields(), InitList->inits())) {
-    const mlir::Location Loc = loc(FieldInit);
-    const mlir::Value FieldMemory =
-        getMemberPointer(Loc, InitializedValues.top(), Field);
-    init(FieldMemory, FieldInit);
+  default:
+    return VisitExpr(InitList);
   }
-
-  return {};
 }
 
 //===----------------------------------------------------------------------===//

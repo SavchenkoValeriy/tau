@@ -999,6 +999,33 @@ def Air_AllocaOp : Air_Op<"alloca"> {
     let hasVerifier = 0;
 }
 
+def Air_HeapAllocaOp : Air_Op<"halloca"> {
+    let arguments = (ins Optional<AnyUnsignedInteger>:$length);
+    let results = (outs Air_AnyPointer:$res);
+    let summary = "heap alloca operation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.alloca` (ssa-use : type)? `:` type
+    ```
+
+    The `alloca` operation represents all allocation on stack. It takes
+    one optional `length` argument for array allocation. The result type
+    is a pointer type. Operation has no standard attributes.
+
+    Example:
+
+    ```mlir
+    %a = halloca : !air<ptr i32>
+
+    %b = halloca %length : !air<ptr f64>
+    ```
+    }];
+    let assemblyFormat = "($length^ `:` type($length))? attr-dict `:` type($res)";
+    let hasVerifier = 0;
+}
+
 def Air_StoreOp : Air_Op<"store"> {
   let arguments = (ins AnyType:$what, Air_AnyPointer:$where);
   let summary = "store operation";
