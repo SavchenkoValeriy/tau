@@ -101,16 +101,16 @@ ParseResult LoadOp::parse(OpAsmParser &Parser, OperationState &Result) {
 //                                   StoreOp
 //===----------------------------------------------------------------------===//
 
-static LogicalResult verify(StoreOp &Store) {
-  Type WhatType = Store.what().getType();
-  PointerType WhereType = Store.where().getType().cast<PointerType>();
+LogicalResult StoreOp::verify() {
+  Type WhatType = what().getType();
+  PointerType WhereType = where().getType().cast<PointerType>();
 
   if (WhereType.getElementType() == WhatType)
     return success();
 
-  return Store.emitError() << "type of stored value (" << WhatType
-                           << ") doesn't match the pointer type (" << WhereType
-                           << ")";
+  return emitError() << "type of stored value (" << WhatType
+                     << ") doesn't match the pointer type (" << WhereType
+                     << ")";
 }
 
 void StoreOp::print(OpAsmPrinter &P) {
@@ -143,8 +143,9 @@ bool BitcastOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
          "bitcast op expects one operand and result");
   Type From = Inputs.front(), To = Outputs.front();
 
-  return From.isIntOrFloat() && To.isIntOrFloat() &&
-         From.getIntOrFloatBitWidth() == To.getIntOrFloatBitWidth();
+  return (From.isIntOrFloat() && To.isIntOrFloat() &&
+          From.getIntOrFloatBitWidth() == To.getIntOrFloatBitWidth()) ||
+         (From.isa<air::PointerType>() && To.isa<air::PointerType>());
 }
 
 bool SExtOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
@@ -253,6 +254,23 @@ void RecordDefOp::print(OpAsmPrinter &P) {
 }
 
 ParseResult RecordDefOp::parse(OpAsmParser &Parser, OperationState &Result) {
+  // TODO: implement
+  return failure();
+}
+
+//===----------------------------------------------------------------------===//
+//                                    sizeof
+//===----------------------------------------------------------------------===//
+
+void SizeOfOp::print(OpAsmPrinter &P) {
+  P << " ";
+  P.printType(type());
+  P << " : ";
+  P.printType(res().getType());
+}
+
+ParseResult SizeOfOp::parse(OpAsmParser &Parser, OperationState &Result) {
+  // TODO: implement
   return failure();
 }
 

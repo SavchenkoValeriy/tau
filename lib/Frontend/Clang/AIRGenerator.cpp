@@ -16,6 +16,7 @@
 #include <clang/AST/TemplateBase.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
+#include <clang/Basic/TypeTraits.h>
 #include <llvm/ADT/None.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
@@ -146,6 +147,8 @@ public:
   mlir::Value VisitParenExpr(const ParenExpr *Paren);
   mlir::Value VisitMemberExpr(const MemberExpr *Member);
   mlir::Value
+  VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *Unary);
+  mlir::Value
   VisitImplicitValueInitExpr(const ImplicitValueInitExpr *ImplicitValueInit);
   mlir::Value VisitCXXDefaultInitExpr(const CXXDefaultInitExpr *CXXDefaultInit);
 
@@ -161,6 +164,8 @@ public:
   mlir::Value VisitCXXConstructExpr(const CXXConstructExpr *CtorCall);
   mlir::Value VisitCXXNewExpr(const CXXNewExpr *NewExpr);
   mlir::Value VisitInitListExpr(const InitListExpr *InitList);
+
+  mlir::Value VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *Literal);
 
   mlir::Value VisitExpr(const Expr *E);
 
@@ -338,7 +343,12 @@ private:
     return Builder.create<air::LoadOp>(Loc, From);
   }
 
+  mlir::Value sizeOf(Location Loc, mlir::Type SizeType, mlir::Type Of) {
+    return Builder.create<air::SizeOfOp>(Loc, SizeType, Of);
+  }
+
   mlir::Value cast(mlir::Location Loc, mlir::Value Value, IntegerType To);
+  mlir::Value bitcast(mlir::Location Loc, mlir::Value Value, mlir::Type To);
 
   using Values = SmallVector<mlir::Value, 8>;
   template <class RangeTy> Values visitRange(RangeTy &&Range) {
@@ -476,7 +486,10 @@ mlir::Type TopLevelGenerator::type(clang::QualType T) {
         T->castAs<clang::TemplateSpecializationType>()->desugar());
   case clang::Type::Elaborated:
     return type(T->castAs<clang::ElaboratedType>()->desugar());
+  case clang::Type::Typedef:
+    return type(T->castAs<clang::TypedefType>()->desugar());
   default:
+    // TODO: make unsupported type similarly to unsupported op
     return Builder.getNoneType();
   }
 }
@@ -547,6 +560,10 @@ void TopLevelGenerator::generateDecl(const Decl *D) {
   case Decl::ClassTemplateSpecialization:
   case Decl::Record:
     generateRecord(cast<RecordDecl>(D));
+    break;
+  case Decl::LinkageSpec:
+    for (const auto *LSDecl : cast<LinkageSpecDecl>(D)->decls())
+      generateDecl(LSDecl);
     break;
   default:
     break;
@@ -947,6 +964,16 @@ mlir::Value FunctionGenerator::VisitMemberExpr(const MemberExpr *Member) {
   return Result;
 }
 
+mlir::Value FunctionGenerator::VisitUnaryExprOrTypeTraitExpr(
+    const UnaryExprOrTypeTraitExpr *Unary) {
+  switch (Unary->getKind()) {
+  case UnaryExprOrTypeTrait::UETT_SizeOf:
+    return sizeOf(loc(Unary), type(Unary), type(Unary->getArgumentType()));
+  default:
+    return VisitExpr(Unary);
+  }
+}
+
 mlir::Value FunctionGenerator::VisitImplicitValueInitExpr(
     const ImplicitValueInitExpr *ImplicitValueInit) {
   // TODO: check it for non-trivial types
@@ -1011,6 +1038,8 @@ FunctionGenerator::VisitImplicitCastExpr(const ImplicitCastExpr *Cast) {
                                              Sub);
   case CastKind::CK_NoOp:
     return Sub;
+  case CastKind::CK_BitCast:
+    return bitcast(Loc, Sub, To);
   default:
     return {};
   }
@@ -1026,9 +1055,13 @@ mlir::Value FunctionGenerator::cast(mlir::Location Loc, mlir::Value Value,
   if (From.getWidth() > To.getWidth())
     return Builder.create<air::TruncateOp>(Loc, To, Value);
 
-  return Builder.create<air::BitcastOp>(Loc, To, Value);
+  return bitcast(Loc, Value, To);
 }
 
+mlir::Value FunctionGenerator::bitcast(mlir::Location Loc, mlir::Value Value,
+                                       mlir::Type To) {
+  return Builder.create<air::BitcastOp>(Loc, To, Value);
+}
 //===----------------------------------------------------------------------===//
 //                           C++-specific expressions
 //===----------------------------------------------------------------------===//
@@ -1053,10 +1086,45 @@ FunctionGenerator::VisitCXXConstructExpr(const CXXConstructExpr *CtorCall) {
 
 mlir::Value FunctionGenerator::VisitCXXNewExpr(const CXXNewExpr *NewExpr) {
   const auto Loc = loc(NewExpr);
-  // TODO: support placement new
+  const auto Type = type(NewExpr);
+  assert(Type.isa<air::PointerType>() &&
+         "new expression should return a pointer");
+  const auto Pointee = Type.cast<air::PointerType>().getElementType();
+
   // TODO: support array types
-  mlir::Value Memory =
-      Builder.create<air::HeapAllocaOp>(Loc, type(NewExpr), mlir::Value{});
+  if (NewExpr->isArray())
+    return VisitExpr(NewExpr);
+
+  auto PlacementArgs = visitRange(NewExpr->placement_arguments());
+  mlir::Value Memory;
+  if (!PlacementArgs.empty()) {
+    if (auto MemType =
+            PlacementArgs.front().getType().dyn_cast<air::PointerType>();
+        MemType && PlacementArgs.size() == 1) {
+      Memory = PlacementArgs.front();
+      if (MemType != Type)
+        Memory = bitcast(Loc, Memory, Type);
+
+    } else if (const auto *New = NewExpr->getOperatorNew()) {
+      const FuncOp Callee = Parent.getFunctionByDecl(New);
+      Values Args;
+      assert(New->getNumParams() != 0 &&
+             "new operator should have at least 1 parameter");
+      Args.push_back(
+          sizeOf(Loc, type(New->getParamDecl(0)->getType()), Pointee));
+      Args.append(PlacementArgs);
+
+      auto NewOperatorCall = Builder.create<CallOp>(Loc, Callee, Args);
+      assert(NewOperatorCall->getNumResults() != 0 &&
+             "new operator should return a pointer");
+      Memory = bitcast(Loc, NewOperatorCall->getResult(0), Type);
+    }
+  }
+
+  if (!Memory)
+    Memory =
+        Builder.create<air::HeapAllocaOp>(Loc, type(NewExpr), mlir::Value{});
+
   InitializedValues.push(Memory);
 
   const auto RemoveInitializedValue = llvm::make_scope_exit([this, Memory]() {
@@ -1069,10 +1137,9 @@ mlir::Value FunctionGenerator::VisitCXXNewExpr(const CXXNewExpr *NewExpr) {
 
   if (ConstructExpr != nullptr)
     Visit(ConstructExpr);
-  else if (Initializer != nullptr) {
-    Initializer->dump();
+
+  else if (Initializer != nullptr)
     store(Visit(Initializer), Memory, loc(Initializer));
-  }
 
   return Memory;
 }
@@ -1107,6 +1174,12 @@ mlir::Value FunctionGenerator::VisitInitListExpr(const InitListExpr *InitList) {
   default:
     return VisitExpr(InitList);
   }
+}
+
+mlir::Value
+FunctionGenerator::VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *Literal) {
+  return Builder.create<air::ConstantIntOp>(loc(Literal), Literal->getValue(),
+                                            type(Literal).cast<IntegerType>());
 }
 
 //===----------------------------------------------------------------------===//

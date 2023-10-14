@@ -40,5 +40,6 @@ build
 
 # Tooling files
 compile_commands.json
+tablegen_compile_commands.yml
 .cache
 .clangd

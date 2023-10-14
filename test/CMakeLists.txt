@@ -10,6 +10,8 @@ list(APPEND TAU_TEST_DEPS
   tau-cc
   )
 
+set(TAU_TEST_EXTRA_ARGS "-v")
+
 add_lit_testsuite(check-cc "Running regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   PARAMS ${TAU_TEST_PARAMS}

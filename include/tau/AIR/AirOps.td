@@ -1043,6 +1043,7 @@ def Air_StoreOp : Air_Op<"store"> {
     }];
 
   let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 
   let extraClassDeclaration = [{
     mlir::Value getValue() {
@@ -1255,6 +1256,32 @@ def Air_NullOp : Air_Op<"null", [NoSideEffect]> {
   }];
 
   let assemblyFormat = "attr-dict `:` type($res)";
+}
+
+def Air_SizeOfOp : Air_Op<"sizeof", [NoSideEffect, ConstantLike]> {
+  let summary = "sizeof";
+
+  let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.constant` attribute-value `:` type
+    ```
+
+    The `sizeof` operation produces an SSA value equal to C `sizeof`
+    operator. Compile-time constant becomes an abstract symbolic value.
+    Example:
+
+    ```mlir
+    // Integer constant
+    %1 = "air.sizeof" si32 : ui64
+    ```
+  }];
+
+  let arguments = (ins TypeAttrOf<AnyType>:$type);
+  let results = (outs AnyInteger:$res);
+
+  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
