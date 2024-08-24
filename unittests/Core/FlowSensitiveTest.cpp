@@ -155,19 +155,19 @@ void test(int x) {
 
   auto Foobar = dyn_cast_or_null<CallOp>(Issue.ErrorEvent.Location);
   REQUIRE(Foobar);
-  CHECK(Foobar.getCallee().startswith("void foobar"));
+  CHECK(Foobar.getCallee().starts_with("void foobar"));
 
   REQUIRE(Issue.ErrorEvent.Parent != nullptr);
   auto BarEvent = *Issue.ErrorEvent.Parent;
   auto Bar = dyn_cast_or_null<CallOp>(BarEvent.Location);
   REQUIRE(Bar);
-  CHECK(Bar.getCallee().startswith("void bar"));
+  CHECK(Bar.getCallee().starts_with("void bar"));
 
   REQUIRE(BarEvent.Parent != nullptr);
   auto FooEvent = *BarEvent.Parent;
   auto Foo = dyn_cast_or_null<CallOp>(FooEvent.Location);
   REQUIRE(Foo);
-  CHECK(Foo.getCallee().startswith("void foo"));
+  CHECK(Foo.getCallee().starts_with("void foo"));
 
   CHECK(FooEvent.Parent == nullptr);
 }
