@@ -25,18 +25,6 @@ Type getPointee(Type Pointer) {
 //                                  ConstantOp
 //===----------------------------------------------------------------------===//
 
-void ConstantOp::print(OpAsmPrinter &P) { P << " " << getValue(); }
-
-ParseResult ConstantOp::parse(OpAsmParser &Parser, OperationState &Result) {
-  Attribute ValueAttr;
-  if (Parser.parseAttribute(ValueAttr, "value", Result.attributes))
-    return failure();
-
-  Type ConstType = ValueAttr.getType();
-
-  return Parser.addTypeToList(ConstType, Result.types);
-}
-
 void ConstantIntOp::build(OpBuilder &Builder, OperationState &Result,
                           llvm::APInt Value, IntegerType Type) {
   ConstantOp::build(Builder, Result, Type, Builder.getIntegerAttr(Type, Value));
@@ -79,7 +67,7 @@ bool ConstantFloatOp::classof(Operation *Op) {
 
 void LoadOp::print(OpAsmPrinter &P) {
   P.printOptionalAttrDict((*this)->getAttrs());
-  P << " " << from() << " : " << from().getType();
+  P << " " << getFrom() << " : " << getFrom().getType();
 }
 
 ParseResult LoadOp::parse(OpAsmParser &Parser, OperationState &Result) {
@@ -102,8 +90,8 @@ ParseResult LoadOp::parse(OpAsmParser &Parser, OperationState &Result) {
 //===----------------------------------------------------------------------===//
 
 LogicalResult StoreOp::verify() {
-  Type WhatType = what().getType();
-  PointerType WhereType = where().getType().cast<PointerType>();
+  Type WhatType = getWhat().getType();
+  PointerType WhereType = getWhere().getType().cast<PointerType>();
 
   if (WhereType.getElementType() == WhatType)
     return success();
@@ -115,7 +103,8 @@ LogicalResult StoreOp::verify() {
 
 void StoreOp::print(OpAsmPrinter &P) {
   P.printOptionalAttrDict((*this)->getAttrs());
-  P << " " << what() << " -> " << where() << " : " << where().getType();
+  P << " " << getWhat() << " -> " << getWhere() << " : "
+    << getWhere().getType();
 }
 
 ParseResult StoreOp::parse(OpAsmParser &Parser, OperationState &Result) {
@@ -198,14 +187,15 @@ bool CastToBaseOp::areCastCompatible(TypeRange Inputs, TypeRange Outputs) {
 mlir::SuccessorOperands CondBranchOp::getSuccessorOperands(unsigned Index) {
   assert(Index < getNumSuccessors() && "invalid successor index");
   const MutableOperandRange Range =
-      (Index == TrueIndex ? trueDestOperandsMutable()
-                          : falseDestOperandsMutable());
+      (Index == TrueIndex ? getTrueDestOperandsMutable()
+                          : getFalseDestOperandsMutable());
   return SuccessorOperands{Range};
 }
 
 Block *CondBranchOp::getSuccessorForOperands(ArrayRef<Attribute> Operands) {
-  if (IntegerAttr CondAttr = Operands.front().dyn_cast_or_null<IntegerAttr>())
-    return CondAttr.getValue().isOneValue() ? trueDest() : falseDest();
+  if (IntegerAttr CondAttr =
+          llvm::dyn_cast_or_null<IntegerAttr>(Operands.front()))
+    return CondAttr.getValue().isOne() ? getTrueDest() : getFalseDest();
   return nullptr;
 }
 
@@ -248,9 +238,9 @@ void RecordDefOp::print(OpAsmPrinter &P) {
           ->getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName())
           .getValue();
   P << " ";
-  P.printSymbolName(sym_nameAttr());
+  P.printSymbolName(getSymNameAttr());
   P << " : ";
-  P.printType(type());
+  P.printType(getType());
 }
 
 ParseResult RecordDefOp::parse(OpAsmParser &Parser, OperationState &Result) {
@@ -264,9 +254,9 @@ ParseResult RecordDefOp::parse(OpAsmParser &Parser, OperationState &Result) {
 
 void SizeOfOp::print(OpAsmPrinter &P) {
   P << " ";
-  P.printType(type());
+  P.printType(getType());
   P << " : ";
-  P.printType(res().getType());
+  P.printType(getRes().getType());
 }
 
 ParseResult SizeOfOp::parse(OpAsmParser &Parser, OperationState &Result) {

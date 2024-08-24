@@ -13,6 +13,7 @@
 #define AIROPS_H
 
 include "AIRDialect.td"
+include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
@@ -26,8 +27,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 //===----------------------------------------------------------------------===//
 
 class UnaryIntOp<string mnemonic, list<Trait> traits = []> :
-      Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
-                                            SameOperandsAndResultType])> {
+      Air_Op<mnemonic, !listconcat(traits, [Pure, SameOperandsAndResultType])> {
   let arguments = (ins AnyInteger:$operand);
   let results = (outs AnyInteger:$res);
   let assemblyFormat = "attr-dict $operand `:` type($res)";
@@ -80,8 +80,7 @@ def Air_NegIOp : UnaryIntOp<"negi"> {
 //===----------------------------------------------------------------------===//
 
 class BinaryIntOp<string mnemonic, list<Trait> traits = []> :
-      Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
-                                            SameOperandsAndResultType])> {
+      Air_Op<mnemonic, !listconcat(traits, [Pure, SameOperandsAndResultType])> {
   let arguments = (ins AnyInteger:$lhs, AnyInteger:$rhs);
   let results = (outs AnyInteger:$res);
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($res)";
@@ -355,8 +354,7 @@ def Air_LogicalShiftRightOp : BinaryIntOp<"lshr"> {
 //===----------------------------------------------------------------------===//
 
 class ComparisonOp<string mnemonic, list<Trait> traits = []> :
-      Air_Op<mnemonic, !listconcat(traits, [NoSideEffect,
-                                            SameTypeOperands])> {
+      Air_Op<mnemonic, !listconcat(traits, [Pure, SameTypeOperands])> {
   let results = (outs UI1:$res);
   let assemblyFormat = "attr-dict $lhs `,` $rhs `:` type($lhs)";
 }
@@ -740,7 +738,7 @@ def Air_NotEqualFOp : ComparisonFloatOp<"nef", [Commutative]> {
 def CondBranchOp : Air_Op<"cond_br",
     [AttrSizedOperandSegments,
      DeclareOpInterfaceMethods<BranchOpInterface, ["getSuccessorForOperands"]>,
-     NoSideEffect, Terminator]> {
+     Pure, Terminator]> {
   let summary = "conditional branch operation";
   let description = [{
     The `cond_br` terminator operation represents a conditional branch on a
@@ -794,19 +792,6 @@ def CondBranchOp : Air_Op<"cond_br",
     // These are the indices into the dests list.
     enum { TrueIndex = 0, FalseIndex = 1 };
 
-    // The condition operand is the first operand in the list.
-    mlir::Value getCondition() { return getOperand(0); }
-
-    /// Return the destination if the condition is true.
-    mlir::Block *getTrueDest() {
-      return getSuccessor(TrueIndex);
-    }
-
-    /// Return the destination if the condition is false.
-    mlir::Block *getFalseDest() {
-      return getSuccessor(FalseIndex);
-    }
-
     // Accessors for operands to the 'true' destination.
     mlir::Value getTrueOperand(unsigned idx) {
       assert(idx < getNumTrueOperands());
@@ -818,13 +803,13 @@ def CondBranchOp : Air_Op<"cond_br",
       setOperand(getTrueDestOperandIndex() + idx, value);
     }
 
-    operand_range getTrueOperands() { return trueDestOperands(); }
+    operand_range getTrueOperands() { return getTrueDestOperands(); }
 
     unsigned getNumTrueOperands()  { return getTrueOperands().size(); }
 
     /// Erase the operand at 'index' from the true operand list.
     void eraseTrueOperand(unsigned index)  {
-      trueDestOperandsMutable().erase(index);
+      getTrueDestOperandsMutable().erase(index);
     }
 
     // Accessors for operands to the 'false' destination.
@@ -837,13 +822,13 @@ def CondBranchOp : Air_Op<"cond_br",
       setOperand(getFalseDestOperandIndex() + idx, value);
     }
 
-    operand_range getFalseOperands() { return falseDestOperands(); }
+    operand_range getFalseOperands() { return getFalseDestOperands(); }
 
     unsigned getNumFalseOperands() { return getFalseOperands().size(); }
 
     /// Erase the operand at 'index' from the false operand list.
     void eraseFalseOperand(unsigned index) {
-      falseDestOperandsMutable().erase(index);
+      getFalseDestOperandsMutable().erase(index);
     }
 
   private:
@@ -872,7 +857,7 @@ class AirCastOp<string mnemonic,
       Type TypeConstraint = Type<Air_Type.predicate>,
       list<Trait> traits = []> :
     Air_Op<mnemonic, traits # [
-      NoSideEffect, SameOperandsAndResultShape,
+      SameOperandsAndResultShape,
       DeclareOpInterfaceMethods<CastOpInterface>]> {
   let arguments = (ins TypeConstraint:$source);
   let results = (outs TypeConstraint:$dest);
@@ -1082,12 +1067,12 @@ def Air_LoadOp : Air_Op<"load"> {
 
   let extraClassDeclaration = [{
     mlir::Value getAddress() {
-      return from();
+      return getFrom();
     }
   }];
 }
 
-def Air_RefOp : Air_Op<"ref", [NoSideEffect, SameOperandsAndResultType]> {
+def Air_RefOp : Air_Op<"ref", [Pure, SameOperandsAndResultType]> {
   let summary = "ref";
   let description = [{
     Syntax:
@@ -1109,7 +1094,7 @@ def Air_RefOp : Air_Op<"ref", [NoSideEffect, SameOperandsAndResultType]> {
   let assemblyFormat = "attr-dict $value `:` type($value)";
 }
 
-def Air_NoOp : Air_Op<"noop", [NoSideEffect, SameOperandsAndResultType]> {
+def Air_NoOp : Air_Op<"noop", [Pure, SameOperandsAndResultType]> {
   let summary = "noop";
   let description = [{
     Syntax:
@@ -1151,7 +1136,7 @@ def Air_UnsupportedOp : Air_Op<"unsupported"> {
   let assemblyFormat = "attr-dict $name `->` type($res)";
 }
 
-def Air_GetFieldPtr : Air_Op<"getfieldptr", [NoSideEffect]> {
+def Air_GetFieldPtr : Air_Op<"getfieldptr", [Pure]> {
   let summary = "getfieldptr";
   let description = [{
     Syntax:
@@ -1175,7 +1160,8 @@ def Air_GetFieldPtr : Air_Op<"getfieldptr", [NoSideEffect]> {
 //                                   Constant
 //===----------------------------------------------------------------------===//
 
-def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
+def Air_ConstantOp : Air_Op<"constant", [Pure, ConstantLike,
+    AllTypesMatch<["value", "result"]>]> {
   let summary = "constant";
   let description = [{
     Syntax:
@@ -1194,24 +1180,13 @@ def Air_ConstantOp : Air_Op<"constant", [NoSideEffect, ConstantLike]> {
     ```
   }];
 
-  let arguments = (ins AnyAttr:$value);
-  let results = (outs AnyType:$res);
+  let arguments = (ins TypedAttrInterface:$value);
+  let results = (outs AnyType:$result);
 
-  let hasCustomAssemblyFormat = 1;
-
-  let builders = [
-    OpBuilder<(ins "mlir::Attribute":$value),
-    [{ build($_builder, $_state, value.getType(), value); }]>,
-    OpBuilder<(ins "mlir::Attribute":$value, "mlir::Type":$type),
-    [{ build($_builder, $_state, type, value); }]>,
-  ];
-
-  let extraClassDeclaration = [{
-    mlir::Attribute getValue() { return (*this)->getAttr("value"); }
-  }];
+  let assemblyFormat = "attr-dict $value";
 }
 
-def Air_UndefOp : Air_Op<"undef", [NoSideEffect]> {
+def Air_UndefOp : Air_Op<"undef", [Pure]> {
   let results = (outs AnyType:$res);
 
   let summary = "undefined value";
@@ -1235,7 +1210,7 @@ def Air_UndefOp : Air_Op<"undef", [NoSideEffect]> {
   let assemblyFormat = "attr-dict `:` type($res)";
 }
 
-def Air_NullOp : Air_Op<"null", [NoSideEffect]> {
+def Air_NullOp : Air_Op<"null", [Pure]> {
   let results = (outs Air_AnyPointer:$res);
 
   let summary = "null pointer";
@@ -1258,7 +1233,7 @@ def Air_NullOp : Air_Op<"null", [NoSideEffect]> {
   let assemblyFormat = "attr-dict `:` type($res)";
 }
 
-def Air_SizeOfOp : Air_Op<"sizeof", [NoSideEffect, ConstantLike]> {
+def Air_SizeOfOp : Air_Op<"sizeof", [Pure, ConstantLike]> {
   let summary = "sizeof";
 
   let description = [{
@@ -1337,7 +1312,7 @@ def Air_RecordDefOp : Air_Op<"def", [Symbol]> {
   let hasCustomAssemblyFormat = 1;
   let extraClassDeclaration = [{
     static RecordDefOp create(mlir::Location Loc, llvm::StringRef Name, RecordType Record);
-    RecordType getRecordType() { return type(); }
+    RecordType getRecordType() { return getType(); }
   }];
 }
 

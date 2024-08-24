@@ -22,8 +22,7 @@ public:
   }
 
   void runOnOperation() override {
-    PassManager PM(&getContext(), OpPassManager::Nesting::Explicit,
-                   FuncOp::getOperationName());
+    PassManager PM(&getContext(), FuncOp::getOperationName());
     PM.addPass(simple::createLSEPass());
 
     if (failed(PM.run(getOperation())))

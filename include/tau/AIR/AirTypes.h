@@ -57,7 +57,7 @@ struct RecordTypeStorage : public mlir::TypeStorage {
     // Copy both arrays into the allocator.
     const auto Bases = Allocator.copyInto(Key.first);
     const auto OldFields = Key.second;
-    llvm::MutableArrayRef<RecordField> Fields = llvm::None;
+    llvm::MutableArrayRef<RecordField> Fields = std::nullopt;
     if (!OldFields.empty()) {
       RecordField *FieldsRaw = static_cast<RecordField *>(Allocator.allocate(
           OldFields.size() * sizeof(RecordField), alignof(RecordField)));

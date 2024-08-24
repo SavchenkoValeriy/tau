@@ -9,7 +9,7 @@ target_link_libraries(
   PRIVATE
   tauAir
   immer
-  MLIRArithmeticDialect
+  MLIRArithDialect
   MLIRControlFlowDialect
   MLIRFuncDialect
 )

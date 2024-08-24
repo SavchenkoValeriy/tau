@@ -60,8 +60,8 @@ public:
   }
 
   void process(NoOp Noop) const {
-    if (Noop.value().getDefiningOp<UndefOp>())
-      markChange<ERROR>(Noop.getOperation(), Noop.value());
+    if (Noop.getValue().getDefiningOp<UndefOp>())
+      markChange<ERROR>(Noop.getOperation(), Noop.getValue());
   }
 
   InFlightDiagnostic emitError(mlir::Operation *Op, UninitState State) {

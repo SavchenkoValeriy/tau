@@ -147,7 +147,7 @@ public:
   }
 
   [[nodiscard]] unsigned getIndex(air::StoreOp Store) const {
-    return getIndex(Store.what());
+    return getIndex(Store.getWhat());
   }
   [[nodiscard]] unsigned getIndex(Value Of) const {
     return DefToIndex.lookup(Of);
@@ -183,9 +183,9 @@ private:
   [[nodiscard]] inline ChangeResult updateState(ProgramPoint P);
 
   [[nodiscard]] static Value getAddress(air::StoreOp Store) {
-    Value Address = Store.where();
+    Value Address = Store.getWhere();
     if (auto Ref = dyn_cast<air::RefOp>(Address.getDefiningOp()))
-      return Ref.value();
+      return Ref.getValue();
     return Address;
   }
 
@@ -212,8 +212,8 @@ ReachingDefs::Implementation::Implementation(FuncOp Function,
 
 void ReachingDefs::Implementation::initDefinitions(FuncOp Function) {
   Function.walk([this](air::StoreOp Store) {
-    DefToIndex[Store.what()] = AllDefinitions.size();
-    AllDefinitions.push_back(Store.what());
+    DefToIndex[Store.getWhat()] = AllDefinitions.size();
+    AllDefinitions.push_back(Store.getWhat());
   });
 }
 
