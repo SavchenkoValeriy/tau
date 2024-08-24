@@ -1,6 +1,5 @@
 #include "tau/AIR/AirAttrs.h"
 
-#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/StringRef.h>
 
 using namespace tau::air;
@@ -31,10 +30,10 @@ unsigned StateChangeAttr::getOperandIdx() const {
   return std::get<1>(getImpl()->Key);
 }
 
-Optional<StateID> StateChangeAttr::getFromState() const {
+std::optional<StateID> StateChangeAttr::getFromState() const {
   if (StateID Result = StateID::fromRaw(std::get<2>(getImpl()->Key)))
     return Result;
-  return None;
+  return std::nullopt;
 }
 
 StateID StateChangeAttr::getToState() const {
@@ -69,8 +68,8 @@ unsigned StateTransferAttr::getToOperandIdx() const {
   return std::get<2>(getImpl()->Key);
 }
 
-Optional<StateID> StateTransferAttr::getLimitingState() const {
+std::optional<StateID> StateTransferAttr::getLimitingState() const {
   if (StateID Result = StateID::fromRaw(std::get<3>(getImpl()->Key)))
     return Result;
-  return None;
+  return std::nullopt;
 }

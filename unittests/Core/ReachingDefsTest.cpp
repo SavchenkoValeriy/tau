@@ -122,7 +122,7 @@ public:
   Value getDefinitionByLineNumber(LineNumber LN) const {
     for (auto *Op : getOpsByLineNumber(LN))
       if (auto Store = dyn_cast<air::StoreOp>(Op))
-        return Store.what();
+        return Store.getWhat();
     FAIL();
     return {};
   }

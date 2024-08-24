@@ -14,6 +14,7 @@
 #include "tau/AIR/AirTypes.h"
 
 #include <llvm/ADT/APSInt.h>
+#include <mlir/Bytecode/BytecodeOpInterface.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/OpDefinition.h>

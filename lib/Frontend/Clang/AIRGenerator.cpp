@@ -17,7 +17,6 @@
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Basic/TypeTraits.h>
-#include <llvm/ADT/None.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopedHashTable.h>
 
@@ -25,7 +24,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlow.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
@@ -626,7 +625,7 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
     ParamTypes.push_back(type(Param));
   }
 
-  mlir::TypeRange ReturnType = llvm::None;
+  mlir::TypeRange ReturnType = std::nullopt;
   if (!F->getReturnType()->isVoidType())
     ReturnType = type(F->getReturnType());
 
@@ -664,7 +663,7 @@ mlir::Value FunctionGenerator::VisitReturnStmt(const ReturnStmt *Return) {
   mlir::Value Operand =
       Return->getRetValue() ? Visit(Return->getRetValue()) : mlir::Value{};
   Builder.create<BranchOp>(loc(Return), Exit,
-                           Operand ? llvm::makeArrayRef(Operand)
+                           Operand ? llvm::ArrayRef(Operand)
                                    : ArrayRef<mlir::Value>());
   return {};
 }
@@ -1147,10 +1146,11 @@ mlir::Value FunctionGenerator::VisitCXXNewExpr(const CXXNewExpr *NewExpr) {
 mlir::Value FunctionGenerator::VisitInitListExpr(const InitListExpr *InitList) {
   assert(!InitializedValues.empty());
   // TODO: Support array initialization
-  switch (InitList->getType()->getTypeClass()) {
+  const auto DesugaredType = InitList->getType().getDesugaredType(Context);
+  switch (DesugaredType->getTypeClass()) {
   case clang::Type::Record: {
     air::RecordDefOp Def =
-        Parent.getRecordByType(InitList->getType()->castAs<RecordType>());
+        Parent.getRecordByType(DesugaredType->castAs<RecordType>());
     if (!Def) {
       // This shouldn't really happen, we should've seen record
       // definition at this point.

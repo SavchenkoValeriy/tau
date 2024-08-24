@@ -14,8 +14,6 @@
 #include "tau/AIR/StateID.h"
 
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/None.h>
-#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/StringRef.h>
 #include <mlir/IR/AttributeSupport.h>
 #include <mlir/IR/Attributes.h>
@@ -55,6 +53,8 @@ public:
   using Base::Base;
   using Base::getChecked;
 
+  static constexpr llvm::StringRef name = "change";
+
   static StateChangeAttr get(mlir::MLIRContext *Context,
                              llvm::StringRef CheckerID, unsigned OperandIdx,
                              StateID From, StateID To);
@@ -64,7 +64,7 @@ public:
 
   llvm::StringRef getCheckerID() const;
   unsigned getOperandIdx() const;
-  llvm::Optional<StateID> getFromState() const;
+  std::optional<StateID> getFromState() const;
   StateID getToState() const;
 };
 
@@ -100,6 +100,8 @@ public:
   using Base::Base;
   using Base::getChecked;
 
+  static constexpr llvm::StringRef name = "transfer";
+
   static StateTransferAttr get(mlir::MLIRContext *Context,
                                llvm::StringRef CheckerID,
                                unsigned FromOperandIdx, unsigned ToOperandIdx);
@@ -111,7 +113,7 @@ public:
   llvm::StringRef getCheckerID() const;
   unsigned getFromOperandIdx() const;
   unsigned getToOperandIdx() const;
-  llvm::Optional<StateID> getLimitingState() const;
+  std::optional<StateID> getLimitingState() const;
 };
 } // end namespace air
 } // end namespace tau

@@ -13,7 +13,6 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
-#include <mlir/Analysis/DataFlowAnalysis.h>
 #include <mlir/Analysis/DataFlowFramework.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -227,7 +226,7 @@ private:
         // in the attribute.
         Value AffectedValue = getOperandByIdx(Op, StateChange.getOperandIdx());
         StringRef CheckerID = StateChange.getCheckerID();
-        Optional<StateID> From = StateChange.getFromState();
+        std::optional<StateID> From = StateChange.getFromState();
         StateID To = StateChange.getToState();
 
         if (const StateEvent *NewEvent =
@@ -239,8 +238,8 @@ private:
   }
 
   const StateEvent *addTransition(Value ForValue, Operation &Location,
-                                  StringRef CheckerID, Optional<StateID> From,
-                                  StateID To) {
+                                  StringRef CheckerID,
+                                  std::optional<StateID> From, StateID To) {
     Events Current = CurrentState[ForValue];
 
     // TODO: This is a very crude deduplication method, but it helps to
