@@ -17,8 +17,9 @@
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Basic/TypeTraits.h>
+#include <functional>
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
-#include <llvm/ADT/ScopedHashTable.h>
 
 #include <llvm/ADT/ScopeExit.h>
 #include <llvm/ADT/StringRef.h>
@@ -42,6 +43,7 @@
 #include <mlir/Interfaces/ControlFlowInterfaces.h>
 
 #include <iterator>
+#include <stack>
 #include <utility>
 
 using namespace clang;
@@ -55,6 +57,69 @@ using namespace tau::frontend;
 namespace {
 
 using ShortString = SmallString<32>;
+
+class DeclarationsMap {
+public:
+  using KeyTy = const ValueDecl *;
+  using ValueTy = mlir::Value;
+
+  void insert(KeyTy Key, ValueTy Value) {
+    const auto Pair = std::make_pair(Key, Value);
+    Map.insert(Pair);
+    currentScope().get().insert(Pair);
+  }
+  ValueTy lookup(KeyTy Key) const {
+    if (const auto It = Map.find(Key); It != Map.end())
+      return It->getSecond();
+
+    return ValueTy();
+  }
+
+  class Scope {
+  public:
+    using ScopeHandler = llvm::function_ref<void(KeyTy, ValueTy)>;
+    Scope(DeclarationsMap &Parent, ScopeHandler AtExit)
+        : Parent(Parent), AtExit(AtExit) {
+      Parent.ScopeStack.push(*this);
+    }
+
+    Scope(const Scope &) = delete;
+    Scope &operator=(const Scope &) = delete;
+
+    Scope(Scope &&) = delete;
+    Scope &operator=(Scope &&) = delete;
+
+    ~Scope() {
+      llvm::for_each(Values, [AtExit = AtExit](std::pair<KeyTy, ValueTy> Pair) {
+        AtExit(Pair.first, Pair.second);
+      });
+      assert(&Parent.ScopeStack.top().get() == this &&
+             "Inconsistent scope stack!");
+      Parent.ScopeStack.pop();
+    }
+
+  private:
+    void insert(std::pair<KeyTy, ValueTy> Value) { Values.push_back(Value); }
+
+    DeclarationsMap &Parent;
+    std::vector<std::pair<KeyTy, ValueTy>> Values;
+    ScopeHandler AtExit;
+
+    friend class DeclarationsMap;
+  };
+
+private:
+  using ScopeRef = std::reference_wrapper<Scope>;
+
+  ScopeRef currentScope() const {
+    assert(!ScopeStack.empty() && "No scopes left!");
+    return ScopeStack.top();
+  }
+
+  using MapTy = llvm::DenseMap<KeyTy, ValueTy>;
+  MapTy Map;
+  std::stack<ScopeRef> ScopeStack;
+};
 
 class TopLevelGenerator {
 public:
@@ -190,7 +255,7 @@ private:
     Exit = Target.addBlock();
     handleExit();
 
-    DeclScope ParamScope(Declarations);
+    DeclScope ParamScope(Declarations, [](const ValueDecl *, mlir::Value) {});
 
     Builder.setInsertionPointToStart(Entry);
     auto Arguments = llvm::make_range(Entry->getArguments().begin(),
@@ -369,9 +434,8 @@ private:
   TopLevelGenerator &Parent;
   ASTContext &Context;
   OpBuilder &Builder;
-  using DeclMap = llvm::ScopedHashTable<const ValueDecl *, mlir::Value>;
-  using DeclScope = DeclMap::ScopeTy;
-  DeclMap Declarations;
+  using DeclScope = DeclarationsMap::Scope;
+  DeclarationsMap Declarations;
   Block *Entry, *Exit;
   mlir::Value ThisParam;
   std::stack<mlir::Value> InitializedValues;
@@ -653,7 +717,7 @@ OwningModuleRef AIRGenerator::generate(MLIRContext &MContext,
 //===----------------------------------------------------------------------===//
 
 mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
-  DeclScope Scope(Declarations);
+  DeclScope Scope(Declarations, [](const ValueDecl *, mlir::Value) {});
   for (const auto *Child : Compound->body())
     Visit(Child);
   return nullptr;
@@ -1205,7 +1269,8 @@ void FunctionGenerator::init(mlir::Value Memory, const Expr *Init) {
 //===----------------------------------------------------------------------===//
 
 mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
-  DeclScope IfVariableScope(Declarations);
+  DeclScope IfVariableScope(Declarations,
+                            [](const ValueDecl *, mlir::Value) {});
 
   if (If->getConditionVariableDeclStmt())
     Visit(If->getConditionVariableDeclStmt());
@@ -1273,7 +1338,8 @@ mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
 }
 
 mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
-  DeclScope WhileVariableScope(Declarations);
+  DeclScope WhileVariableScope(Declarations,
+                               [](const ValueDecl *, mlir::Value) {});
 
   // Here we deal with three basic blocks:
   //   * basic block for the header of the loop
@@ -1321,7 +1387,8 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
 }
 
 mlir::Value FunctionGenerator::VisitForStmt(const ForStmt *ForLoop) {
-  DeclScope ForVariableScope(Declarations);
+  DeclScope ForVariableScope(Declarations,
+                             [](const ValueDecl *, mlir::Value) {});
 
   // Here we deal with three basic blocks:
   //   * basic block for the header of the loop
