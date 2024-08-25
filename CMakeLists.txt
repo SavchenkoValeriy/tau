@@ -78,7 +78,7 @@ include(AddTau)
 FetchContent_Declare(
   Immer
   GIT_REPOSITORY https://github.com/arximboldi/immer.git
-  GIT_TAG        v0.8.0
+  GIT_TAG        v0.8.1
 )
 FetchContent_GetProperties(Immer)
 if(NOT Immer_POPULATED)
