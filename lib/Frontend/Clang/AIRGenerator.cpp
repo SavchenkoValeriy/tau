@@ -17,7 +17,6 @@
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Basic/TypeTraits.h>
-#include <functional>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
 
@@ -42,6 +41,7 @@
 #include <mlir/IR/Verifier.h>
 #include <mlir/Interfaces/ControlFlowInterfaces.h>
 
+#include <functional>
 #include <iterator>
 #include <stack>
 #include <utility>
@@ -77,7 +77,7 @@ public:
 
   class Scope {
   public:
-    using ScopeHandler = llvm::function_ref<void(KeyTy, ValueTy)>;
+    using ScopeHandler = std::function<void(KeyTy, ValueTy)>;
     Scope(DeclarationsMap &Parent, ScopeHandler AtExit)
         : Parent(Parent), AtExit(AtExit) {
       Parent.ScopeStack.push(*this);
@@ -250,6 +250,8 @@ private:
       : Target(ToGenerate), Original(Original), Parent(Parent),
         Context(Parent.getContext()), Builder(Parent.getBuilder()) {}
 
+  using DeclScope = DeclarationsMap::Scope;
+
   void generate() {
     Entry = Target.addEntryBlock();
     Exit = Target.addBlock();
@@ -293,6 +295,17 @@ private:
 
     if (CurrentBlock->hasNoPredecessors() && CurrentBlock != Entry)
       CurrentBlock->erase();
+
+    Builder.setInsertionPointToEnd(Exit);
+  }
+
+  DeclScope::ScopeHandler getScopeExitHandler(mlir::Location Loc) {
+    return [Loc, this](const ValueDecl *, mlir::Value Decl) {
+      Block *Current = Builder.getBlock();
+      if (Current->mightHaveTerminator())
+        Builder.setInsertionPoint(Current->getTerminator());
+      dealloca(Decl, Loc);
+    };
   }
 
   void handleExit() {
@@ -367,6 +380,10 @@ private:
                                          mlir::Value{});
   }
 
+  void dealloca(mlir::Value Pointer, mlir::Location Loc) {
+    Builder.create<air::DeallocaOp>(Loc, Pointer);
+  }
+
   mlir::Value declareThis(mlir::Value InitValue) {
     // this pointer is not assignable, so we can express this as air.ref
     ThisParam = Builder.create<air::RefOp>(loc(&Original), InitValue);
@@ -434,7 +451,6 @@ private:
   TopLevelGenerator &Parent;
   ASTContext &Context;
   OpBuilder &Builder;
-  using DeclScope = DeclarationsMap::Scope;
   DeclarationsMap Declarations;
   Block *Entry, *Exit;
   mlir::Value ThisParam;
@@ -717,7 +733,8 @@ OwningModuleRef AIRGenerator::generate(MLIRContext &MContext,
 //===----------------------------------------------------------------------===//
 
 mlir::Value FunctionGenerator::VisitCompoundStmt(const CompoundStmt *Compound) {
-  DeclScope Scope(Declarations, [](const ValueDecl *, mlir::Value) {});
+  mlir::Location ClosingScopeLoc = loc(Compound->getRBracLoc());
+  DeclScope Scope(Declarations, getScopeExitHandler(ClosingScopeLoc));
   for (const auto *Child : Compound->body())
     Visit(Child);
   return nullptr;
@@ -1269,8 +1286,8 @@ void FunctionGenerator::init(mlir::Value Memory, const Expr *Init) {
 //===----------------------------------------------------------------------===//
 
 mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
-  DeclScope IfVariableScope(Declarations,
-                            [](const ValueDecl *, mlir::Value) {});
+  mlir::Location EndLoc = loc(If->getSourceRange().getEnd());
+  DeclScope IfVariableScope(Declarations, getScopeExitHandler(EndLoc));
 
   if (If->getConditionVariableDeclStmt())
     Visit(If->getConditionVariableDeclStmt());
@@ -1338,8 +1355,8 @@ mlir::Value FunctionGenerator::VisitIfStmt(const IfStmt *If) {
 }
 
 mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
-  DeclScope WhileVariableScope(Declarations,
-                               [](const ValueDecl *, mlir::Value) {});
+  mlir::Location EndLoc = loc(While->getSourceRange().getEnd());
+  DeclScope WhileVariableScope(Declarations, getScopeExitHandler(EndLoc));
 
   // Here we deal with three basic blocks:
   //   * basic block for the header of the loop
@@ -1387,8 +1404,8 @@ mlir::Value FunctionGenerator::VisitWhileStmt(const WhileStmt *While) {
 }
 
 mlir::Value FunctionGenerator::VisitForStmt(const ForStmt *ForLoop) {
-  DeclScope ForVariableScope(Declarations,
-                             [](const ValueDecl *, mlir::Value) {});
+  mlir::Location EndLoc = loc(ForLoop->getSourceRange().getEnd());
+  DeclScope ForVariableScope(Declarations, getScopeExitHandler(EndLoc));
 
   // Here we deal with three basic blocks:
   //   * basic block for the header of the loop
