@@ -18,6 +18,7 @@ tau::core::AddressTakenAnalysis::AddressTakenAnalysis(Operation *Op) {
   Function.walk([this](air::AllocaOp Alloca) {
     for (auto &Use : Alloca.getResult().getUses()) {
       if (isa<air::LoadOp>(Use.getOwner()) ||
+          isa<air::DeallocaOp>(Use.getOwner()) ||
           (isa<air::StoreOp>(Use.getOwner()) && Use.getOperandNumber() != 0))
         continue;
 

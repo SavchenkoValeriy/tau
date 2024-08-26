@@ -1011,6 +1011,29 @@ def Air_HeapAllocaOp : Air_Op<"halloca"> {
     let hasVerifier = 0;
 }
 
+def Air_DeallocaOp : Air_Op<"dealloca"> {
+    let arguments = (ins Air_AnyPointer:$ptr);
+    let summary = "dealloca operation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= ssa-id `=` `air.dealloca` ssa-use
+    ```
+
+    The `dealloca` operation represents all deallocation on stack.
+    Operation has no standard attributes.
+
+    Example:
+
+    ```mlir
+    dealloca %a
+    ```
+    }];
+    let assemblyFormat = "attr-dict $ptr `:` type($ptr)";
+    let hasVerifier = 0;
+}
+
 def Air_StoreOp : Air_Op<"store"> {
   let arguments = (ins AnyType:$what, Air_AnyPointer:$where);
   let summary = "store operation";
