@@ -47,11 +47,11 @@ void test_nontrivial_destructor() {
 }
 // CHECK-LABEL: @"void test_nontrivial_destructor()"
 // CHECK: %[[#APTR:]] = air.alloca : !air<ptr !air<recref @A>>
-// TODO:  call @"void A::~A(A *)"(%[[#APTR]])
+// CHECK: call @"void A::~A(A *)"(%[[#APTR]])
 
 void test_implicit_destructor() {
   C c;
 }
 // CHECK-LABEL: @"void test_implicit_destructor()"
 // CHECK: %[[#CPTR:]] = air.alloca : !air<ptr !air<recref @C>>
-// TODO:  call @"void C::~C(C *)"(%[[#CPTR]])
+// CHECK: call @"void C::~C(C *)"(%[[#CPTR]])

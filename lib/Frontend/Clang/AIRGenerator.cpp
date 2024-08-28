@@ -3,6 +3,7 @@
 #include "tau/AIR/AirDialect.h"
 #include "tau/AIR/AirOps.h"
 #include "tau/AIR/AirTypes.h"
+#include "tau/Support/LazyValue.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
@@ -53,6 +54,8 @@ using namespace mlir::cf;
 using namespace mlir::func;
 using namespace tau;
 using namespace tau::frontend;
+
+using tau::support::LazyValue;
 
 namespace {
 
@@ -319,11 +322,12 @@ private:
   void generateDestructorBody(const CXXDestructorDecl *Dtor);
 
   DeclScope::ScopeHandler getScopeExitHandler(mlir::Location Loc) {
-    return [Loc, this](const ValueDecl *, mlir::Value Decl) {
+    return [Loc, this](const ValueDecl *Decl, mlir::Value Value) {
       Block *Current = Builder.getBlock();
       if (Current->mightHaveTerminator())
         Builder.setInsertionPoint(Current->getTerminator());
-      dealloca(Decl, Loc);
+      destruct(Decl, Value, Loc);
+      dealloca(Value, Loc);
     };
   }
 
@@ -397,6 +401,28 @@ private:
     // TODO: support array types
     return Builder.create<air::AllocaOp>(Loc, air::PointerType::get(type(D)),
                                          mlir::Value{});
+  }
+
+  void destruct(const ValueDecl *Decl, LazyValue<mlir::Value> Pointer,
+                mlir::Location Loc) {
+    destruct(Decl->getType(), Pointer, Loc);
+  }
+  void destruct(QualType Type, LazyValue<mlir::Value> Pointer,
+                mlir::Location Loc) {
+    const CXXRecordDecl *Class = Type->getAsCXXRecordDecl();
+    if (!Class)
+      return;
+
+    const CXXDestructorDecl *Dtor = Class->getDestructor();
+    if (!Dtor)
+      return;
+
+    const FuncOp DtorFunc = Parent.getFunctionByDecl(Dtor);
+    if (!DtorFunc)
+      return;
+
+    mlir::Value PointerValue = Pointer;
+    Builder.create<mlir::func::CallOp>(Loc, DtorFunc, PointerValue);
   }
 
   void dealloca(mlir::Value Pointer, mlir::Location Loc) {
@@ -1308,22 +1334,13 @@ void FunctionGenerator::generateDestructorBody(const CXXDestructorDecl *Dtor) {
 
   // Generate base class destructor calls
   for (const CXXBaseSpecifier &Base : Class->bases()) {
+    mlir::Location Loc = loc(&Base);
     QualType BaseType = Base.getType();
-    const CXXRecordDecl *BaseClass = BaseType->getAsCXXRecordDecl();
-    if (!BaseClass)
-      continue;
-
-    const CXXDestructorDecl *BaseDtor = BaseClass->getDestructor();
-    if (!BaseDtor)
-      continue;
-
-    const FuncOp BaseFunc = Parent.getFunctionByDecl(BaseDtor);
-    if (!BaseFunc)
-      continue;
-
-    mlir::Value BasePtr = Builder.create<air::CastToBaseOp>(
-        loc(&Base), air::PointerType::get(type(BaseType)), ThisParam);
-    Builder.create<mlir::func::CallOp>(loc(&Base), BaseFunc, BasePtr);
+    destruct(BaseType, LazyValue<mlir::Value>([&]() {
+               return Builder.create<air::CastToBaseOp>(
+                   Loc, air::PointerType::get(type(BaseType)), ThisParam);
+             }),
+             Loc);
   }
 
   Builder.setInsertionPointToStart(Exit);
@@ -1331,21 +1348,12 @@ void FunctionGenerator::generateDestructorBody(const CXXDestructorDecl *Dtor) {
   // Generate member destructor calls in reverse order
   for (const FieldDecl *Field : Class->fields()) {
     QualType FieldType = Field->getType();
-    const CXXRecordDecl *FieldClass = FieldType->getAsCXXRecordDecl();
-    if (!FieldClass)
-      continue;
-
-    const CXXDestructorDecl *FieldDtor = FieldClass->getDestructor();
-    if (!FieldDtor)
-      continue;
-
-    const FuncOp FieldDtorFunc = Parent.getFunctionByDecl(FieldDtor);
-    if (!FieldDtorFunc)
-      continue;
-
-    mlir::Value FieldPtr = getMemberPointer(loc(Field), ThisParam,
-                                            Field->getName(), type(FieldType));
-    Builder.create<mlir::func::CallOp>(loc(Field), FieldDtorFunc, FieldPtr);
+    mlir::Location Loc = loc(Field);
+    destruct(FieldType, LazyValue<mlir::Value>([&]() {
+               return getMemberPointer(Loc, ThisParam, Field->getName(),
+                                       type(FieldType));
+             }),
+             Loc);
     Builder.setInsertionPointToStart(Exit);
   }
 }
