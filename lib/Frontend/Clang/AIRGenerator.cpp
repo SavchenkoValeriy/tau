@@ -189,13 +189,23 @@ class FunctionGenerator
 public:
   static void generate(FuncOp &ToGenerate, const FunctionDecl &Original,
                        TopLevelGenerator &Parent) {
-    if (!Original.hasBody()) {
+    if (!shouldGenerateFunction(Original)) {
       ToGenerate.setVisibility(mlir::SymbolTable::Visibility::Private);
       return;
     }
 
     FunctionGenerator G{ToGenerate, Original, Parent};
     G.generate();
+  }
+
+  static bool shouldGenerateFunction(const FunctionDecl &FD) {
+    if (FD.hasBody())
+      return true;
+
+    if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(&FD))
+      return Dtor->isDefaulted() || Dtor->isImplicit();
+
+    return false;
   }
 
   mlir::Value VisitCompoundStmt(const CompoundStmt *Compound);
@@ -287,17 +297,26 @@ private:
       }
     }
 
-    Visit(Original.getBody());
-    Block *CurrentBlock = Builder.getBlock();
+    if (Original.hasBody())
+      Visit(Original.getBody());
 
+    Block *CurrentBlock = Builder.getBlock();
     if (needToAddExtraReturn(CurrentBlock))
       Builder.create<mlir::cf::BranchOp>(Builder.getUnknownLoc(), Exit);
 
     if (CurrentBlock->hasNoPredecessors() && CurrentBlock != Entry)
       CurrentBlock->erase();
 
+    // For destructors, generate member and base class destructor calls after
+    // the body
+    if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(&Original)) {
+      generateDestructorBody(Dtor);
+    }
+
     Builder.setInsertionPointToEnd(Exit);
   }
+
+  void generateDestructorBody(const CXXDestructorDecl *Dtor);
 
   DeclScope::ScopeHandler getScopeExitHandler(mlir::Location Loc) {
     return [Loc, this](const ValueDecl *, mlir::Value Decl) {
@@ -629,6 +648,7 @@ void TopLevelGenerator::generateDecl(const Decl *D) {
   switch (D->getKind()) {
   case Decl::CXXMethod:
   case Decl::CXXConstructor:
+  case Decl::CXXDestructor:
   case Decl::Function:
     generateFunction(cast<FunctionDecl>(D));
     break;
@@ -692,6 +712,12 @@ void TopLevelGenerator::generateFunction(const FunctionDecl *F) {
   if (const auto *Ctor = dyn_cast<CXXConstructorDecl>(F)) {
     // TODO: support r-value references and move constructors
     if (Ctor->isMoveConstructor())
+      return;
+  }
+  if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(F)) {
+    // Handle destructor
+    // For now, we'll generate AIR for non-virtual destructors
+    if (Dtor->isVirtual())
       return;
   }
   ShortString Name = getFullyQualifiedName(F);
@@ -1263,6 +1289,66 @@ FunctionGenerator::VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *Literal) {
                                             type(Literal).cast<IntegerType>());
 }
 
+//===----------------------------------------------------------------------===//
+//                               Destructor logic
+//===----------------------------------------------------------------------===//
+
+void FunctionGenerator::generateDestructorBody(const CXXDestructorDecl *Dtor) {
+  const CXXRecordDecl *Class = Dtor->getParent();
+
+  // We need to generate destruction of class fields and base classes.
+  // Fields should be destroyed in the reverese order of their declaration,
+  // folowed by the destruction of bases.
+  //
+  // Because fields don't provide a bidirectional iterator, it's easier to
+  // generate destrcution in the reverse order and come back to the top of the
+  // Exit block after every single destructor call.
+
+  Builder.setInsertionPointToStart(Exit);
+
+  // Generate base class destructor calls
+  for (const CXXBaseSpecifier &Base : Class->bases()) {
+    QualType BaseType = Base.getType();
+    const CXXRecordDecl *BaseClass = BaseType->getAsCXXRecordDecl();
+    if (!BaseClass)
+      continue;
+
+    const CXXDestructorDecl *BaseDtor = BaseClass->getDestructor();
+    if (!BaseDtor)
+      continue;
+
+    const FuncOp BaseFunc = Parent.getFunctionByDecl(BaseDtor);
+    if (!BaseFunc)
+      continue;
+
+    mlir::Value BasePtr = Builder.create<air::CastToBaseOp>(
+        loc(&Base), air::PointerType::get(type(BaseType)), ThisParam);
+    Builder.create<mlir::func::CallOp>(loc(&Base), BaseFunc, BasePtr);
+  }
+
+  Builder.setInsertionPointToStart(Exit);
+
+  // Generate member destructor calls in reverse order
+  for (const FieldDecl *Field : Class->fields()) {
+    QualType FieldType = Field->getType();
+    const CXXRecordDecl *FieldClass = FieldType->getAsCXXRecordDecl();
+    if (!FieldClass)
+      continue;
+
+    const CXXDestructorDecl *FieldDtor = FieldClass->getDestructor();
+    if (!FieldDtor)
+      continue;
+
+    const FuncOp FieldDtorFunc = Parent.getFunctionByDecl(FieldDtor);
+    if (!FieldDtorFunc)
+      continue;
+
+    mlir::Value FieldPtr = getMemberPointer(loc(Field), ThisParam,
+                                            Field->getName(), type(FieldType));
+    Builder.create<mlir::func::CallOp>(loc(Field), FieldDtorFunc, FieldPtr);
+    Builder.setInsertionPointToStart(Exit);
+  }
+}
 //===----------------------------------------------------------------------===//
 //                                Initialization
 //===----------------------------------------------------------------------===//
