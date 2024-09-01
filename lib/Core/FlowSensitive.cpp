@@ -3,6 +3,7 @@
 #include "tau/AIR/AirAttrs.h"
 #include "tau/AIR/StateID.h"
 #include "tau/Core/FlowWorklist.h"
+#include "tau/Core/MemoryStore.h"
 #include "tau/Core/State.h"
 #include "tau/Core/StateEventForest.h"
 
@@ -115,10 +116,13 @@ template <> struct hash<Value> {
 class FlowSensitiveAnalysis::Implementation {
   using ValueEvents = immer::map<Value, Events>;
   using BlockStateMap = SmallVector<ValueEvents, 20>;
+  using BlockStoreMap = SmallVector<MemoryStore, 20>;
 
   // State management
   BlockStateMap States;
+  BlockStoreMap Stores;
   ValueEvents CurrentState;
+  MemoryStore CurrentStore;
 
   // Traversal instruments
   TopoOrderBlockEnumerator &Enumerator;
@@ -141,6 +145,7 @@ public:
         DomTree(AM.getAnalysis<DominanceInfo>()),
         PostDomTree(AM.getAnalysis<PostDominanceInfo>()) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
+    Stores.insert(Stores.end(), Function.getBlocks().size(), MemoryStore{});
     Worklist.enqueue(&Function.getBlocks().front());
   }
 
@@ -157,7 +162,7 @@ private:
     // CurrentState contains the state of all values while we walk
     // through the basic block.  We start it with the disjunction
     // of all states from the block's predecessors.
-    CurrentState = joinPreds(BB);
+    std::tie(CurrentState, CurrentStore) = joinPreds(BB);
 
     // Sequentially visit all block's operation.
     // This visitation affects the CurrentState.
@@ -173,18 +178,22 @@ private:
     //    * It's the first time we visit this block, and it's
     //      successors are still to be processed at least once.
     if (setState(BB, CurrentState) == ChangeResult::Change ||
+        setStore(BB, CurrentStore) == ChangeResult::Change ||
         !isProcessed(BB)) {
       markProcessed(BB);
       Worklist.enqueueSuccessors(BB);
     }
   }
 
-  ValueEvents joinPreds(Block &BB) const {
-    ValueEvents Result;
-    for (Block *Pred : BB.getPredecessors())
-      Result = join(Result, getState(*Pred));
+  std::pair<ValueEvents, MemoryStore> joinPreds(Block &BB) const {
+    ValueEvents Events;
+    MemoryStore Store;
+    for (Block *Pred : BB.getPredecessors()) {
+      Events = join(Events, getState(*Pred));
+      Store = Store.join(getStore(*Pred));
+    }
 
-    return Result;
+    return {Events, Store};
   }
 
   static ValueEvents join(const ValueEvents &LHS, const ValueEvents &RHS) {
@@ -215,6 +224,8 @@ private:
   }
 
   void visit(Operation &Op) {
+    CurrentStore = CurrentStore.interpret(&Op);
+
     // Let's go over state attributes, the attributes marking what
     // should happen with all the values involved.
     auto StateAttrs = getStateAttributes(&Op);
@@ -229,10 +240,13 @@ private:
         std::optional<StateID> From = StateChange.getFromState();
         StateID To = StateChange.getToState();
 
-        if (const StateEvent *NewEvent =
-                addTransition(AffectedValue, Op, CheckerID, From, To);
-            NewEvent != nullptr && To.isError())
-          addIssue(*NewEvent);
+        for (Value CanonicalAffectedValue :
+             CurrentStore.getDefininingValues(AffectedValue)) {
+          if (const StateEvent *NewEvent = addTransition(
+                  CanonicalAffectedValue, Op, CheckerID, From, To);
+              NewEvent != nullptr && To.isError())
+            addIssue(*NewEvent);
+        }
       }
     }
   }
@@ -377,6 +391,19 @@ private:
 
   ValueEvents &getState(Block &BB) { return States[index(BB)]; }
   const ValueEvents &getState(Block &BB) const { return States[index(BB)]; }
+
+  ChangeResult setStore(Block &BB, MemoryStore NewStore) {
+    MemoryStore &Current = getStore(BB);
+
+    if (Current == NewStore)
+      return ChangeResult::NoChange;
+
+    Current = NewStore;
+    return ChangeResult::Change;
+  }
+
+  MemoryStore &getStore(Block &BB) { return Stores[index(BB)]; }
+  const MemoryStore &getStore(Block &BB) const { return Stores[index(BB)]; }
 
   bool isProcessed(const Block &BB) const { return Processed.test(index(BB)); }
   void markProcessed(const Block &BB) { Processed.set(index(BB)); }
