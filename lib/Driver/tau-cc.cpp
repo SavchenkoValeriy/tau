@@ -60,6 +60,8 @@ createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
 
 LogicalResult tauCCMain(int Argc, const char **Argv) {
   tau::chx::registerUseOfUninitChecker();
+  tau::chx::registerUseAfterFreeChecker();
+
   tau::core::CheckerCLParser CheckersOptions(CheckersCategory);
   cl::HideUnrelatedOptions({&TauCategory, &CheckersCategory});
 

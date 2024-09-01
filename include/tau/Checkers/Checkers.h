@@ -15,6 +15,7 @@ namespace tau {
 namespace chx {
 
 void registerUseOfUninitChecker();
+void registerUseAfterFreeChecker();
 
 } // end namespace chx
 } // end namespace tau
