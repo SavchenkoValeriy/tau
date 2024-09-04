@@ -42,7 +42,7 @@ Include(FetchContent)
 FetchContent_Declare(
   Catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-  GIT_TAG        v2.13.7
+  GIT_TAG        v3.7.0
 )
 
 set(CATCH_BUILD_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
@@ -52,7 +52,7 @@ FetchContent_MakeAvailable(Catch2)
 FetchContent_Declare(
   trompeloeil
   GIT_REPOSITORY https://github.com/rollbear/trompeloeil.git
-  GIT_TAG        v41
+  GIT_TAG        v48
 )
 FetchContent_MakeAvailable(trompeloeil)
 

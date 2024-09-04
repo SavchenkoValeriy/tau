@@ -26,7 +26,7 @@ std::ostream &operator<<(std::ostream &OS, const Value &V) {
 }
 } // end namespace mlir
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace tau;
 using namespace core;

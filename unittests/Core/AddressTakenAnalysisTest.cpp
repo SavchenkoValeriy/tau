@@ -11,7 +11,7 @@
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace tau;
 using namespace core;

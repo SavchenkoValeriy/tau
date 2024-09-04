@@ -8,7 +8,7 @@
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Pass/PassManager.h>
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <catch2/trompeloeil.hpp>
 
 using namespace tau;
