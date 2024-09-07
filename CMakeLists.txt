@@ -3,6 +3,14 @@ cmake_minimum_required(VERSION 3.14)
 if(POLICY CMP0116)
   cmake_policy(SET CMP0116 NEW)
 endif()
+if(POLICY CMP0156)
+  # Deduplicate libraries during linking
+  cmake_policy(SET CMP0156 NEW)
+endif()
+# immer has optional dependency on Boost and this suppresses the warning.
+# We don't use it anyways.
+set(CMAKE_POLICY_DEFAULT_CMP0167 OLD)
+
 
 project(tau
   ${cmake_3_0_PROJ_VERSION}
@@ -74,23 +82,20 @@ include(Catch)
 # import Tau CMake functions
 include(AddTau)
 
-
 FetchContent_Declare(
   Immer
   GIT_REPOSITORY https://github.com/arximboldi/immer.git
   GIT_TAG        v0.8.1
 )
-FetchContent_GetProperties(Immer)
-if(NOT Immer_POPULATED)
-  FetchContent_Populate(Immer)
+set(immer_BUILD_TESTS OFF)
+set(immer_BUILD_EXAMPLES OFF)
+set(immer_BUILD_DOCS OFF)
+set(immer_BUILD_EXTRAS OFF)
 
-  # From Immer we don't want to import all the targets, just
-  # the library itself
-  add_library(immer INTERFACE)
-  target_include_directories(immer INTERFACE
-    $<BUILD_INTERFACE:${immer_BINARY_DIR}/>
-    $<BUILD_INTERFACE:${immer_SOURCE_DIR}/>)
-endif()
+set(FPHSA_NAME_MISMATCHED on) # see: https://github.com/arximboldi/immer/issues/204
+FetchContent_MakeAvailable(immer)
+unset(FPHSA_NAME_MISMATCHED)
+FetchContent_GetProperties(Immer)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
