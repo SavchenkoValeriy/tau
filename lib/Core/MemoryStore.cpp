@@ -6,12 +6,14 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/TypeSwitch.h>
+#include <llvm/Support/raw_ostream.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Support/LLVM.h>
 
 #include <immer/map_transient.hpp>
 #include <immer/set_transient.hpp>
+#include <variant>
 
 using namespace tau;
 using namespace air;
@@ -83,6 +85,16 @@ template <> struct hash<mlir::Value> {
   }
 };
 
+[[maybe_unused]] llvm::StringRef getName(Relationship Rel) {
+  if (std::holds_alternative<Field>(Rel)) {
+    return "Field";
+  }
+  if (std::holds_alternative<Element>(Rel)) {
+    return "Element";
+  }
+  return "PointsTo";
+}
+
 } // end namespace std
 
 //===----------------------------------------------------------------------===//
@@ -122,11 +134,14 @@ public:
   void store(mlir::Value Base, Relationship Rel, mlir::Value ValueToStore) {
     const SetOfValues BaseCanonicals = BaseStore.getDefininingValues(Base);
     for (mlir::Value KnownBase : BaseCanonicals) {
-      Model.set(MemoryKey{KnownBase, Rel}, SetOfValues{ValueToStore});
+      Model.set(MemoryKey{KnownBase, Rel},
+                BaseStore.getDefininingValues(ValueToStore));
     }
   }
 
-  void alias(mlir::Value From, mlir::Value To) { setCanonical(From, To); }
+  void alias(mlir::Value From, mlir::Value To) {
+    setCanonicals(From, BaseStore.getDefininingValues(To));
+  }
 
   void setCanonical(mlir::Value For, mlir::Value Canonical) {
     if (For != Canonical)
@@ -201,7 +216,9 @@ MemoryStore MemoryStore::interpret(mlir::Operation *Op) {
                     FieldPtr.getRes());
       })
       .Case<air::NoOp>(
-          [&B](air::NoOp Noop) { B.alias(Noop.getRes(), Noop.getValue()); });
+          [&B](air::NoOp Noop) { B.alias(Noop.getRes(), Noop.getValue()); })
+      .Case<air::RefOp>(
+          [&B](air::RefOp Ref) { B.alias(Ref.getRes(), Ref.getValue()); });
   return B.build();
 }
 
