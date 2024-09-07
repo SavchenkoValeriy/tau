@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 if(POLICY CMP0116)
-  cmake_policy(SET CMP0116 OLD)
+  cmake_policy(SET CMP0116 NEW)
 endif()
 
 project(tau
