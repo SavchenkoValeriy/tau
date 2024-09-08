@@ -7,9 +7,13 @@ if(POLICY CMP0156)
   # Deduplicate libraries during linking
   cmake_policy(SET CMP0156 NEW)
 endif()
+if(POLICY CMP0077)
+  cmake_policy(SET CMP0077 NEW)
+endif()
 # immer has optional dependency on Boost and this suppresses the warning.
 # We don't use it anyways.
 set(CMAKE_POLICY_DEFAULT_CMP0167 OLD)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 
 project(tau

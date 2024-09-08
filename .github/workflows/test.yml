@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-22.04
+          - macos-14
         configuration:
           - Release
           - Debug
@@ -25,14 +25,18 @@ jobs:
         uses: actions/checkout@v2
       - name: Install Ninja
         uses: seanmiddleditch/gha-setup-ninja@master
-      - name: Install deps
+      - name: Install Linux deps
         if: runner.os == 'Linux'
         run: |
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
           sudo apt-get update && \
-          sudo apt-get -y install gcc-12 g++-12 libncurses5 && \
+          sudo apt-get -y install gcc-12 g++-12 libncurses5 pipx && \
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 && \
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+      - name: Install macOS deps
+        if: runner.os == 'macOS'
+        run: |
+          brew install pipx
       - name: Check LLVM cache
         uses: actions/cache@v2
         id: cache-llvm-deps
@@ -50,7 +54,7 @@ jobs:
         run: |
           echo "CC=${{ github.workspace }}/.llvm/bin/clang" >> $GITHUB_ENV && \
           echo "CXX=${{ github.workspace }}/.llvm/bin/clang++" >> $GITHUB_ENV
-      - run: pip3 install lit
+      - run: pipx install lit
       - run: cmake . -DTAU_CLANG_PATH=.llvm -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} -Bbuild -G Ninja
       - run: ninja check
         working-directory: build
