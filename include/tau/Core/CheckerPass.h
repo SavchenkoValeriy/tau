@@ -5,7 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+//  This file defines an MLIR pass that executes all enabled checkers and
+//  modifies AIR code with abstract state attributes.
 //
 //===----------------------------------------------------------------------===//
 

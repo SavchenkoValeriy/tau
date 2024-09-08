@@ -5,7 +5,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+// This file defines the StateEventForest class, which is responsible for
+// managing memory and relating state change events.
+//
+// The StateEventForest maintains a forest of state events, where each tree
+// in the forest represents a sequence of state transitions. This structure
+// allows the analysis to track the history of state changes and their
+// relationships, which is crucial for understanding the evolution of program
+// states and detecting potential issues.
 //
 //===----------------------------------------------------------------------===//
 

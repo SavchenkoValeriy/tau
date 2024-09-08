@@ -187,6 +187,8 @@ private:
   ASTContext &Context;
 };
 
+/// FunctionGenerator translates Clang AST function bodies into AIR. It walks
+/// the AST, visiting each node and generating corresponding AIR operations.
 class FunctionGenerator
     : public clang::ConstStmtVisitor<FunctionGenerator, mlir::Value> {
 public:
@@ -1206,6 +1208,9 @@ mlir::Value FunctionGenerator::VisitCXXThisExpr(const CXXThisExpr *ThisExpr) {
 
 mlir::Value
 FunctionGenerator::VisitCXXConstructExpr(const CXXConstructExpr *CtorCall) {
+  // Translate a C++ constructor call to AIR
+  // Note: The memory for the object is assumed to be already allocated
+  // We generate a call to the appropriate constructor function.
   assert(!InitializedValues.empty());
 
   const FuncOp Callee = Parent.getFunctionByDecl(CtorCall->getConstructor());
@@ -1324,7 +1329,7 @@ mlir::Value FunctionGenerator::VisitInitListExpr(const InitListExpr *InitList) {
     }
 
     assert(Def.getRecordType().getFields().size() == InitList->inits().size() &&
-           "Initializer list should cover all field, even the ones not "
+           "Initializer list should cover all fields, even the ones not "
            "mentioned explicitly");
 
     for (const auto &[Field, FieldInit] :

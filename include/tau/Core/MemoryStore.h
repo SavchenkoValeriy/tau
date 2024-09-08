@@ -6,7 +6,22 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+// This file implements the MemoryStore class, which provides an abstract model
+// of program memory state for use in static analysis. The MemoryStore tracks
+// relationships between values, including points-to information, field
+// accesses, and array elements.
+//
+// The MemoryStore uses an immutable data structure to represent the memory
+// state, allowing efficient updates and comparisons between different states.
+// It provides operations to interpret MLIR operations and update the memory
+// state accordingly, as well as to join different memory states at control
+// flow merge points.
+//
+// Key components of the MemoryStore include:
+// - A model of memory relationships (points-to, field access, array elements)
+// - An efficient method for updating the memory state based on operations
+// - A mechanism for joining memory states from different control flow paths
+// - Methods for querying the memory state to support various analyses
 //
 //===----------------------------------------------------------------------===//
 

@@ -5,7 +5,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+// This file defines the State class template and related concepts, which are
+// fundamental to representing and managing the checker-specific states
+// encapsulating various astract properties.
 //
 //===----------------------------------------------------------------------===//
 
@@ -80,7 +82,7 @@ public:
 
   /// Get an array of all possible states.
   static constexpr std::array<State, NumberOfStates> getAllStates() {
-    // State doesn't have a default cosntructor, so all states
+    // State doesn't have a default constructor, so all states
     // in the result array should be passed into the array initializer.
     return getAllStatesImpl(std::make_index_sequence<NumberOfNonErrorStates>(),
                             std::make_index_sequence<NumberOfErrorStates>());
