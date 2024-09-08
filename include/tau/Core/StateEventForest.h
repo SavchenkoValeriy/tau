@@ -19,9 +19,9 @@
 #pragma once
 
 #include "tau/AIR/StateID.h"
+#include "tau/Core/EventForest.h"
 
 #include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Allocator.h>
 
 namespace mlir {
 class Operation;
@@ -44,16 +44,7 @@ struct StateEvent {
   const StateEvent *Parent = nullptr;
 };
 
-class StateEventForest {
-private:
-  // As of now, forests only track the memory and nothing more.
-  llvm::SpecificBumpPtrAllocator<StateEvent> Allocator;
-
-public:
-  template <class... Args> const StateEvent &addEvent(Args &&...Rest) {
-    return *(new (Allocator.Allocate()) StateEvent{Rest...});
-  }
-};
+class StateEventForest : public EventForest<StateEvent> {};
 
 } // end namespace tau::core
 
