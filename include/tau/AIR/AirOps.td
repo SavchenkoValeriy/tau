@@ -1034,6 +1034,29 @@ def Air_DeallocaOp : Air_Op<"dealloca"> {
     let hasVerifier = 0;
 }
 
+def Air_HeapDeallocaOp : Air_Op<"hdealloca"> {
+    let arguments = (ins Air_AnyPointer:$ptr);
+    let summary = "heap dealloca operation";
+    let description = [{
+    Syntax:
+
+    ```
+    operation ::= `air.hdealloca` ssa-use
+    ```
+
+    The `hdealloca` operation represents deallocation on the heap.
+    Operation has no standard attributes.
+
+    Example:
+
+    ```mlir
+    hdealloca %a
+    ```
+    }];
+    let assemblyFormat = "attr-dict $ptr `:` type($ptr)";
+    let hasVerifier = 0;
+}
+
 def Air_StoreOp : Air_Op<"store"> {
   let arguments = (ins AnyType:$what, Air_AnyPointer:$where);
   let summary = "store operation";

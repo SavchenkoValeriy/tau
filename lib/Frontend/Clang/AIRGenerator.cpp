@@ -240,6 +240,7 @@ public:
   mlir::Value VisitCXXThisExpr(const CXXThisExpr *ThisExpr);
   mlir::Value VisitCXXConstructExpr(const CXXConstructExpr *CtorCall);
   mlir::Value VisitCXXNewExpr(const CXXNewExpr *NewExpr);
+  mlir::Value VisitCXXDeleteExpr(const CXXDeleteExpr *DeleteExpr);
   mlir::Value VisitInitListExpr(const InitListExpr *InitList);
 
   mlir::Value VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *Literal);
@@ -1274,6 +1275,38 @@ mlir::Value FunctionGenerator::VisitCXXNewExpr(const CXXNewExpr *NewExpr) {
     store(Visit(Initializer), Memory, loc(Initializer));
 
   return Memory;
+}
+
+mlir::Value
+FunctionGenerator::VisitCXXDeleteExpr(const CXXDeleteExpr *DeleteExpr) {
+  const auto Loc = loc(DeleteExpr);
+  mlir::Value Operand = Visit(DeleteExpr->getArgument());
+
+  // TODO: support array types
+  if (DeleteExpr->isArrayForm())
+    return VisitExpr(DeleteExpr);
+
+  // Call the destructor
+  QualType DestroyedType = DeleteExpr->getDestroyedType();
+  destruct(DestroyedType, LazyValue<mlir::Value>(Operand), Loc);
+
+  // Call the delete operator if it exists
+  if (const auto *OperatorDelete = DeleteExpr->getOperatorDelete();
+      OperatorDelete && !OperatorDelete->isImplicit()) {
+    if (const FuncOp Callee = Parent.getFunctionByDecl(OperatorDelete)) {
+      // Cast the operand to void*
+      mlir::Type VoidPtrType =
+          air::PointerType::get(air::VoidType::get(Builder.getContext()));
+      mlir::Value VoidPtrOperand =
+          Builder.create<air::BitcastOp>(Loc, VoidPtrType, Operand);
+      Builder.create<CallOp>(Loc, Callee, VoidPtrOperand);
+    }
+  } else {
+    // Deallocate the memory
+    Builder.create<air::HeapDeallocaOp>(Loc, Operand);
+  }
+
+  return {};
 }
 
 mlir::Value FunctionGenerator::VisitInitListExpr(const InitListExpr *InitList) {
