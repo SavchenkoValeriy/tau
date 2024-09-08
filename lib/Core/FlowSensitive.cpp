@@ -113,6 +113,16 @@ template <> struct hash<Value> {
 };
 } // end namespace std
 
+/// Implementation of the flow-sensitive analysis algorithm.
+///
+/// This class tracks the state of values across a function's control flow
+/// graph, identifying potential issues based on state transitions defined by
+/// checkers. It uses a worklist algorithm to propagate states through the CFG,
+/// handling joins at confluence points and tracking the history of state
+/// changes to determine if detected issues are guaranteed to occur.
+///
+/// For more reasoning behind the `isGuaranteed`, please refer to the
+/// corresponding method and its comments.
 class FlowSensitiveAnalysis::Implementation {
   using ValueEvents = immer::map<Value, Events>;
   using BlockStateMap = SmallVector<ValueEvents, 20>;

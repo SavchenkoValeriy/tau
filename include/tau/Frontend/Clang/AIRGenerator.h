@@ -5,7 +5,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+// This file declares the AIRGenerator class, which is responsible for
+// translating Clang AST into AIR.
+//
+// The AIRGenerator serves as the entry point for the translation process,
+// coordinating the conversion of an entire translation unit. It manages the
+// creation of MLIR modules, functions, and other top-level constructs that
+// correspond to the input C/C++ code.
 //
 //===----------------------------------------------------------------------===//
 

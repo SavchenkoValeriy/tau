@@ -5,7 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+//  This file defines the main Tau analysis. All of the issue detection logic
+//  is encapsulated and performed by this one pass.
 //
 //===----------------------------------------------------------------------===//
 

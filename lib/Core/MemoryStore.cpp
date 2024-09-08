@@ -32,6 +32,7 @@ struct Element {
   unsigned Index;
 };
 
+/// Represents the various ways one value can be related to another in memory
 using Relationship = std::variant<PointsTo, Field, Element>;
 
 bool isRelationshipEqual(const Relationship &LHS, const Relationship &RHS) {
@@ -101,6 +102,8 @@ template <> struct hash<mlir::Value> {
 //                                   Builder
 //===----------------------------------------------------------------------===//
 
+/// Builder class for constructing updated MemoryStore instances.
+/// This allows for efficient updates to the immutable MemoryStore structure.
 class MemoryStore::Builder {
 public:
   Builder(MemoryStore Base)

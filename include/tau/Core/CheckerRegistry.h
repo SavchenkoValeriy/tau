@@ -5,7 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  TBD
+//  This file defines basic interface for concrete checker registration and
+//  partial checker enablement via CLI flags.
 //
 //===----------------------------------------------------------------------===//
 
