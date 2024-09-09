@@ -15,11 +15,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-14
-        configuration:
-          - Release
-          - Debug
+        os: [macos-14, ubuntu-22.04]
+        configuration: [Release, Debug]
+        include:
+          - os: macos-14
+            llvm_version: 18.1.8
+          - os: ubuntu-22.04
+            # Ubuntu 18.1.8 x86 build has messed up MLIR
+            llvm_version: 18.1.7
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
@@ -42,12 +45,12 @@ jobs:
         id: cache-llvm-deps
         with:
           path: .llvm
-          key: llvm-deps-${{ matrix.os }}-18
+          key: llvm-deps-${{ matrix.os }}-{{ matrix.llvm_version }}
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v2
         if: steps.cache-llvm-deps.outputs.cache-hit != 'true'
         with:
-          version: "18.1.8"
+          version: ${{ matrix.llvm_version }}
           directory: .llvm
       - name: Set downloaded Clang as CC/CXX
         if: runner.os == 'macOS'
