@@ -55,6 +55,16 @@ bool isRelationshipEqual(const Relationship &LHS, const Relationship &RHS) {
   return false;
 }
 
+[[maybe_unused]] llvm::StringRef getName(Relationship Rel) {
+  if (std::holds_alternative<Field>(Rel)) {
+    return "Field";
+  }
+  if (std::holds_alternative<Element>(Rel)) {
+    return "Element";
+  }
+  return "PointsTo";
+}
+
 } // end anonymous namespace
 
 struct MemoryStore::MemoryKey {
@@ -86,15 +96,11 @@ template <> struct hash<mlir::Value> {
   }
 };
 
-[[maybe_unused]] llvm::StringRef getName(Relationship Rel) {
-  if (std::holds_alternative<Field>(Rel)) {
-    return "Field";
+template <> struct hash<tau::core::MemoryStore::Definition> {
+  size_t operator()(const tau::core::MemoryStore::Definition &Def) const {
+    return llvm::hash_combine(Def.Value, Def.Event);
   }
-  if (std::holds_alternative<Element>(Rel)) {
-    return "Element";
-  }
-  return "PointsTo";
-}
+};
 
 } // end namespace std
 
@@ -117,13 +123,13 @@ public:
   void associate(mlir::Value Base, Relationship Rel, mlir::Value Result) {
     const SetOfValues BaseCanonicals = BaseStore.getDefininingValues(Base);
     SetOfValues::transient_type AlreadyAssociated;
-    for (mlir::Value KnownBase : BaseCanonicals) {
-      Model.update(MemoryKey{KnownBase, Rel},
+    for (Definition KnownBase : BaseCanonicals) {
+      Model.update(MemoryKey{KnownBase.Value, Rel},
                    [Result, &AlreadyAssociated](const SetOfValues &Current) {
                      if (Current.empty())
-                       return SetOfValues{Result};
+                       return SetOfValues{{Result}};
 
-                     for (mlir::Value Associated : Current) {
+                     for (Definition Associated : Current) {
                        AlreadyAssociated.insert(Associated);
                      }
 
@@ -136,8 +142,8 @@ public:
 
   void store(mlir::Value Base, Relationship Rel, mlir::Value ValueToStore) {
     const SetOfValues BaseCanonicals = BaseStore.getDefininingValues(Base);
-    for (mlir::Value KnownBase : BaseCanonicals) {
-      Model.set(MemoryKey{KnownBase, Rel},
+    for (Definition KnownBase : BaseCanonicals) {
+      Model.set(MemoryKey{KnownBase.Value, Rel},
                 BaseStore.getDefininingValues(ValueToStore));
     }
   }
@@ -148,7 +154,7 @@ public:
 
   void setCanonical(mlir::Value For, mlir::Value Canonical) {
     if (For != Canonical)
-      setCanonicals(For, SetOfValues{Canonical});
+      setCanonicals(For, SetOfValues{{Canonical}});
   }
 
   void setCanonicals(mlir::Value For, SetOfValues NewCanonicals) {
@@ -163,7 +169,7 @@ public:
           return With;
 
         auto TransientCurrent = Current.transient();
-        for (mlir::Value OtherCanonical : With) {
+        for (Definition OtherCanonical : With) {
           TransientCurrent.insert(OtherCanonical);
         }
         return TransientCurrent.persistent();
@@ -230,7 +236,7 @@ MemoryStore::getDefininingValues(mlir::Value Value) const {
   if (const auto *DefinitingValues = Canonicals.find(Value)) {
     return *DefinitingValues;
   }
-  return {Value};
+  return {{Value}};
 }
 
 MemoryStore MemoryStore::join(MemoryStore Other) {
