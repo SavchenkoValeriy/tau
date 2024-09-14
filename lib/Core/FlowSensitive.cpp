@@ -250,10 +250,10 @@ private:
         std::optional<StateID> From = StateChange.getFromState();
         StateID To = StateChange.getToState();
 
-        for (Value CanonicalAffectedValue :
+        for (MemoryStore::Definition CanonicalDefinition :
              CurrentStore.getDefininingValues(AffectedValue)) {
           if (const StateEvent *NewEvent = addTransition(
-                  CanonicalAffectedValue, Op, CheckerID, From, To);
+                  CanonicalDefinition.Value, Op, CheckerID, From, To);
               NewEvent != nullptr && To.isError())
             addIssue(*NewEvent);
         }

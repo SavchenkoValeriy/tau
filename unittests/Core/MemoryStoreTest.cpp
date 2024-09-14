@@ -177,8 +177,8 @@ void foo() {
 
   const auto Set = MS.getDefininingValues(Load);
   CHECK(Set.size() == 1);
-  const auto Value = *Set.begin();
-  CHECK(getAsConstant(Value) == 42);
+  const auto Def = *Set.begin();
+  CHECK(getAsConstant(Def.Value) == 42);
 }
 
 TEST_CASE_METHOD(MemoryStoreTest, "Field load/store",
@@ -203,8 +203,8 @@ void foo() {
 
   const auto Set = MS.getDefininingValues(Load);
   CHECK(Set.size() == 1);
-  const auto Value = *Set.begin();
-  CHECK(getAsConstant(Value) == 10);
+  const auto Def = *Set.begin();
+  CHECK(getAsConstant(Def.Value) == 10);
 }
 
 TEST_CASE_METHOD(MemoryStoreTest, "Join after if-else",
@@ -230,7 +230,9 @@ void foo(bool cond) {
   CHECK(Set.size() == 2);
   std::vector<unsigned> Consts;
   llvm::transform(Set, std::back_inserter(Consts),
-                  [this](mlir::Value Def) { return getAsConstant(Def); });
+                  [this](const MemoryStore::Definition &Def) {
+                    return getAsConstant(Def.Value);
+                  });
 
   const std::array<unsigned, 2> Expected{10, 20};
   CHECK_THAT(Consts, UnorderedRangeEquals(Expected));
@@ -261,7 +263,9 @@ void foo(bool cond) {
     CHECK(Set.size() == 2);
     std::vector<unsigned> Consts;
     llvm::transform(Set, std::back_inserter(Consts),
-                    [this](mlir::Value Def) { return getAsConstant(Def); });
+                    [this](const MemoryStore::Definition &Def) {
+                      return getAsConstant(Def.Value);
+                    });
 
     const std::array<unsigned, 2> Expected{10, 20};
     CHECK_THAT(Consts, UnorderedRangeEquals(Expected));
@@ -272,8 +276,8 @@ void foo(bool cond) {
 
     const auto Set = MS.getDefininingValues(Load);
     CHECK(Set.size() == 1);
-    const auto Value = *Set.begin();
-    CHECK(getAsConstant(Value) == 10);
+    const auto Def = *Set.begin();
+    CHECK(getAsConstant(Def.Value) == 10);
   }
 }
 
@@ -302,7 +306,9 @@ void foo(bool cond) {
     CHECK(Set.size() == 2);
     std::vector<unsigned> Consts;
     llvm::transform(Set, std::back_inserter(Consts),
-                    [this](mlir::Value Def) { return getAsConstant(Def); });
+                    [this](const MemoryStore::Definition &Def) {
+                      return getAsConstant(Def.Value);
+                    });
 
     const std::array<unsigned, 2> Expected{10, 20};
     CHECK_THAT(Consts, UnorderedRangeEquals(Expected));
@@ -315,7 +321,9 @@ void foo(bool cond) {
     CHECK(Set.size() == 2);
     std::vector<unsigned> Consts;
     llvm::transform(Set, std::back_inserter(Consts),
-                    [this](mlir::Value Def) { return getAsConstant(Def); });
+                    [this](const MemoryStore::Definition &Def) {
+                      return getAsConstant(Def.Value);
+                    });
 
     const std::array<unsigned, 2> Expected{20, 30};
     CHECK_THAT(Consts, UnorderedRangeEquals(Expected));
@@ -343,7 +351,9 @@ void foo(bool cond) {
   CHECK(Set.size() == 2);
   std::vector<unsigned> Consts;
   llvm::transform(Set, std::back_inserter(Consts),
-                  [this](mlir::Value Def) { return getAsConstant(Def); });
+                  [this](const MemoryStore::Definition &Def) {
+                    return getAsConstant(Def.Value);
+                  });
 
   const std::array<unsigned, 2> Expected{10, 20};
   CHECK_THAT(Consts, UnorderedRangeEquals(Expected));
@@ -370,8 +380,8 @@ void foo(A *a) {
 
   const auto Set = MS.getDefininingValues(Load);
   CHECK(Set.size() == 1);
-  const auto Value = *Set.begin();
-  CHECK(getAsConstant(Value) == 20);
+  const auto Def = *Set.begin();
+  CHECK(getAsConstant(Def.Value) == 20);
 }
 
 TEST_CASE_METHOD(MemoryStoreTest, "Nested rewrite",
@@ -398,6 +408,6 @@ void foo(A *a, A *b) {
 
   const auto Set = MS.getDefininingValues(Load);
   CHECK(Set.size() == 1);
-  const auto Value = *Set.begin();
-  CHECK(getAsConstant(Value) == 40);
+  const auto Def = *Set.begin();
+  CHECK(getAsConstant(Def.Value) == 40);
 }
