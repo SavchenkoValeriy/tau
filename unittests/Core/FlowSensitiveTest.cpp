@@ -96,7 +96,7 @@ public:
 
     // We also need to keep forest alive, so that events are also alive
     // when the analysis is gone.
-    Forest = std::move(FlowSen.getEventForest());
+    Forest = std::move(FlowSen.getStateEventForest());
     markAllAnalysesPreserved();
   }
 

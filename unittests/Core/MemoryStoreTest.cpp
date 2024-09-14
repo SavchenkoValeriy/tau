@@ -1,5 +1,6 @@
 #include "tau/Core/MemoryStore.h"
 #include "tau/AIR/AirOps.h"
+#include "tau/Core/DataFlowEvent.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/TopoOrderEnumerator.h"
 #include "tau/Frontend/Clang/Clang.h"
@@ -40,8 +41,9 @@ using MemoryStoresByLineNumber = llvm::DenseMap<LineNumber, MemoryStore>;
 class DummyInterpreter
     : public PassWrapper<DummyInterpreter, OperationPass<FuncOp>> {
 public:
-  DummyInterpreter(LoadsByLineNumber &Loads, MemoryStoresByLineNumber &Stores)
-      : Loads(Loads), MemoryStores(Stores) {}
+  DummyInterpreter(LoadsByLineNumber &Loads, MemoryStoresByLineNumber &Stores,
+                   DataFlowEventForest &Forest)
+      : Loads(Loads), MemoryStores(Stores), Forest(Forest) {}
 
   StringRef getArgument() const override { return "dummy-interpreter"; }
   StringRef getDescription() const override { return "Gathers memory stores"; }
@@ -68,7 +70,7 @@ public:
     BitVector Processed{static_cast<unsigned>(Function.getBlocks().size())};
     Worklist.enqueue(&Function.getBlocks().front());
     SmallVector<MemoryStore, 20> BlockStores(Function.getBlocks().size(),
-                                             MemoryStore{});
+                                             MemoryStore{Forest});
 
     const auto SetStore = [&BlockStores](MemoryStore New, unsigned Index) {
       if (BlockStores[Index] == New)
@@ -78,7 +80,7 @@ public:
     };
 
     while (Block *BB = Worklist.dequeue()) {
-      MemoryStore CurrentStore;
+      MemoryStore CurrentStore{Forest};
 
       for (Block *Pred : BB->getPredecessors()) {
         CurrentStore =
@@ -92,7 +94,11 @@ public:
           Loc = Fused.getLocations().front();
         }
         if (const auto &Begin = Loc.dyn_cast<FileLineColLoc>()) {
-          MemoryStores[Begin.getLine()] = CurrentStore;
+          if (const auto Result =
+                  MemoryStores.insert({Begin.getLine(), CurrentStore});
+              !Result.second) {
+            Result.first->getSecond() = CurrentStore;
+          }
         }
 
         const auto Index = Enumerator.getTopoOrderIndex(BB);
@@ -108,6 +114,7 @@ public:
 private:
   LoadsByLineNumber &Loads;
   MemoryStoresByLineNumber &MemoryStores;
+  DataFlowEventForest &Forest;
 };
 
 class MemoryStoreTest {
@@ -121,7 +128,7 @@ public:
     PassManager PM(&Context);
 
     PM.addNestedPass<FuncOp>(
-        std::make_unique<DummyInterpreter>(Loads, MemoryStores));
+        std::make_unique<DummyInterpreter>(Loads, MemoryStores, Forest));
 
     REQUIRE(succeeded(PM.run(IR->Module)));
   }
@@ -157,6 +164,7 @@ private:
 protected:
   LoadsByLineNumber Loads;
   MemoryStoresByLineNumber MemoryStores;
+  DataFlowEventForest Forest;
 };
 
 } // end anonymous namespace
@@ -370,7 +378,7 @@ void foo(A *a) {
   int x = 10;
   a->a->a->a->a->a->a->b = &x;
   x = 20;
-  int &c = *a->a->a->a->a->a->a->b
+  int &c = *a->a->a->a->a->a->a->b;
   int d = c;
 }
 )");

@@ -27,21 +27,22 @@
 #pragma once
 
 #include "tau/AIR/AirOps.h"
-#include "tau/Core/DataFlowEvent.h"
 
 #include <immer/map.hpp>
 #include <immer/set.hpp>
 
+#include <functional>
 #include <variant>
 
 namespace tau::core {
 
 struct DataFlowEvent;
+class DataFlowEventForest;
 
 class MemoryStore {
 private:
 public:
-  MemoryStore();
+  MemoryStore(DataFlowEventForest &);
 
   MemoryStore(const MemoryStore &);
   MemoryStore &operator=(const MemoryStore &);
@@ -75,7 +76,10 @@ private:
   using CanonicalsTy = immer::map<mlir::Value, SetOfValues>;
   class Builder;
 
-  MemoryStore(ModelTy Model, CanonicalsTy Canonicals);
+  MemoryStore(DataFlowEventForest &Forest, ModelTy Model,
+              CanonicalsTy Canonicals);
+
+  std::reference_wrapper<DataFlowEventForest> Forest;
 
   ModelTy Model;
   CanonicalsTy Canonicals;
