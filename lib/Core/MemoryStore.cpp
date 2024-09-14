@@ -1,6 +1,7 @@
 #include "tau/Core/MemoryStore.h"
 
 #include "tau/AIR/AirOps.h"
+#include "tau/Core/DataFlowEvent.h"
 #include "tau/Support/FunctionExtras.h"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -117,7 +118,8 @@ public:
         Canonicals(Base.Canonicals.transient()) {}
 
   MemoryStore build() {
-    return MemoryStore(Model.persistent(), Canonicals.persistent());
+    return MemoryStore(BaseStore.Forest, Model.persistent(),
+                       Canonicals.persistent());
   }
 
   void associate(mlir::Value Base, Relationship Rel, mlir::Value Result) {
@@ -195,7 +197,7 @@ private:
 //                       Public interface implementation
 //===----------------------------------------------------------------------===//
 
-MemoryStore::MemoryStore() = default;
+MemoryStore::MemoryStore(DataFlowEventForest &Forest) : Forest(Forest) {}
 
 MemoryStore::~MemoryStore() = default;
 
@@ -205,9 +207,10 @@ MemoryStore &MemoryStore::operator=(const MemoryStore &) = default;
 MemoryStore::MemoryStore(MemoryStore &&) = default;
 MemoryStore &MemoryStore::operator=(MemoryStore &&) = default;
 
-MemoryStore::MemoryStore(MemoryStore::ModelTy Model,
+MemoryStore::MemoryStore(DataFlowEventForest &Forest,
+                         MemoryStore::ModelTy Model,
                          MemoryStore::CanonicalsTy Canonicals)
-    : Model(Model), Canonicals(Canonicals) {}
+    : Forest(Forest), Model(Model), Canonicals(Canonicals) {}
 
 MemoryStore MemoryStore::interpret(mlir::Operation *Op) {
   Builder B(*this);

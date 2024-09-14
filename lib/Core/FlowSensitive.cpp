@@ -2,6 +2,7 @@
 
 #include "tau/AIR/AirAttrs.h"
 #include "tau/AIR/StateID.h"
+#include "tau/Core/DataFlowEvent.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/MemoryStore.h"
 #include "tau/Core/State.h"
@@ -128,6 +129,10 @@ class FlowSensitiveAnalysis::Implementation {
   using BlockStateMap = SmallVector<ValueEvents, 20>;
   using BlockStoreMap = SmallVector<MemoryStore, 20>;
 
+  // Memory management
+  StateEventForest StateForest;
+  DataFlowEventForest DataFlowForest;
+
   // State management
   BlockStateMap States;
   BlockStoreMap Stores;
@@ -139,9 +144,6 @@ class FlowSensitiveAnalysis::Implementation {
   ForwardWorklist &Worklist;
   BitVector Processed;
 
-  // Memory management
-  StateEventForest Forest;
-
   // Issue tracking
   SmallVector<Issue, 20> FoundIssues;
   DominanceInfo &DomTree;
@@ -149,13 +151,15 @@ class FlowSensitiveAnalysis::Implementation {
 
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
-      : Enumerator(AM.getAnalysis<TopoOrderBlockEnumerator>()),
+      : CurrentStore(DataFlowForest),
+        Enumerator(AM.getAnalysis<TopoOrderBlockEnumerator>()),
         Worklist(AM.getAnalysis<ForwardWorklist>()),
         Processed(Function.getBlocks().size()),
         DomTree(AM.getAnalysis<DominanceInfo>()),
         PostDomTree(AM.getAnalysis<PostDominanceInfo>()) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
-    Stores.insert(Stores.end(), Function.getBlocks().size(), MemoryStore{});
+    Stores.insert(Stores.end(), Function.getBlocks().size(),
+                  MemoryStore{DataFlowForest});
     Worklist.enqueue(&Function.getBlocks().front());
   }
 
@@ -164,7 +168,7 @@ public:
       visit(*BB);
   }
 
-  StateEventForest &getForest() { return Forest; }
+  StateEventForest &getStateEventForest() { return StateForest; }
   ArrayRef<Issue> getIssues() { return FoundIssues; }
 
 private:
@@ -195,9 +199,9 @@ private:
     }
   }
 
-  std::pair<ValueEvents, MemoryStore> joinPreds(Block &BB) const {
+  std::pair<ValueEvents, MemoryStore> joinPreds(Block &BB) {
     ValueEvents Events;
-    MemoryStore Store;
+    MemoryStore Store{DataFlowForest};
     for (Block *Pred : BB.getPredecessors()) {
       Events = join(Events, getState(*Pred));
       Store = Store.join(getStore(*Pred));
@@ -277,7 +281,8 @@ private:
       // transition, and we should check that among the tracked
       // states of the value there are no states of this checker.
       if (Current.hasNoCheckerState(CheckerID)) {
-        const StateEvent &NewEvent = Forest.addEvent(CheckerID, To, &Location);
+        const StateEvent &NewEvent =
+            StateForest.addEvent(CheckerID, To, &Location);
         // Since the value had no checker-related events prior to this,
         // we can simply add a new event.
         associate(ForValue, Current.join(Events(NewEvent)));
@@ -289,7 +294,7 @@ private:
 
     if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
       const StateEvent &ToEvent =
-          Forest.addEvent(CheckerID, To, &Location, FromEvent);
+          StateForest.addEvent(CheckerID, To, &Location, FromEvent);
       // Since this is a state transition, we need to replace the previous
       // event.
       Events NewSetOfEvents = Current.replace(*FromEvent, ToEvent);
@@ -436,8 +441,8 @@ FlowSensitiveAnalysis::FlowSensitiveAnalysis(Operation *TopLevelOp,
 
 FlowSensitiveAnalysis::~FlowSensitiveAnalysis() = default;
 
-StateEventForest &FlowSensitiveAnalysis::getEventForest() {
-  return PImpl->getForest();
+StateEventForest &FlowSensitiveAnalysis::getStateEventForest() {
+  return PImpl->getStateEventForest();
 }
 
 ArrayRef<FlowSensitiveAnalysis::Issue> FlowSensitiveAnalysis::getFoundIssues() {

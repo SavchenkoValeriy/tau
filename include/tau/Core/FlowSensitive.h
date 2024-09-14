@@ -33,7 +33,7 @@ public:
     bool Guaranteed;
   };
 
-  StateEventForest &getEventForest();
+  StateEventForest &getStateEventForest();
   llvm::ArrayRef<Issue> getFoundIssues();
 
   FlowSensitiveAnalysis(const FlowSensitiveAnalysis &) = delete;
