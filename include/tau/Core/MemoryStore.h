@@ -27,6 +27,7 @@
 #pragma once
 
 #include "tau/AIR/AirOps.h"
+#include "tau/Core/DataFlowEvent.h"
 
 #include <immer/map.hpp>
 #include <immer/set.hpp>
@@ -35,9 +36,6 @@
 #include <variant>
 
 namespace tau::core {
-
-struct DataFlowEvent;
-class DataFlowEventForest;
 
 class MemoryStore {
 private:
@@ -60,7 +58,10 @@ public:
     const DataFlowEvent *Event = nullptr;
 
     bool operator==(const Definition &Other) const {
-      return Value == Other.Value && Event == Other.Event;
+      return Value == Other.Value &&
+             ((Event == nullptr && Other.Event == nullptr) ||
+              (Event != nullptr && Other.Event != nullptr &&
+               Event->Location == Other.Event->Location));
     }
   };
 
