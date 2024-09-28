@@ -99,7 +99,8 @@ template <> struct hash<mlir::Value> {
 
 template <> struct hash<tau::core::MemoryStore::Definition> {
   size_t operator()(const tau::core::MemoryStore::Definition &Def) const {
-    return llvm::hash_combine(Def.Value, Def.Event);
+    return llvm::hash_combine(Def.Value,
+                              Def.Event ? Def.Event->Location : nullptr);
   }
 };
 
@@ -142,11 +143,12 @@ public:
     setCanonicals(Result, AlreadyAssociated.persistent());
   }
 
-  void store(mlir::Value Base, Relationship Rel, mlir::Value ValueToStore) {
+  void store(mlir::Value Base, Relationship Rel, mlir::Value ValueToStore,
+             mlir::Operation *Op) {
     const SetOfValues BaseCanonicals = BaseStore.getDefininingValues(Base);
     for (Definition KnownBase : BaseCanonicals) {
       Model.set(MemoryKey{KnownBase.Value, Rel},
-                BaseStore.getDefininingValues(ValueToStore));
+                addStoreEvent(Op, BaseStore.getDefininingValues(ValueToStore)));
     }
   }
 
@@ -162,6 +164,31 @@ public:
   void setCanonicals(mlir::Value For, SetOfValues NewCanonicals) {
     if (!NewCanonicals.empty())
       Canonicals.set(For, NewCanonicals);
+  }
+
+  SetOfValues addStoreEvent(mlir::Operation *StoreOp,
+                            SetOfValues StoredValues) {
+    SetOfValues::transient_type Result;
+
+    for (const Definition &Def : StoredValues) {
+      const DataFlowEvent *NewEvent = nullptr;
+      if (Def.Event == nullptr) {
+        NewEvent = &BaseStore.Forest.get().addEvent(StoreOp);
+      } else {
+        for (const DataFlowEvent *PrevEvent = Def.Event; PrevEvent != nullptr;
+             PrevEvent = PrevEvent->Parent) {
+          if (PrevEvent->Location == StoreOp) {
+            Result.insert(Def);
+            continue;
+          }
+        }
+
+        NewEvent = &BaseStore.Forest.get().addEvent(StoreOp, Def.Event);
+      }
+      Result.insert({Def.Value, NewEvent});
+    }
+
+    return Result.persistent();
   }
 
   void join(MemoryStore Other) {
@@ -220,8 +247,8 @@ MemoryStore MemoryStore::interpret(mlir::Operation *Op) {
       .Case<air::LoadOp>([&B](air::LoadOp Load) {
         B.associate(Load.getAddress(), PointsTo{}, Load.getResult());
       })
-      .Case<air::StoreOp>([&B](air::StoreOp Store) {
-        B.store(Store.getAddress(), PointsTo{}, Store.getValue());
+      .Case<air::StoreOp>([&B, Op](air::StoreOp Store) {
+        B.store(Store.getAddress(), PointsTo{}, Store.getValue(), Op);
       })
       .Case<air::GetFieldPtr>([&B](air::GetFieldPtr FieldPtr) {
         B.associate(FieldPtr.getRecord(), Field{FieldPtr.getFieldAttrName()},
