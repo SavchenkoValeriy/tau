@@ -26,10 +26,10 @@ class TopoOrderBlockEnumerator {
 public:
   TopoOrderBlockEnumerator(mlir::Operation *Function);
 
-  unsigned getTopoOrderIndex(const mlir::Block *BB) {
+  unsigned getTopoOrderIndex(const mlir::Block *BB) const {
     assert(Indices.count(BB) == 1 &&
            "All reachable blocks should be enumerated");
-    return Indices[BB];
+    return Indices.at(BB);
   }
 
 private:

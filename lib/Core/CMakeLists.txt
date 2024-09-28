@@ -7,6 +7,7 @@ add_tau_library(tauCore
   EscapeAnalysis.cpp
   FlowSensitive.cpp
   MemoryStore.cpp
+  MutualExclusionAnalysis.cpp
   PointsToAnalysis.cpp
   PostOrderEnumerator.cpp
   ReachingDefs.cpp
