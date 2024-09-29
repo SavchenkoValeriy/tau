@@ -27,20 +27,19 @@
 #pragma once
 
 #include "tau/AIR/AirOps.h"
-#include "tau/Core/DataFlowEvent.h"
+#include "tau/Core/Events.h"
 
 #include <immer/map.hpp>
 #include <immer/set.hpp>
 
 #include <functional>
-#include <variant>
 
 namespace tau::core {
 
 class MemoryStore {
 private:
 public:
-  MemoryStore(DataFlowEventForest &);
+  MemoryStore(EventHierarchy &);
 
   MemoryStore(const MemoryStore &);
   MemoryStore &operator=(const MemoryStore &);
@@ -61,7 +60,7 @@ public:
       return Value == Other.Value &&
              ((Event == nullptr && Other.Event == nullptr) ||
               (Event != nullptr && Other.Event != nullptr &&
-               Event->Location == Other.Event->Location));
+               Event->getLocation() == Other.Event->getLocation()));
     }
   };
 
@@ -77,10 +76,10 @@ private:
   using CanonicalsTy = immer::map<mlir::Value, SetOfValues>;
   class Builder;
 
-  MemoryStore(DataFlowEventForest &Forest, ModelTy Model,
+  MemoryStore(EventHierarchy &Hierarchy, ModelTy Model,
               CanonicalsTy Canonicals);
 
-  std::reference_wrapper<DataFlowEventForest> Forest;
+  std::reference_wrapper<EventHierarchy> Hierarchy;
 
   ModelTy Model;
   CanonicalsTy Canonicals;

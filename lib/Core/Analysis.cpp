@@ -1,8 +1,8 @@
 #include "tau/Core/Analysis.h"
 #include "tau/Core/Checker.h"
 #include "tau/Core/CheckerRegistry.h"
+#include "tau/Core/Events.h"
 #include "tau/Core/FlowSensitive.h"
-#include "tau/Core/StateEventForest.h"
 
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Pass/Pass.h>
@@ -36,16 +36,26 @@ public:
       // checker and string the events through it to produce
       // the actual error visible to the user.
       const StateEvent &ErrorEvent = FoundIssue.ErrorEvent;
-      auto &Checker = findChecker(ErrorEvent.Key.CheckerID);
+      auto &Checker = findChecker(ErrorEvent.getKey().CheckerID);
 
-      InFlightDiagnostic Error =
-          Checker.emitError(ErrorEvent.Location, ErrorEvent.Key.State);
+      InFlightDiagnostic Error = Checker.emitError(ErrorEvent.getLocation(),
+                                                   ErrorEvent.getKey().State);
+
+      // TODO: remove and replace with proper parent event traversal
+      const auto GetParent = [](const StateEvent &E) -> const StateEvent * {
+        const auto Parents = E.getParents();
+        if (Parents.empty())
+          return nullptr;
+
+        return Parents.front().get<const StateEvent *>();
+      };
+      // TODO: sort parents and traverse bottom up.
 
       // Traverse the event tree and emit additional notes.
-      for (const StateEvent *CurrentEvent = ErrorEvent.Parent; CurrentEvent;
-           CurrentEvent = CurrentEvent->Parent)
-        Checker.emitNote(Error, CurrentEvent->Location,
-                         CurrentEvent->Key.State);
+      for (const StateEvent *CurrentEvent = GetParent(ErrorEvent); CurrentEvent;
+           CurrentEvent = GetParent(*CurrentEvent))
+        Checker.emitNote(Error, CurrentEvent->getLocation(),
+                         CurrentEvent->getKey().State);
     }
   }
 

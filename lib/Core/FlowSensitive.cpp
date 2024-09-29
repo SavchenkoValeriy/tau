@@ -2,11 +2,10 @@
 
 #include "tau/AIR/AirAttrs.h"
 #include "tau/AIR/StateID.h"
-#include "tau/Core/DataFlowEvent.h"
+#include "tau/Core/Events.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/MemoryStore.h"
 #include "tau/Core/State.h"
-#include "tau/Core/StateEventForest.h"
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
@@ -49,7 +48,7 @@ public:
   Events() = default;
   Events(const StateEvent &Event) {
     AssociatedEvents =
-        AssociatedEvents.insert(std::make_pair(Event.Key, &Event));
+        AssociatedEvents.insert(std::make_pair(Event.getKey(), &Event));
   }
 
   [[nodiscard]] static Events join(const Events &LHS, const Events &RHS) {
@@ -90,8 +89,8 @@ public:
   [[nodiscard]] Events replace(const StateEvent &Old,
                                const StateEvent &New) const {
     EventSet Result = AssociatedEvents;
-    Result = Result.erase(Old.Key);
-    return Result.insert(std::make_pair(New.Key, &New));
+    Result = Result.erase(Old.getKey());
+    return Result.insert(std::make_pair(New.getKey(), &New));
   }
 
   [[nodiscard]] bool hasNoCheckerState(StringRef CheckerID) const {
@@ -130,8 +129,7 @@ class FlowSensitiveAnalysis::Implementation {
   using BlockStoreMap = SmallVector<MemoryStore, 20>;
 
   // Memory management
-  StateEventForest StateForest;
-  DataFlowEventForest DataFlowForest;
+  EventHierarchy Hierarchy;
 
   // State management
   BlockStateMap States;
@@ -151,7 +149,7 @@ class FlowSensitiveAnalysis::Implementation {
 
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
-      : CurrentStore(DataFlowForest),
+      : CurrentStore(Hierarchy),
         Enumerator(AM.getAnalysis<TopoOrderBlockEnumerator>()),
         Worklist(AM.getAnalysis<ForwardWorklist>()),
         Processed(Function.getBlocks().size()),
@@ -159,7 +157,7 @@ public:
         PostDomTree(AM.getAnalysis<PostDominanceInfo>()) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
     Stores.insert(Stores.end(), Function.getBlocks().size(),
-                  MemoryStore{DataFlowForest});
+                  MemoryStore{Hierarchy});
     Worklist.enqueue(&Function.getBlocks().front());
   }
 
@@ -168,7 +166,7 @@ public:
       visit(*BB);
   }
 
-  StateEventForest &getStateEventForest() { return StateForest; }
+  EventHierarchy &getEventHierarchy() { return Hierarchy; }
   ArrayRef<Issue> getIssues() { return FoundIssues; }
 
 private:
@@ -201,7 +199,7 @@ private:
 
   std::pair<ValueEvents, MemoryStore> joinPreds(Block &BB) {
     ValueEvents Events;
-    MemoryStore Store{DataFlowForest};
+    MemoryStore Store{Hierarchy};
     for (Block *Pred : BB.getPredecessors()) {
       Events = join(Events, getState(*Pred));
       Store = Store.join(getStore(*Pred));
@@ -282,7 +280,7 @@ private:
       // states of the value there are no states of this checker.
       if (Current.hasNoCheckerState(CheckerID)) {
         const StateEvent &NewEvent =
-            StateForest.addEvent(CheckerID, To, &Location);
+            Hierarchy.addStateEvent({CheckerID, To}, &Location);
         // Since the value had no checker-related events prior to this,
         // we can simply add a new event.
         associate(ForValue, Current.join(Events(NewEvent)));
@@ -294,7 +292,7 @@ private:
 
     if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
       const StateEvent &ToEvent =
-          StateForest.addEvent(CheckerID, To, &Location, FromEvent);
+          Hierarchy.addStateEvent({CheckerID, To}, &Location, {FromEvent});
       // Since this is a state transition, we need to replace the previous
       // event.
       Events NewSetOfEvents = Current.replace(*FromEvent, ToEvent);
@@ -310,7 +308,16 @@ private:
   }
 
   bool isGuaranteed(const StateEvent &ErrorEvent) const {
-    const StateEvent *Prev = &ErrorEvent, *Current = Prev->Parent;
+    // TODO: remove and replace with proper parent event traversal
+    const auto GetParent = [](const StateEvent &E) -> const StateEvent * {
+      const auto Parents = E.getParents();
+      if (Parents.empty())
+        return nullptr;
+
+      return Parents.front().get<const StateEvent *>();
+    };
+
+    const StateEvent *Prev = &ErrorEvent, *Current = GetParent(*Prev);
     // This part of the algorithm checks whether the flow-sensitive
     // framework is enough to report the issue.  It uses (post-)domination
     // relationship to figure this out.
@@ -363,17 +370,18 @@ private:
     // 1 <= k <= n such that A_i dominates A_i+1 for all i < k, and
     // A_i post-dominates A_i+1 for all k <= i < n, then we can guarantee
     // that the given chain doesn't include mutually exclusive assumptions.
-    for (; Current; Prev = Current, Current = Current->Parent)
+    for (; Current; Prev = Current, Current = GetParent(*Current))
       // We start from the very last event of the chain, so in order to find
       // A_k, we need to check for post-dominance.
-      if (!PostDomTree.postDominates(Prev->Location, Current->Location))
+      if (!PostDomTree.postDominates(Prev->getLocation(),
+                                     Current->getLocation()))
         break;
 
-    for (; Current; Prev = Current, Current = Current->Parent)
+    for (; Current; Prev = Current, Current = GetParent(*Current))
       // If we got here, we found an event A_i, so that A_i+1 doesn't
       // post-dominate it.  Now we need to "flip the switch" and check
       // for dominance.
-      if (!DomTree.dominates(Current->Location, Prev->Location))
+      if (!DomTree.dominates(Current->getLocation(), Prev->getLocation()))
         return false;
 
     return true;
@@ -441,8 +449,8 @@ FlowSensitiveAnalysis::FlowSensitiveAnalysis(Operation *TopLevelOp,
 
 FlowSensitiveAnalysis::~FlowSensitiveAnalysis() = default;
 
-StateEventForest &FlowSensitiveAnalysis::getStateEventForest() {
-  return PImpl->getStateEventForest();
+EventHierarchy &FlowSensitiveAnalysis::getEventHierarchy() {
+  return PImpl->getEventHierarchy();
 }
 
 ArrayRef<FlowSensitiveAnalysis::Issue> FlowSensitiveAnalysis::getFoundIssues() {

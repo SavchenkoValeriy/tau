@@ -1,8 +1,8 @@
 #include "tau/Core/FlowSensitive.h"
 #include "tau/Core/Checker.h"
 #include "tau/Core/CheckerPass.h"
+#include "tau/Core/Events.h"
 #include "tau/Core/State.h"
-#include "tau/Core/StateEventForest.h"
 #include "tau/Frontend/Clang/Clang.h"
 #include "tau/Frontend/Output.h"
 
@@ -80,8 +80,8 @@ class FlowSensitiveIssuesHarvester
 public:
   FlowSensitiveIssuesHarvester(
       std::vector<FlowSensitiveAnalysis::Issue> &IssuesToFill,
-      StateEventForest &Forest)
-      : FoundIssues(IssuesToFill), Forest(Forest) {}
+      EventHierarchy &Hierarchy)
+      : FoundIssues(IssuesToFill), Hierarchy(Hierarchy) {}
 
   StringRef getArgument() const override { return "flow-sen-checker"; }
   StringRef getDescription() const override {
@@ -96,7 +96,7 @@ public:
 
     // We also need to keep forest alive, so that events are also alive
     // when the analysis is gone.
-    Forest = std::move(FlowSen.getStateEventForest());
+    Hierarchy = std::move(FlowSen.getEventHierarchy());
     markAllAnalysesPreserved();
   }
 
@@ -104,7 +104,7 @@ public:
 
 private:
   std::vector<FlowSensitiveAnalysis::Issue> &FoundIssues;
-  StateEventForest &Forest;
+  EventHierarchy &Hierarchy;
 };
 
 class FlowSensitiveAnalysisTest {
@@ -122,14 +122,14 @@ public:
 
     PM.addNestedPass<FuncOp>(createCheckerPass(Checkers));
     PM.addNestedPass<FuncOp>(std::make_unique<FlowSensitiveIssuesHarvester>(
-        FoundIssues, EventForest));
+        FoundIssues, EventHierarchy));
 
     REQUIRE(succeeded(PM.run(IR->Module)));
   }
 
 private:
   std::unique_ptr<frontend::Output> IR;
-  StateEventForest EventForest;
+  EventHierarchy EventHierarchy;
 
 protected:
   std::vector<FlowSensitiveAnalysis::Issue> FoundIssues;
@@ -153,23 +153,26 @@ void test(int x) {
   auto Issue = FoundIssues[0];
   CHECK(Issue.Guaranteed);
 
-  auto Foobar = dyn_cast_or_null<CallOp>(Issue.ErrorEvent.Location);
+  auto Foobar = dyn_cast_or_null<CallOp>(Issue.ErrorEvent.getLocation());
   REQUIRE(Foobar);
   CHECK(Foobar.getCallee().starts_with("void foobar"));
 
-  REQUIRE(Issue.ErrorEvent.Parent != nullptr);
-  auto BarEvent = *Issue.ErrorEvent.Parent;
-  auto Bar = dyn_cast_or_null<CallOp>(BarEvent.Location);
+  REQUIRE(!Issue.ErrorEvent.getParents().empty());
+  REQUIRE(Issue.ErrorEvent.getParents().front().is<const StateEvent *>());
+  auto &BarEvent =
+      *Issue.ErrorEvent.getParents().front().get<const StateEvent *>();
+  auto Bar = dyn_cast_or_null<CallOp>(BarEvent.getLocation());
   REQUIRE(Bar);
   CHECK(Bar.getCallee().starts_with("void bar"));
 
-  REQUIRE(BarEvent.Parent != nullptr);
-  auto FooEvent = *BarEvent.Parent;
-  auto Foo = dyn_cast_or_null<CallOp>(FooEvent.Location);
+  REQUIRE(!BarEvent.getParents().empty());
+  REQUIRE(BarEvent.getParents().front().is<const StateEvent *>());
+  auto &FooEvent = *BarEvent.getParents().front().get<const StateEvent *>();
+  auto Foo = dyn_cast_or_null<CallOp>(FooEvent.getLocation());
   REQUIRE(Foo);
   CHECK(Foo.getCallee().starts_with("void foo"));
 
-  CHECK(FooEvent.Parent == nullptr);
+  CHECK(FooEvent.getParents().empty());
 }
 
 TEST_CASE_METHOD(FlowSensitiveAnalysisTest,

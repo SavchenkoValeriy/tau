@@ -22,7 +22,7 @@ class Operation;
 namespace tau::core {
 
 class StateEvent;
-class StateEventForest;
+class EventHierarchy;
 
 class FlowSensitiveAnalysis {
 public:
@@ -33,7 +33,7 @@ public:
     bool Guaranteed;
   };
 
-  StateEventForest &getStateEventForest();
+  EventHierarchy &getEventHierarchy();
   llvm::ArrayRef<Issue> getFoundIssues();
 
   FlowSensitiveAnalysis(const FlowSensitiveAnalysis &) = delete;

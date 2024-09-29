@@ -1,7 +1,6 @@
 #include "tau/Core/MemoryStore.h"
 
 #include "tau/AIR/AirOps.h"
-#include "tau/Core/DataFlowEvent.h"
 #include "tau/Support/FunctionExtras.h"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -100,7 +99,7 @@ template <> struct hash<mlir::Value> {
 template <> struct hash<tau::core::MemoryStore::Definition> {
   size_t operator()(const tau::core::MemoryStore::Definition &Def) const {
     return llvm::hash_combine(Def.Value,
-                              Def.Event ? Def.Event->Location : nullptr);
+                              Def.Event ? Def.Event->getLocation() : nullptr);
   }
 };
 
@@ -119,7 +118,7 @@ public:
         Canonicals(Base.Canonicals.transient()) {}
 
   MemoryStore build() {
-    return MemoryStore(BaseStore.Forest, Model.persistent(),
+    return MemoryStore(BaseStore.Hierarchy, Model.persistent(),
                        Canonicals.persistent());
   }
 
@@ -173,17 +172,10 @@ public:
     for (const Definition &Def : StoredValues) {
       const DataFlowEvent *NewEvent = nullptr;
       if (Def.Event == nullptr) {
-        NewEvent = &BaseStore.Forest.get().addEvent(StoreOp);
+        NewEvent = &BaseStore.Hierarchy.get().addDataFlowEvent(StoreOp);
       } else {
-        for (const DataFlowEvent *PrevEvent = Def.Event; PrevEvent != nullptr;
-             PrevEvent = PrevEvent->Parent) {
-          if (PrevEvent->Location == StoreOp) {
-            Result.insert(Def);
-            continue;
-          }
-        }
-
-        NewEvent = &BaseStore.Forest.get().addEvent(StoreOp, Def.Event);
+        NewEvent =
+            &BaseStore.Hierarchy.get().addDataFlowEvent(StoreOp, {Def.Event});
       }
       Result.insert({Def.Value, NewEvent});
     }
@@ -224,7 +216,7 @@ private:
 //                       Public interface implementation
 //===----------------------------------------------------------------------===//
 
-MemoryStore::MemoryStore(DataFlowEventForest &Forest) : Forest(Forest) {}
+MemoryStore::MemoryStore(EventHierarchy &Hierarchy) : Hierarchy(Hierarchy) {}
 
 MemoryStore::~MemoryStore() = default;
 
@@ -234,10 +226,9 @@ MemoryStore &MemoryStore::operator=(const MemoryStore &) = default;
 MemoryStore::MemoryStore(MemoryStore &&) = default;
 MemoryStore &MemoryStore::operator=(MemoryStore &&) = default;
 
-MemoryStore::MemoryStore(DataFlowEventForest &Forest,
-                         MemoryStore::ModelTy Model,
+MemoryStore::MemoryStore(EventHierarchy &Hierarchy, MemoryStore::ModelTy Model,
                          MemoryStore::CanonicalsTy Canonicals)
-    : Forest(Forest), Model(Model), Canonicals(Canonicals) {}
+    : Hierarchy(Hierarchy), Model(Model), Canonicals(Canonicals) {}
 
 MemoryStore MemoryStore::interpret(mlir::Operation *Op) {
   Builder B(*this);

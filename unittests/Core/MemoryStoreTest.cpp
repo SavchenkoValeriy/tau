@@ -1,6 +1,6 @@
 #include "tau/Core/MemoryStore.h"
 #include "tau/AIR/AirOps.h"
-#include "tau/Core/DataFlowEvent.h"
+#include "tau/Core/Events.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/TopoOrderEnumerator.h"
 #include "tau/Frontend/Clang/Clang.h"
@@ -42,8 +42,8 @@ class DummyInterpreter
     : public PassWrapper<DummyInterpreter, OperationPass<FuncOp>> {
 public:
   DummyInterpreter(LoadsByLineNumber &Loads, MemoryStoresByLineNumber &Stores,
-                   DataFlowEventForest &Forest)
-      : Loads(Loads), MemoryStores(Stores), Forest(Forest) {}
+                   EventHierarchy &Hierarchy)
+      : Loads(Loads), MemoryStores(Stores), Hierarchy(Hierarchy) {}
 
   StringRef getArgument() const override { return "dummy-interpreter"; }
   StringRef getDescription() const override { return "Gathers memory stores"; }
@@ -70,7 +70,7 @@ public:
     BitVector Processed{static_cast<unsigned>(Function.getBlocks().size())};
     Worklist.enqueue(&Function.getBlocks().front());
     SmallVector<MemoryStore, 20> BlockStores(Function.getBlocks().size(),
-                                             MemoryStore{Forest});
+                                             MemoryStore{Hierarchy});
 
     const auto SetStore = [&BlockStores](MemoryStore New, unsigned Index) {
       if (BlockStores[Index] == New)
@@ -80,7 +80,7 @@ public:
     };
 
     while (Block *BB = Worklist.dequeue()) {
-      MemoryStore CurrentStore{Forest};
+      MemoryStore CurrentStore{Hierarchy};
 
       for (Block *Pred : BB->getPredecessors()) {
         CurrentStore =
@@ -114,7 +114,7 @@ public:
 private:
   LoadsByLineNumber &Loads;
   MemoryStoresByLineNumber &MemoryStores;
-  DataFlowEventForest &Forest;
+  EventHierarchy &Hierarchy;
 };
 
 class MemoryStoreTest {
@@ -128,7 +128,7 @@ public:
     PassManager PM(&Context);
 
     PM.addNestedPass<FuncOp>(
-        std::make_unique<DummyInterpreter>(Loads, MemoryStores, Forest));
+        std::make_unique<DummyInterpreter>(Loads, MemoryStores, Hierarchy));
 
     REQUIRE(succeeded(PM.run(IR->Module)));
   }
@@ -164,7 +164,7 @@ private:
 protected:
   LoadsByLineNumber Loads;
   MemoryStoresByLineNumber MemoryStores;
-  DataFlowEventForest Forest;
+  EventHierarchy Hierarchy;
 };
 
 } // end anonymous namespace
