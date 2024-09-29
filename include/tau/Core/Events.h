@@ -12,13 +12,15 @@
 #pragma once
 
 #include "tau/AIR/StateID.h"
-#include <initializer_list>
+
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/PointerIntPair.h>
 #include <llvm/ADT/PointerUnion.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Allocator.h>
 #include <llvm/Support/TrailingObjects.h>
+
+#include <initializer_list>
 #include <memory>
 
 namespace mlir {
@@ -90,6 +92,7 @@ protected:
   }
 
 public:
+  /// @returns An array of parent event pointers.
   llvm::ArrayRef<const ParentEventPointer> getParents() const {
     return {getAsDerived()->template getTrailingObjects<ParentEventPointer>(),
             getNumberOfParents()};
@@ -98,8 +101,12 @@ public:
 
 } // end namespace detail
 
+/// @brief Represents a data flow event in the analysis.
 class DataFlowEvent final : public detail::BaseEvent<DataFlowEvent> {
 public:
+  /// @brief Constructs a DataFlowEvent.
+  /// @param Location The MLIR operation associated with this event.
+  /// @param DependsOn The parent events this event depends on.
   DataFlowEvent(mlir::Operation *Location,
                 std::initializer_list<ParentEventPointer> DependsOn)
       : detail::BaseEvent<DataFlowEvent>{Location, DependsOn.size()} {
@@ -107,6 +114,7 @@ public:
   }
 };
 
+/// @brief Represents a key for identifying a state event.
 struct StateKey {
   llvm::StringRef CheckerID;
   air::StateID State;
@@ -116,24 +124,33 @@ struct StateKey {
   }
 };
 
+/// @brief Represents a state event in the analysis.
 class StateEvent final : public detail::BaseEvent<StateEvent> {
 public:
+  /// @brief Constructs a StateEvent.
+  /// @param Key The key identifying this state event.
+  /// @param Location The MLIR operation associated with this event.
+  /// @param DependsOn The parent events this event depends on.
   StateEvent(StateKey Key, mlir::Operation *Location,
              std::initializer_list<ParentEventPointer> DependsOn)
       : detail::BaseEvent<StateEvent>{Location, DependsOn.size()}, Key(Key) {
     initTrailingObjects(DependsOn);
   }
 
+  /// @returns The key identifying this state event.
   const StateKey &getKey() const { return Key; }
 
 private:
   StateKey Key;
 };
 
+/// @brief Manages the hierarchy of events in the analysis.
 class EventHierarchy {
   llvm::BumpPtrAllocator Allocator;
 
 public:
+  /// @brief Adds a new StateEvent to the hierarchy.
+  /// @returns A reference to the newly created StateEvent.
   const StateEvent &
   addStateEvent(StateKey Key, mlir::Operation *Location,
                 std::initializer_list<ParentEventPointer> DependsOn) {
@@ -142,10 +159,14 @@ public:
     return *new (Mem) StateEvent(Key, Location, DependsOn);
   }
 
+  /// @brief Adds a new StateEvent with no parents to the hierarchy.
+  /// @returns A reference to the newly created StateEvent.
   const StateEvent &addStateEvent(StateKey Key, mlir::Operation *Location) {
     return addStateEvent(Key, Location, {});
   }
 
+  /// @brief Adds a new DataFlowEvent to the hierarchy.
+  /// @returns A reference to the newly created DataFlowEvent.
   const DataFlowEvent &
   addDataFlowEvent(mlir::Operation *Location,
                    std::initializer_list<ParentEventPointer> DependsOn) {
@@ -154,6 +175,8 @@ public:
     return *new (Mem) DataFlowEvent(Location, DependsOn);
   }
 
+  /// @brief Adds a new DataFlowEvent with no parents to the hierarchy.
+  /// @returns A reference to the newly created DataFlowEvent.
   const DataFlowEvent &addDataFlowEvent(mlir::Operation *Location) {
     return addDataFlowEvent(Location, {});
   }
