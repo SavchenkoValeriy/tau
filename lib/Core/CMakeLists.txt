@@ -5,6 +5,7 @@ add_tau_library(tauCore
   CheckerPass.cpp
   CheckerRegistry.cpp
   EscapeAnalysis.cpp
+  Events.cpp
   FlowSensitive.cpp
   MemoryStore.cpp
   MutualExclusionAnalysis.cpp

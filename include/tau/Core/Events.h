@@ -16,6 +16,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/PointerIntPair.h>
 #include <llvm/ADT/PointerUnion.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Allocator.h>
 #include <llvm/Support/TrailingObjects.h>
@@ -32,7 +33,9 @@ namespace tau::core {
 class DataFlowEvent;
 class StateEvent;
 class EventHierarchy;
-using ParentEventPointer =
+class TopoOrderBlockEnumerator;
+
+using AbstractEvent =
     llvm::PointerUnion<const DataFlowEvent *, const StateEvent *>;
 
 namespace detail {
@@ -62,22 +65,21 @@ struct CommonBase {
 
 template <class Derived>
 class BaseEvent : public CommonBase,
-                  public llvm::TrailingObjects<Derived, ParentEventPointer> {
-  using TrailingObjects = llvm::TrailingObjects<Derived, ParentEventPointer>;
+                  public llvm::TrailingObjects<Derived, AbstractEvent> {
+  using TrailingObjects = llvm::TrailingObjects<Derived, AbstractEvent>;
 
   friend TrailingObjects;
   friend EventHierarchy;
 
   static size_t sizeToAlloc(size_t NumberOfParents) {
-    return Derived::template totalSizeToAlloc<ParentEventPointer>(
-        NumberOfParents);
+    return Derived::template totalSizeToAlloc<AbstractEvent>(NumberOfParents);
   }
 
 protected:
   using CommonBase::CommonBase;
 
   size_t numTrailingObjects(
-      TrailingObjects::template OverloadToken<ParentEventPointer>) const {
+      TrailingObjects::template OverloadToken<AbstractEvent>) const {
     return getNumberOfParents();
   }
 
@@ -85,16 +87,16 @@ protected:
   const Derived *getAsDerived() const {
     return static_cast<const Derived *>(this);
   }
-  void initTrailingObjects(std::initializer_list<ParentEventPointer> Pointers) {
+  void initTrailingObjects(std::initializer_list<AbstractEvent> Pointers) {
     std::uninitialized_copy(
         Pointers.begin(), Pointers.end(),
-        getAsDerived()->template getTrailingObjects<ParentEventPointer>());
+        getAsDerived()->template getTrailingObjects<AbstractEvent>());
   }
 
 public:
   /// @returns An array of parent event pointers.
-  llvm::ArrayRef<const ParentEventPointer> getParents() const {
-    return {getAsDerived()->template getTrailingObjects<ParentEventPointer>(),
+  llvm::ArrayRef<const AbstractEvent> getParents() const {
+    return {getAsDerived()->template getTrailingObjects<AbstractEvent>(),
             getNumberOfParents()};
   }
 };
@@ -108,7 +110,7 @@ public:
   /// @param Location The MLIR operation associated with this event.
   /// @param DependsOn The parent events this event depends on.
   DataFlowEvent(mlir::Operation *Location,
-                std::initializer_list<ParentEventPointer> DependsOn)
+                std::initializer_list<AbstractEvent> DependsOn)
       : detail::BaseEvent<DataFlowEvent>{Location, DependsOn.size()} {
     initTrailingObjects(DependsOn);
   }
@@ -132,7 +134,7 @@ public:
   /// @param Location The MLIR operation associated with this event.
   /// @param DependsOn The parent events this event depends on.
   StateEvent(StateKey Key, mlir::Operation *Location,
-             std::initializer_list<ParentEventPointer> DependsOn)
+             std::initializer_list<AbstractEvent> DependsOn)
       : detail::BaseEvent<StateEvent>{Location, DependsOn.size()}, Key(Key) {
     initTrailingObjects(DependsOn);
   }
@@ -153,7 +155,7 @@ public:
   /// @returns A reference to the newly created StateEvent.
   const StateEvent &
   addStateEvent(StateKey Key, mlir::Operation *Location,
-                std::initializer_list<ParentEventPointer> DependsOn) {
+                std::initializer_list<AbstractEvent> DependsOn) {
     void *Mem = Allocator.Allocate(StateEvent::sizeToAlloc(DependsOn.size()),
                                    alignof(StateEvent));
     return *new (Mem) StateEvent(Key, Location, DependsOn);
@@ -169,7 +171,7 @@ public:
   /// @returns A reference to the newly created DataFlowEvent.
   const DataFlowEvent &
   addDataFlowEvent(mlir::Operation *Location,
-                   std::initializer_list<ParentEventPointer> DependsOn) {
+                   std::initializer_list<AbstractEvent> DependsOn) {
     void *Mem = Allocator.Allocate(DataFlowEvent::sizeToAlloc(DependsOn.size()),
                                    alignof(DataFlowEvent));
     return *new (Mem) DataFlowEvent(Location, DependsOn);
@@ -180,6 +182,14 @@ public:
   const DataFlowEvent &addDataFlowEvent(mlir::Operation *Location) {
     return addDataFlowEvent(Location, {});
   }
+
+  /// @brief Retrieves and sorts all parent events for a given event.
+  /// @param Event The event to start from.
+  /// @param Enumerator The topological order enumerator for basic blocks.
+  /// @returns A vector of sorted events.
+  llvm::SmallVector<AbstractEvent, 20>
+  linearizeChainOfEvents(const AbstractEvent &Event,
+                         const TopoOrderBlockEnumerator &Enumerator) const;
 };
 
 } // end namespace tau::core
