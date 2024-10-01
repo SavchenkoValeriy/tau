@@ -1,6 +1,7 @@
 add_tau_unittest(CoreTests
   AddressTakenAnalysisTest.cpp
   CheckerTest.cpp
+  EventLinearizationTest.cpp
   FlowSensitiveTest.cpp
   MemoryStoreTest.cpp
   MutualExclusionAnalysisTest.cpp
