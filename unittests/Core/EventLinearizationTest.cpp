@@ -70,8 +70,7 @@ public:
     REQUIRE(succeeded(PM.run(IR->Module)));
   }
 
-  llvm::SmallVector<AbstractEvent, 20>
-  linearizeChainOfEvents(const AbstractEvent &Event) {
+  LinearChainOfEvents linearizeChainOfEvents(const AbstractEvent &Event) {
     return Hierarchy.linearizeChainOfEvents(Event, *Enumerator);
   }
 

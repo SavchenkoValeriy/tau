@@ -6,10 +6,10 @@
 
 namespace tau::core {
 
-llvm::SmallVector<AbstractEvent, 20> EventHierarchy::linearizeChainOfEvents(
+LinearChainOfEvents EventHierarchy::linearizeChainOfEvents(
     const AbstractEvent &Event,
     const TopoOrderBlockEnumerator &Enumerator) const {
-  llvm::SmallVector<AbstractEvent, 20> Result;
+  LinearChainOfEvents Result;
   llvm::DenseSet<const void *> Visited;
 
   // Helper function to recursively collect events

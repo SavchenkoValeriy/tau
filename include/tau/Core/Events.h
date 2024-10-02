@@ -147,6 +147,8 @@ private:
   StateKey Key;
 };
 
+using LinearChainOfEvents = llvm::SmallVector<AbstractEvent, 20>;
+
 /// @brief Manages the hierarchy of events in the analysis.
 class EventHierarchy {
   llvm::BumpPtrAllocator Allocator;
@@ -188,7 +190,7 @@ public:
   /// @param Event The event to start from.
   /// @param Enumerator The topological order enumerator for basic blocks.
   /// @returns A vector of sorted events.
-  llvm::SmallVector<AbstractEvent, 20>
+  LinearChainOfEvents
   linearizeChainOfEvents(const AbstractEvent &Event,
                          const TopoOrderBlockEnumerator &Enumerator) const;
 

@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "tau/Core/Events.h"
+
 #include <llvm/ADT/ArrayRef.h>
 #include <memory>
 
@@ -21,15 +23,12 @@ class Operation;
 
 namespace tau::core {
 
-class StateEvent;
-class EventHierarchy;
-
 class FlowSensitiveAnalysis {
 public:
   FlowSensitiveAnalysis(mlir::Operation *TopLevelOp, mlir::AnalysisManager &AM);
 
   struct Issue {
-    const StateEvent &ErrorEvent;
+    LinearChainOfEvents Events;
     bool Guaranteed;
   };
 

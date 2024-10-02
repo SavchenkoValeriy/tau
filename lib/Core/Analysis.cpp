@@ -4,6 +4,7 @@
 #include "tau/Core/Events.h"
 #include "tau/Core/FlowSensitive.h"
 
+#include <llvm/ADT/STLExtras.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -35,27 +36,25 @@ public:
       // For every found issue, we need to find the corresponding
       // checker and string the events through it to produce
       // the actual error visible to the user.
-      const StateEvent &ErrorEvent = FoundIssue.ErrorEvent;
+      assert(!FoundIssue.Events.empty() &&
+             "Issues must have at least one event!");
+      assert(FoundIssue.Events.front().is<const StateEvent *>() &&
+             "The first event should always be an error event, ie StateEvent");
+      const StateEvent &ErrorEvent =
+          *FoundIssue.Events.front().get<const StateEvent *>();
       auto &Checker = findChecker(ErrorEvent.getKey().CheckerID);
 
       InFlightDiagnostic Error = Checker.emitError(ErrorEvent.getLocation(),
                                                    ErrorEvent.getKey().State);
 
-      // TODO: remove and replace with proper parent event traversal
-      const auto GetParent = [](const StateEvent &E) -> const StateEvent * {
-        const auto Parents = E.getParents();
-        if (Parents.empty())
-          return nullptr;
-
-        return Parents.front().get<const StateEvent *>();
-      };
-      // TODO: sort parents and traverse bottom up.
-
       // Traverse the event tree and emit additional notes.
-      for (const StateEvent *CurrentEvent = GetParent(ErrorEvent); CurrentEvent;
-           CurrentEvent = GetParent(*CurrentEvent))
-        Checker.emitNote(Error, CurrentEvent->getLocation(),
-                         CurrentEvent->getKey().State);
+      for (AbstractEvent CurrentEvent : llvm::drop_begin(FoundIssue.Events)) {
+        if (const auto *CurrentStateEvent =
+                CurrentEvent.dyn_cast<const StateEvent *>()) {
+          Checker.emitNote(Error, CurrentStateEvent->getLocation(),
+                           CurrentStateEvent->getKey().State);
+        }
+      }
     }
   }
 
