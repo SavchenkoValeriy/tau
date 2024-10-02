@@ -6,6 +6,7 @@
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/MemoryStore.h"
 #include "tau/Core/State.h"
+#include "tau/Core/TopoOrderEnumerator.h"
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
@@ -308,16 +309,13 @@ private:
   }
 
   bool isGuaranteed(const StateEvent &ErrorEvent) const {
-    // TODO: remove and replace with proper parent event traversal
-    const auto GetParent = [](const StateEvent &E) -> const StateEvent * {
-      const auto Parents = E.getParents();
-      if (Parents.empty())
-        return nullptr;
+    const auto LinearizedEvents =
+        Hierarchy.linearizeChainOfEvents(&ErrorEvent, Enumerator);
 
-      return Parents.front().get<const StateEvent *>();
-    };
+    size_t CurrentIndex = 1;
 
-    const StateEvent *Prev = &ErrorEvent, *Current = GetParent(*Prev);
+    AbstractEvent Prev = &ErrorEvent, Current = Prev;
+
     // This part of the algorithm checks whether the flow-sensitive
     // framework is enough to report the issue.  It uses (post-)domination
     // relationship to figure this out.
@@ -370,19 +368,26 @@ private:
     // 1 <= k <= n such that A_i dominates A_i+1 for all i < k, and
     // A_i post-dominates A_i+1 for all k <= i < n, then we can guarantee
     // that the given chain doesn't include mutually exclusive assumptions.
-    for (; Current; Prev = Current, Current = GetParent(*Current))
+    for (; CurrentIndex < LinearizedEvents.size();
+         Prev = Current, ++CurrentIndex) {
       // We start from the very last event of the chain, so in order to find
       // A_k, we need to check for post-dominance.
-      if (!PostDomTree.postDominates(Prev->getLocation(),
-                                     Current->getLocation()))
+      Current = LinearizedEvents[CurrentIndex];
+      if (!PostDomTree.postDominates(EventHierarchy::getLocationOf(Prev),
+                                     EventHierarchy::getLocationOf(Current)))
         break;
+    }
 
-    for (; Current; Prev = Current, Current = GetParent(*Current))
+    for (; CurrentIndex < LinearizedEvents.size();
+         Prev = Current, ++CurrentIndex) {
       // If we got here, we found an event A_i, so that A_i+1 doesn't
       // post-dominate it.  Now we need to "flip the switch" and check
       // for dominance.
-      if (!DomTree.dominates(Current->getLocation(), Prev->getLocation()))
+      Current = LinearizedEvents[CurrentIndex];
+      if (!DomTree.dominates(EventHierarchy::getLocationOf(Current),
+                             EventHierarchy::getLocationOf(Prev)))
         return false;
+    }
 
     return true;
   }

@@ -19,6 +19,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Allocator.h>
+#include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/TrailingObjects.h>
 
 #include <initializer_list>
@@ -190,6 +191,31 @@ public:
   llvm::SmallVector<AbstractEvent, 20>
   linearizeChainOfEvents(const AbstractEvent &Event,
                          const TopoOrderBlockEnumerator &Enumerator) const;
+
+  /// @brief Get parent events of the given abstract event.
+  /// All events are guaranteed to have parents.
+  static llvm::ArrayRef<const AbstractEvent>
+  getParentEventsOf(const AbstractEvent &Event) {
+    if (const auto *EventAsStateEvent = Event.dyn_cast<const StateEvent *>()) {
+      return EventAsStateEvent->getParents();
+    }
+    if (const auto *EventAsDataFlowEvent =
+            Event.dyn_cast<const DataFlowEvent *>()) {
+      return EventAsDataFlowEvent->getParents();
+    }
+    llvm_unreachable("unexpected event type");
+  }
+
+  static mlir::Operation *getLocationOf(const AbstractEvent &Event) {
+    if (const auto *EventAsStateEvent = Event.dyn_cast<const StateEvent *>()) {
+      return EventAsStateEvent->getLocation();
+    }
+    if (const auto *EventAsDataFlowEvent =
+            Event.dyn_cast<const DataFlowEvent *>()) {
+      return EventAsDataFlowEvent->getLocation();
+    }
+    llvm_unreachable("unexpected event type");
+  }
 };
 
 } // end namespace tau::core
