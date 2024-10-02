@@ -152,22 +152,22 @@ void test(int x) {
   REQUIRE(FoundIssues.size() == 1);
   auto Issue = FoundIssues[0];
   CHECK(Issue.Guaranteed);
+  REQUIRE(Issue.Events.size() == 3);
 
-  auto Foobar = dyn_cast_or_null<CallOp>(Issue.ErrorEvent.getLocation());
+  REQUIRE(Issue.Events.front().is<const StateEvent *>());
+  auto Foobar = dyn_cast_or_null<CallOp>(
+      Issue.Events.front().get<const StateEvent *>()->getLocation());
   REQUIRE(Foobar);
   CHECK(Foobar.getCallee().starts_with("void foobar"));
 
-  REQUIRE(!Issue.ErrorEvent.getParents().empty());
-  REQUIRE(Issue.ErrorEvent.getParents().front().is<const StateEvent *>());
-  auto &BarEvent =
-      *Issue.ErrorEvent.getParents().front().get<const StateEvent *>();
+  REQUIRE(Issue.Events[1].is<const StateEvent *>());
+  auto &BarEvent = *Issue.Events[1].get<const StateEvent *>();
   auto Bar = dyn_cast_or_null<CallOp>(BarEvent.getLocation());
   REQUIRE(Bar);
   CHECK(Bar.getCallee().starts_with("void bar"));
 
-  REQUIRE(!BarEvent.getParents().empty());
-  REQUIRE(BarEvent.getParents().front().is<const StateEvent *>());
-  auto &FooEvent = *BarEvent.getParents().front().get<const StateEvent *>();
+  REQUIRE(Issue.Events[2].is<const StateEvent *>());
+  auto &FooEvent = *Issue.Events[2].get<const StateEvent *>();
   auto Foo = dyn_cast_or_null<CallOp>(FooEvent.getLocation());
   REQUIRE(Foo);
   CHECK(Foo.getCallee().starts_with("void foo"));

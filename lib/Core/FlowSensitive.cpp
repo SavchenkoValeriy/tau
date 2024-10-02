@@ -305,13 +305,15 @@ private:
   }
 
   void addIssue(const StateEvent &ErrorEvent) {
-    FoundIssues.push_back({ErrorEvent, isGuaranteed(ErrorEvent)});
-  }
-
-  bool isGuaranteed(const StateEvent &ErrorEvent) const {
     const auto LinearizedEvents =
         Hierarchy.linearizeChainOfEvents(&ErrorEvent, Enumerator);
+    const bool Guaranteed = isGuaranteed(ErrorEvent, LinearizedEvents);
 
+    FoundIssues.push_back({std::move(LinearizedEvents), Guaranteed});
+  }
+
+  bool isGuaranteed(const StateEvent &ErrorEvent,
+                    const LinearChainOfEvents &LinearizedEvents) const {
     size_t CurrentIndex = 1;
 
     AbstractEvent Prev = &ErrorEvent, Current = Prev;
