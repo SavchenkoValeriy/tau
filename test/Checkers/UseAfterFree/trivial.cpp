@@ -35,3 +35,12 @@ int test_new_delete_field() {
   delete b.x; // expected-note{{Deallocated here}}
   return *b.x; // expected-error{{Use of deallocated pointer}}
 }
+
+int test_new_delete_with_extra_var() {
+  int *x = new int(42); // expected-note{{Allocated here}}
+  int c = 42;
+  int *a = &c;
+  a = x;
+  delete x; // expected-note{{Deallocated here}}
+  return *a; // expected-error{{Use of deallocated pointer}}
+}
