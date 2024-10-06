@@ -190,9 +190,10 @@ private:
     //
     //    * It's the first time we visit this block, and it's
     //      successors are still to be processed at least once.
-    if (setState(BB, CurrentState) == ChangeResult::Change ||
-        setStore(BB, CurrentStore) == ChangeResult::Change ||
-        !isProcessed(BB)) {
+    const ChangeResult StateChanged = setState(BB, CurrentState);
+    const ChangeResult StoreChanged = setStore(BB, CurrentStore);
+    if (StateChanged == ChangeResult::Change ||
+        StoreChanged == ChangeResult::Change || !isProcessed(BB)) {
       markProcessed(BB);
       Worklist.enqueueSuccessors(BB);
     }
