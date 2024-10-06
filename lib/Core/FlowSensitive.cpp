@@ -5,6 +5,7 @@
 #include "tau/Core/Events.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/MemoryStore.h"
+#include "tau/Core/MutualExclusionAnalysis.h"
 #include "tau/Core/State.h"
 #include "tau/Core/TopoOrderEnumerator.h"
 
@@ -145,6 +146,7 @@ class FlowSensitiveAnalysis::Implementation {
 
   // Issue tracking
   SmallVector<Issue, 20> FoundIssues;
+  MutualExclusionAnalysis MutualExclusion;
   DominanceInfo &DomTree;
   PostDominanceInfo &PostDomTree;
 
@@ -154,6 +156,7 @@ public:
         Enumerator(AM.getAnalysis<TopoOrderBlockEnumerator>()),
         Worklist(AM.getAnalysis<ForwardWorklist>()),
         Processed(Function.getBlocks().size()),
+        MutualExclusion(AM.getAnalysis<MutualExclusionAnalysis>()),
         DomTree(AM.getAnalysis<DominanceInfo>()),
         PostDomTree(AM.getAnalysis<PostDominanceInfo>()) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
@@ -256,8 +259,8 @@ private:
 
         for (MemoryStore::Definition CanonicalDefinition :
              CurrentStore.getDefininingValues(AffectedValue)) {
-          if (const StateEvent *NewEvent = addTransition(
-                  CanonicalDefinition.Value, Op, CheckerID, From, To);
+          if (const StateEvent *NewEvent =
+                  addTransition(CanonicalDefinition, Op, CheckerID, From, To);
               NewEvent != nullptr && To.isError())
             addIssue(*NewEvent);
         }
@@ -265,10 +268,10 @@ private:
     }
   }
 
-  const StateEvent *addTransition(Value ForValue, Operation &Location,
-                                  StringRef CheckerID,
+  const StateEvent *addTransition(MemoryStore::Definition ForValue,
+                                  Operation &Location, StringRef CheckerID,
                                   std::optional<StateID> From, StateID To) {
-    Events Current = CurrentState[ForValue];
+    Events Current = CurrentState[ForValue.Value];
 
     // TODO: This is a very crude deduplication method, but it helps to
     //       prevent infinite loops with re-creating the same events over
@@ -281,25 +284,38 @@ private:
       // transition, and we should check that among the tracked
       // states of the value there are no states of this checker.
       if (Current.hasNoCheckerState(CheckerID)) {
-        const StateEvent &NewEvent =
-            Hierarchy.addStateEvent({CheckerID, To}, &Location);
+        const StateEvent *NewEvent = nullptr;
+        if (ForValue.Event) {
+          NewEvent = &Hierarchy.addStateEvent({CheckerID, To}, &Location,
+                                              {ForValue.Event});
+        } else {
+          NewEvent = &Hierarchy.addStateEvent({CheckerID, To}, &Location);
+        }
+
         // Since the value had no checker-related events prior to this,
         // we can simply add a new event.
-        associate(ForValue, Current.join(Events(NewEvent)));
-        return &NewEvent;
+        associate(ForValue.Value, Current.join(Events(*NewEvent)));
+        return NewEvent;
       }
 
       return nullptr;
     }
 
     if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
-      const StateEvent &ToEvent =
-          Hierarchy.addStateEvent({CheckerID, To}, &Location, {FromEvent});
+      const StateEvent *ToEvent = nullptr;
+      if (ForValue.Event) {
+        ToEvent = &Hierarchy.addStateEvent({CheckerID, To}, &Location,
+                                           {FromEvent, ForValue.Event});
+      } else {
+        ToEvent =
+            &Hierarchy.addStateEvent({CheckerID, To}, &Location, {FromEvent});
+      }
+
       // Since this is a state transition, we need to replace the previous
       // event.
-      Events NewSetOfEvents = Current.replace(*FromEvent, ToEvent);
-      associate(ForValue, NewSetOfEvents);
-      return &ToEvent;
+      Events NewSetOfEvents = Current.replace(*FromEvent, *ToEvent);
+      associate(ForValue.Value, NewSetOfEvents);
+      return ToEvent;
     }
 
     return nullptr;
