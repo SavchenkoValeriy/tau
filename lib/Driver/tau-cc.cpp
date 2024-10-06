@@ -46,8 +46,6 @@ cl::opt<bool> Verify("verify",
                      cl::desc("Verify checker output using comment directives"),
                      cl::cat(TauCategory), cl::Hidden);
 
-} // end anonymous namespace
-
 std::unique_ptr<ScopedDiagnosticHandler>
 createHandler(llvm::SourceMgr &SourceManager, mlir::MLIRContext &Context) {
   if (Verify)
@@ -108,5 +106,7 @@ LogicalResult tauCCMain(int Argc, const char **Argv) {
                                              llvm::errs());
   return success(succeeded(PM.run(IR->Module)) && succeeded(Handler.verify()));
 }
+
+} // end anonymous namespace
 
 int main(int Argc, const char **Argv) { return failed(tauCCMain(Argc, Argv)); }
