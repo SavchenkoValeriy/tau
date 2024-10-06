@@ -35,6 +35,7 @@ class DataFlowEvent;
 class StateEvent;
 class EventHierarchy;
 class TopoOrderBlockEnumerator;
+class MutualExclusionAnalysis;
 
 using AbstractEvent =
     llvm::PointerUnion<const DataFlowEvent *, const StateEvent *>;
@@ -190,9 +191,9 @@ public:
   /// @param Event The event to start from.
   /// @param Enumerator The topological order enumerator for basic blocks.
   /// @returns A vector of sorted events.
-  LinearChainOfEvents
+  static LinearChainOfEvents
   linearizeChainOfEvents(const AbstractEvent &Event,
-                         const TopoOrderBlockEnumerator &Enumerator) const;
+                         const TopoOrderBlockEnumerator &Enumerator);
 
   /// @brief Get parent events of the given abstract event.
   /// All events are guaranteed to have parents.
@@ -208,6 +209,8 @@ public:
     llvm_unreachable("unexpected event type");
   }
 
+  /// @brief Get location of the given abstract event.
+  /// All events are guaranteed to have location-providing operations.
   static mlir::Operation *getLocationOf(const AbstractEvent &Event) {
     if (const auto *EventAsStateEvent = Event.dyn_cast<const StateEvent *>()) {
       return EventAsStateEvent->getLocation();
@@ -218,6 +221,13 @@ public:
     }
     llvm_unreachable("unexpected event type");
   }
+
+  /// @brief Return true if two given events are mutually exclusive.
+  /// Mutually exclusive events can never appear on the same execution path.
+  static bool
+  areMutuallyExclusive(const AbstractEvent &A, const AbstractEvent &B,
+                       const MutualExclusionAnalysis &MutualExclusivity,
+                       const TopoOrderBlockEnumerator &Enumerator);
 };
 
 } // end namespace tau::core

@@ -1,4 +1,5 @@
 #include "tau/Core/Events.h"
+#include "tau/Core/MutualExclusionAnalysis.h"
 #include "tau/Core/TopoOrderEnumerator.h"
 
 #include <llvm/ADT/STLExtras.h>
@@ -7,8 +8,7 @@
 namespace tau::core {
 
 LinearChainOfEvents EventHierarchy::linearizeChainOfEvents(
-    const AbstractEvent &Event,
-    const TopoOrderBlockEnumerator &Enumerator) const {
+    const AbstractEvent &Event, const TopoOrderBlockEnumerator &Enumerator) {
   LinearChainOfEvents Result;
   llvm::DenseSet<const void *> Visited;
 
@@ -59,6 +59,23 @@ LinearChainOfEvents EventHierarchy::linearizeChainOfEvents(
   });
 
   return Result;
+}
+
+bool EventHierarchy::areMutuallyExclusive(
+    const AbstractEvent &A, const AbstractEvent &B,
+    const MutualExclusionAnalysis &MutualExclusivity,
+    const TopoOrderBlockEnumerator &Enumerator) {
+  const LinearChainOfEvents ChainA = linearizeChainOfEvents(A, Enumerator);
+  const LinearChainOfEvents ChainB = linearizeChainOfEvents(B, Enumerator);
+
+  return llvm::any_of(
+      ChainA, [&ChainB, &MutualExclusivity](AbstractEvent Left) {
+        return llvm::any_of(ChainB,
+                            [Left, &MutualExclusivity](AbstractEvent Right) {
+                              return MutualExclusivity.areMutuallyExclusive(
+                                  getLocationOf(Left), getLocationOf(Right));
+                            });
+      });
 }
 
 } // end namespace tau::core
