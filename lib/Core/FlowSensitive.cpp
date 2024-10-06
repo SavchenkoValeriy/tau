@@ -304,6 +304,10 @@ private:
     if (const StateEvent *FromEvent = Current.find(CheckerID, *From)) {
       const StateEvent *ToEvent = nullptr;
       if (ForValue.Event) {
+        if (EventHierarchy::areMutuallyExclusive(FromEvent, ForValue.Event,
+                                                 MutualExclusion, Enumerator))
+          return nullptr;
+
         ToEvent = &Hierarchy.addStateEvent({CheckerID, To}, &Location,
                                            {FromEvent, ForValue.Event});
       } else {

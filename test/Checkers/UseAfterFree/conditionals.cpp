@@ -11,3 +11,15 @@ int test_simple_if(bool cond) {
   }
   return *a; // expected-error{{Use of deallocated pointer}}
 }
+
+int test_exclusive_if(bool cond) {
+  int *x = new int(42);
+  int c = 42;
+  int *a = &c;
+  if (cond) {
+    a = x;
+  } else {
+    delete x;
+  }
+  return *a;
+}
