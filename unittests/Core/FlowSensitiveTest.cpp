@@ -121,15 +121,15 @@ public:
     SmallVector<AbstractChecker *, 1> Checkers{&TestChecker};
 
     PM.addNestedPass<FuncOp>(createCheckerPass(Checkers));
-    PM.addNestedPass<FuncOp>(std::make_unique<FlowSensitiveIssuesHarvester>(
-        FoundIssues, EventHierarchy));
+    PM.addNestedPass<FuncOp>(
+        std::make_unique<FlowSensitiveIssuesHarvester>(FoundIssues, Hierarchy));
 
     REQUIRE(succeeded(PM.run(IR->Module)));
   }
 
 private:
   std::unique_ptr<frontend::Output> IR;
-  EventHierarchy EventHierarchy;
+  EventHierarchy Hierarchy;
 
 protected:
   std::vector<FlowSensitiveAnalysis::Issue> FoundIssues;
