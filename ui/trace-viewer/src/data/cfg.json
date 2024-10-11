@@ -1,0 +1,76 @@
+{
+    "func" : {
+        "name" : "func.func @\"void test(Human *, Human *, Dog *, bool)\"(%arg0: !air<ptr !air<recref @Human>>, %arg1: !air<ptr !air<recref @Human>>, %arg2: !air<ptr !air<recref @Dog>>, %arg3: ui1)",
+        "blocks" : [
+            {
+                "name" : "bb0",
+                "code" : [
+                    "%0 = air.alloca : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "air.store %arg0 -> %0 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%1 = air.alloca : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "air.store %arg1 -> %1 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%2 = air.alloca : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "air.store %arg2 -> %2 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%3 = air.alloca : !air<ptr ui1>",
+                    "air.store %arg3 -> %3 : !air<ptr ui1>",
+                    "%4 = air.load %0 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%5 = air.getfieldptr %4 -> \"love\" : !air<ptr !air<recref @Human>> -> !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%6 = air.load %1 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "air.store %6 -> %5 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%7 = air.alloca : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%8 = air.halloca : !air<ptr !air<recref @Dog>>",
+                    "call @\"void Dog::Dog(Dog *)\"(%8) : (!air<ptr !air<recref @Dog>>) -> ()",
+                    "air.store %8 -> %7 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%9 = air.alloca : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%10 = air.load %7 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "air.store %10 -> %9 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%11 = air.load %3 : !air<ptr ui1>",
+                    "air.cond_br %11, ^bb2, ^bb3"
+                ],
+                "edges" : [2, 3]
+            },
+            {
+                "name" : "bb1",
+                "code" : [
+                    "return"
+                ],
+                "edges" : []
+            },
+            {
+                "name" : "bb2",
+                "code" : [
+                    "%12 = air.load %2 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%13 = air.getfieldptr %12 -> \"brother\" : !air<ptr !air<recref @Dog>> -> !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%14 = air.load %9 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "air.store %14 -> %13 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "cf.br ^bb3"
+                ],
+                "edges" : [3]
+            },
+            {
+                "name" : "bb3",
+                "code" : [
+                    "%15 = air.load %1 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%16 = air.getfieldptr %15 -> \"pet\" : !air<ptr !air<recref @Human>> -> !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%17 = air.load %2 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "air.store %17 -> %16 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%18 = air.load %7 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "call @\"void Dog::~Dog(Dog *)\"(%18) : (!air<ptr !air<recref @Dog>>) -> ()",
+                    "air.hdealloca %18 : !air<ptr !air<recref @Dog>>",
+                    "%19 = air.load %0 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%20 = air.getfieldptr %19 -> \"love\" : !air<ptr !air<recref @Human>> -> !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%21 = air.load %20 : !air<ptr !air<ptr !air<recref @Human>>>",
+                    "%22 = air.getfieldptr %21 -> \"pet\" : !air<ptr !air<recref @Human>> -> !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%23 = air.load %22 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%24 = air.getfieldptr %23 -> \"brother\" : !air<ptr !air<recref @Dog>> -> !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "%25 = air.load %24 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "call @\"void Dog::bark(Dog *)\"(%25) : (!air<ptr !air<recref @Dog>>) -> ()",
+                    "air.dealloca %7 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "air.dealloca %9 : !air<ptr !air<ptr !air<recref @Dog>>>",
+                    "cf.br ^bb1"
+                ],
+                "edges" : [1]
+            }
+        ]
+    }
+}
