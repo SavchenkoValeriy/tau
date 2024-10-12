@@ -65,7 +65,8 @@ const beautifyInstruction = (instruction: string) => {
 };
 
 const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
-  const { main, type } = beautifyInstruction(instruction);
+  const [mainPart, type] = instruction.split(' : ');
+  const parts = mainPart.split(/(%\w+)/g);
   const [showHint, setShowHint] = React.useState(false);
 
   return (
@@ -79,7 +80,11 @@ const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
       onMouseEnter={() => setShowHint(true)}
       onMouseLeave={() => setShowHint(false)}
     >
-      <span dangerouslySetInnerHTML={{ __html: main }} />
+      {parts.map((part, index) => (
+        part.startsWith('%') ? 
+          <strong key={index}>{part}</strong> : 
+          <span key={index}>{part}</span>
+      ))}
       {type && showHint && (
         <span style={{
           position: 'absolute',
