@@ -22,8 +22,8 @@ interface CFGData {
 }
 
 const getNodeDimensions = (block: CFGData['func']['blocks'][0]) => {
-  const maxLineLength = Math.max(...block.code.map(line => line.length));
-  const width = Math.max(300, maxLineLength * 7 + 40); // Adjust multiplier as needed
+  const maxLineLength = Math.max(...block.code.map(line => line.split(':')[0].length));
+  const width = Math.max(300, maxLineLength * 7 + 40);
   const height = Math.max(100, block.code.length * 20 + 40);
   return { width, height };
 };
@@ -58,6 +58,48 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
   };
 };
 
+const beautifyInstruction = (instruction: string) => {
+  const [mainPart, type] = instruction.split(' : ');
+  const beautifiedMain = mainPart.replace(/(%\w+)/g, '<strong>$1</strong>');
+  return { main: beautifiedMain, type };
+};
+
+const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
+  const { main, type } = beautifyInstruction(instruction);
+  const [showHint, setShowHint] = React.useState(false);
+
+  return (
+    <div 
+      style={{ 
+        whiteSpace: 'nowrap', 
+        overflow: 'visible',
+        position: 'relative',
+        marginBottom: '2px'
+      }}
+      onMouseEnter={() => setShowHint(true)}
+      onMouseLeave={() => setShowHint(false)}
+    >
+      <span dangerouslySetInnerHTML={{ __html: main }} />
+      {type && showHint && (
+        <span style={{
+          position: 'absolute',
+          left: '100%',
+          top: '-2px',
+          backgroundColor: 'black',
+          color: 'white',
+          padding: '2px 5px',
+          borderRadius: '3px',
+          whiteSpace: 'nowrap',
+          zIndex: 1000,
+          pointerEvents: 'none',
+        }}>
+          : {type}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
   const initialNodes: Node[] = data.func.blocks.map((block) => {
     const { width, height } = getNodeDimensions(block);
@@ -65,12 +107,10 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
       id: block.name,
       data: { 
         label: (
-          <div style={{ textAlign: 'left', padding: '10px', fontSize: '12px', fontFamily: 'monospace' }}>
+          <div style={{ textAlign: 'left', padding: '10px', fontSize: '12px', fontFamily: 'monospace', width: width - 20 }}>
             <strong>{block.name}</strong>
             {block.code.map((line, i) => (
-              <div key={i} style={{ whiteSpace: 'pre', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {line}
-              </div>
+              <Instruction key={i} instruction={line} />
             ))}
           </div>
         )
@@ -117,6 +157,8 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
         fitView
         attributionPosition="bottom-left"
         minZoom={0.1}
+        nodesDraggable={false}
+        nodesConnectable={false}
       >
         <Background color="#f0f0f0" gap={16} />
       </ReactFlow>
