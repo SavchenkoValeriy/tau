@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, { 
   Node, 
   Edge, 
   ConnectionLineType,
+  MarkerType,
+  Background,
+  ReactFlowInstance,
   useNodesState,
   useEdgesState,
-  MarkerType,
-  Background
+  NodeProps
 } from 'react-flow-renderer';
 import dagre from 'dagre';
+import BasicBlock from './BasicBlock';
 
 interface CFGData {
   func: {
@@ -21,20 +24,13 @@ interface CFGData {
   };
 }
 
-const getNodeDimensions = (block: CFGData['func']['blocks'][0]) => {
-  const maxLineLength = Math.max(...block.code.map(line => line.split(':')[0].length));
-  const width = Math.max(300, maxLineLength * 7 + 40);
-  const height = Math.max(100, block.code.length * 20 + 40);
-  return { width, height };
-};
-
 const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, ranksep: 80, nodesep: 50 });
+  dagreGraph.setGraph({ rankdir: direction, ranksep: 150, nodesep: 150 });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: node.width, height: node.height });
+    dagreGraph.setNode(node.id, { width: node.width || 200, height: node.height || 100 });
   });
 
   edges.forEach((edge) => {
@@ -43,114 +39,99 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
 
   dagre.layout(dagreGraph);
 
-  return {
-    nodes: nodes.map((node) => {
-      const nodeWithPosition = dagreGraph.node(node.id);
-      return {
-        ...node,
-        position: {
-          x: nodeWithPosition.x - node.width! / 2,
-          y: nodeWithPosition.y - node.height! / 2,
-        },
-      };
-    }),
-    edges,
-  };
-};
-
-const beautifyInstruction = (instruction: string) => {
-  const [mainPart, type] = instruction.split(' : ');
-  const beautifiedMain = mainPart.replace(/(%\w+)/g, '<strong>$1</strong>');
-  return { main: beautifiedMain, type };
-};
-
-const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
-  const [mainPart, type] = instruction.split(' : ');
-  const parts = mainPart.split(/(%\w+)/g);
-  const [showHint, setShowHint] = React.useState(false);
-
-  return (
-    <div 
-      style={{ 
-        whiteSpace: 'nowrap', 
-        overflow: 'visible',
-        position: 'relative',
-        marginBottom: '2px'
-      }}
-      onMouseEnter={() => setShowHint(true)}
-      onMouseLeave={() => setShowHint(false)}
-    >
-      {parts.map((part, index) => (
-        part.startsWith('%') ? 
-          <strong key={index}>{part}</strong> : 
-          <span key={index}>{part}</span>
-      ))}
-      {type && showHint && (
-        <span style={{
-          position: 'absolute',
-          left: '100%',
-          top: '-2px',
-          backgroundColor: 'black',
-          color: 'white',
-          padding: '2px 5px',
-          borderRadius: '3px',
-          whiteSpace: 'nowrap',
-          zIndex: 1000,
-          pointerEvents: 'none',
-        }}>
-          : {type}
-        </span>
-      )}
-    </div>
-  );
-};
-
-const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
-  const initialNodes: Node[] = data.func.blocks.map((block) => {
-    const { width, height } = getNodeDimensions(block);
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
     return {
-      id: block.name,
-      data: { 
-        label: (
-          <div style={{ textAlign: 'left', padding: '10px', fontSize: '12px', fontFamily: 'monospace', width: width - 20 }}>
-            <strong>{block.name}</strong>
-            {block.code.map((line, i) => (
-              <Instruction key={i} instruction={line} />
-            ))}
-          </div>
-        )
+      ...node,
+      position: {
+        x: nodeWithPosition.x - (node.width || 200) / 2,
+        y: nodeWithPosition.y - (node.height || 100) / 2,
       },
-      style: { 
-        width, 
-        height, 
-        border: '1px solid #ddd', 
-        borderRadius: '5px',
-        backgroundColor: 'white',
-      },
-      position: { x: 0, y: 0 },
-      width,
-      height
     };
   });
 
-  const initialEdges: Edge[] = data.func.blocks.flatMap((block) =>
-    block.edges.map((target) => ({
-      id: `${block.name}-${data.func.blocks[target].name}`,
-      source: block.name,
-      target: data.func.blocks[target].name,
-      type: ConnectionLineType.Step,
-      style: { stroke: '#000', strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#000' }
-    }))
-  );
+  return { nodes: layoutedNodes, edges };
+};
 
-  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-    initialNodes,
-    initialEdges
-  );
+const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [isLayoutApplied, setIsLayoutApplied] = useState(false);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+  const updateNodeDimensions = useCallback((id: string, width: number, height: number) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === id) {
+          if (node.width !== width || node.height !== height) {
+            return { ...node, width, height };
+          }
+        }
+        return node;
+      })
+    );
+    setIsLayoutApplied(false);
+  }, [setNodes]);
+
+  const nodeTypes = useMemo(() => ({
+    basicBlock: (props: NodeProps) => (
+      <BasicBlock {...props} updateNodeDimensions={updateNodeDimensions} />
+    ),
+  }), [updateNodeDimensions]);
+
+  const initializeGraph = useCallback(() => {
+    if (data && data.func && data.func.blocks) {
+      const initialNodes: Node[] = data.func.blocks.map((block) => ({
+        id: block.name,
+        type: 'basicBlock',
+        data: { 
+          name: block.name,
+          code: block.code,
+        },
+        position: { x: 0, y: 0 },
+        style: { 
+          border: '1px solid #ddd', 
+          borderRadius: '5px',
+          backgroundColor: 'white',
+        },
+      }));
+
+      const initialEdges: Edge[] = data.func.blocks.flatMap((block) =>
+        block.edges.map((target) => ({
+          id: `${block.name}-${data.func.blocks[target].name}`,
+          source: block.name,
+          target: data.func.blocks[target].name,
+          type: ConnectionLineType.SmoothStep,
+          style: { stroke: '#000', strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#000' },
+        }))
+      );
+
+      setNodes(initialNodes);
+      setEdges(initialEdges);
+      setIsLayoutApplied(false);
+    }
+  }, [data, setNodes, setEdges]);
+
+  useEffect(() => {
+    initializeGraph();
+  }, [initializeGraph]);
+
+  useEffect(() => {
+    if (!isLayoutApplied && nodes.length > 0 && edges.length > 0) {
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges);
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+      setIsLayoutApplied(true);
+    }
+  }, [nodes, edges, isLayoutApplied, setNodes, setEdges]);
+
+  const onInit = useCallback((reactFlowInstance: ReactFlowInstance) => {
+    reactFlowInstance.fitView({ padding: 0.2 });
+  }, []);
+
+  if (nodes.length === 0) {
+    return <div>Loading CFG...</div>;
+  }
 
   return (
     <div style={{ height: '800px', width: '100%' }}>
@@ -159,6 +140,8 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        onInit={onInit}
         fitView
         attributionPosition="bottom-left"
         minZoom={0.1}
