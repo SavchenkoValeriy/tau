@@ -5,6 +5,7 @@ interface BasicBlockProps extends NodeProps {
   data: {
     name: string;
     code: string[];
+    edges: number[];
   };
   updateNodeDimensions: (id: string, width: number, height: number) => void;
 }
@@ -78,7 +79,15 @@ const BasicBlock: React.FC<BasicBlockProps> = ({ data, id, updateNodeDimensions 
       {data.code.map((line: string, i: number) => (
         <Instruction key={i} instruction={line} />
       ))}
-      <Handle type="source" position={Position.Bottom} />
+    {data.edges.map((_, index) => (
+        <Handle
+          key={index}
+          type="source"
+          position={Position.Bottom}
+          id={`${id}-${index}`}
+          style={{ left: `${(index + 1) * 100 / (data.edges.length + 1)}%` }}
+        />
+      ))}
     </div>
   );
 };

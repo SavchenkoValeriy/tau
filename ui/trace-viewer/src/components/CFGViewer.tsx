@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import ReactFlow, { 
-  Node, 
-  Edge, 
+import ReactFlow, {
+  Node,
+  Edge,
   ConnectionLineType,
   MarkerType,
   Background,
@@ -83,23 +83,25 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
       const initialNodes: Node[] = data.func.blocks.map((block) => ({
         id: block.name,
         type: 'basicBlock',
-        data: { 
+        data: {
           name: block.name,
           code: block.code,
+          edges: block.edges,
         },
         position: { x: 0, y: 0 },
-        style: { 
-          border: '1px solid #ddd', 
+        style: {
+          border: '1px solid #ddd',
           borderRadius: '5px',
           backgroundColor: 'white',
         },
       }));
 
-      const initialEdges: Edge[] = data.func.blocks.flatMap((block) =>
-        block.edges.map((target) => ({
-          id: `${block.name}-${data.func.blocks[target].name}`,
+      const initialEdges: Edge[] = data.func.blocks.flatMap((block, blockIndex) =>
+        block.edges.map((target, edgeIndex) => ({
+          id: `${block.name}-${data.func.blocks[target].name}-${edgeIndex}`,
           source: block.name,
           target: data.func.blocks[target].name,
+          sourceHandle: `${block.name}-${edgeIndex}`,
           type: ConnectionLineType.SmoothStep,
           style: { stroke: '#000', strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: '#000' },
@@ -145,7 +147,7 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
         fitView
         attributionPosition="bottom-left"
         minZoom={0.1}
-        nodesDraggable={false}
+        nodesDraggable={true}
         nodesConnectable={false}
       >
         <Background color="#f0f0f0" gap={16} />
