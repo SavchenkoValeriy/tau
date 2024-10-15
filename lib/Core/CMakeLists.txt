@@ -2,6 +2,7 @@ add_tau_library(tauCore
   AddressTakenAnalysis.cpp
   AliasAnalysis.cpp
   Analysis.cpp
+  AnalysisTracer.cpp
   CheckerPass.cpp
   CheckerRegistry.cpp
   EscapeAnalysis.cpp
