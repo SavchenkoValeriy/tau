@@ -2,6 +2,7 @@
 
 #include "tau/AIR/AirAttrs.h"
 #include "tau/AIR/StateID.h"
+#include "tau/Core/AnalysisTracer.h"
 #include "tau/Core/Events.h"
 #include "tau/Core/FlowWorklist.h"
 #include "tau/Core/MemoryStore.h"
@@ -150,6 +151,9 @@ class FlowSensitiveAnalysis::Implementation {
   DominanceInfo &DomTree;
   PostDominanceInfo &PostDomTree;
 
+  // Debugging
+  AnalysisTracer Tracer;
+
 public:
   Implementation(FuncOp Function, AnalysisManager &AM)
       : CurrentStore(Hierarchy),
@@ -158,7 +162,7 @@ public:
         Processed(Function.getBlocks().size()),
         MutualExclusion(AM.getAnalysis<MutualExclusionAnalysis>()),
         DomTree(AM.getAnalysis<DominanceInfo>()),
-        PostDomTree(AM.getAnalysis<PostDominanceInfo>()) {
+        PostDomTree(AM.getAnalysis<PostDominanceInfo>()), Tracer(Function) {
     States.insert(States.end(), Function.getBlocks().size(), ValueEvents{});
     Stores.insert(Stores.end(), Function.getBlocks().size(),
                   MemoryStore{Hierarchy});
