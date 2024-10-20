@@ -64,13 +64,13 @@ public:
       markChange<ERROR>(Noop.getOperation(), Noop.getValue());
   }
 
-  InFlightDiagnostic emitError(mlir::Operation *Op, UninitState State) {
+  InFlightDiagnostic emitError(mlir::Operation *Op, UninitState State) const {
     assert(State == ERROR);
     return Op->emitError("Use of uninitialized value");
   }
 
   void emitNote(InFlightDiagnostic &Diag, mlir::Operation *Op,
-                UninitState State) {
+                UninitState State) const {
     assert(State == UNINIT);
     Diag.attachNote(Op->getLoc()) << "Declared without initial value here";
   }

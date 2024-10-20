@@ -42,7 +42,7 @@ public:
              "The first event should always be an error event, ie StateEvent");
       const StateEvent &ErrorEvent =
           *FoundIssue.Events.front().get<const StateEvent *>();
-      auto &Checker = findChecker(ErrorEvent.getKey().CheckerID);
+      const auto &Checker = findChecker(ErrorEvent.getKey().CheckerID);
 
       InFlightDiagnostic Error = Checker.emitError(ErrorEvent.getLocation(),
                                                    ErrorEvent.getKey().State);

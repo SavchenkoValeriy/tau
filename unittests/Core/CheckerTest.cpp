@@ -154,10 +154,11 @@ public:
   StringRef getArgument() const override { return "test-checker"; }
   StringRef getDescription() const override { return "Simple test checker"; }
 
-  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) const {
     return {};
   }
-  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
+                TrivialState) const {}
 };
 
 class CheckerWithOps
@@ -168,10 +169,11 @@ public:
   StringRef getArgument() const override { return "test-checker"; }
   StringRef getDescription() const override { return "Simple test checker"; }
 
-  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) const {
     return {};
   }
-  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
+                TrivialState) const {}
 
   void process(LoadOp X) const {}
   void process(StoreOp X) const {}
@@ -194,7 +196,8 @@ public:
   StringRef getArgument() const override { return "test-checker"; }
   StringRef getDescription() const override { return "Simple test checker"; }
 
-  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
+                TrivialState) const {}
 };
 
 class CheckerWithNoEmitNote
@@ -205,7 +208,7 @@ public:
   StringRef getArgument() const override { return "test-checker"; }
   StringRef getDescription() const override { return "Simple test checker"; }
 
-  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) const {
     return {};
   }
 };
@@ -218,10 +221,11 @@ public:
   StringRef getArgument() const override { return "test-checker"; }
   StringRef getDescription() const override { return "Simple test checker"; }
 
-  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) {
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, TrivialState) const {
     return {};
   }
-  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, TrivialState) {}
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
+                TrivialState) const {}
 };
 
 using ComplexState = State<5, 2>;
@@ -243,10 +247,11 @@ public:
   StringRef getArgument() const override { return "test-checker"; }
   StringRef getDescription() const override { return "Simple test checker"; }
 
-  mlir::InFlightDiagnostic emitError(mlir::Operation *, ComplexState) {
+  mlir::InFlightDiagnostic emitError(mlir::Operation *, ComplexState) const {
     return {};
   }
-  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *, ComplexState) {}
+  void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
+                ComplexState) const {}
 };
 
 constexpr StateMachine<ComplexState> EmptyStateMachine;
