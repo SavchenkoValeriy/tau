@@ -55,21 +55,10 @@ public:
   }
 
   [[nodiscard]] static Events join(const Events &LHS, const Events &RHS) {
-    // It's easier to merge smaller sets into larger ones.
     if (LHS.AssociatedEvents.size() < RHS.AssociatedEvents.size())
-      return join(RHS, LHS);
+      return joinImpl(RHS, LHS);
 
-    EventSet Result = LHS.AssociatedEvents;
-
-    // If Result already has an event with the same key - doesn't matter.
-    // We can pick just one to carry on further.
-    //
-    // NOTE: This in fact might cause a problem if the event that we discard
-    //       is possible and the one that we kept is not.
-    for (const auto &Event : RHS.AssociatedEvents)
-      Result = Result.insert(Event);
-
-    return Result;
+    return joinImpl(LHS, RHS);
   }
 
   [[nodiscard]] Events join(const Events &Other) const {
@@ -105,6 +94,23 @@ public:
   using const_iterator = EventSet::iterator;
   const_iterator begin() const { return AssociatedEvents.begin(); }
   const_iterator end() const { return AssociatedEvents.end(); }
+
+private:
+  [[nodiscard]] static Events joinImpl(const Events &Larger,
+                                       const Events &Smaller) {
+    // It's easier to merge smaller sets into larger ones.
+    EventSet Result = Larger.AssociatedEvents;
+
+    // If Result already has an event with the same key - doesn't matter.
+    // We can pick just one to carry on further.
+    //
+    // NOTE: This in fact might cause a problem if the event that we discard
+    //       is possible and the one that we kept is not.
+    for (const auto &Event : Smaller.AssociatedEvents)
+      Result = Result.insert(Event);
+
+    return Result;
+  }
 };
 } // end anonymous namespace
 
@@ -218,12 +224,17 @@ private:
   }
 
   static ValueEvents join(const ValueEvents &LHS, const ValueEvents &RHS) {
-    // It's easier to merge smaller maps into larger ones.
     if (LHS.size() < RHS.size())
-      return join(RHS, LHS);
+      return joinImpl(RHS, LHS);
 
-    ValueEvents Result = LHS;
-    for (auto &[V, E] : RHS)
+    return joinImpl(LHS, RHS);
+  }
+
+  static ValueEvents joinImpl(const ValueEvents &Larger,
+                              const ValueEvents &Smaller) {
+    // It's easier to merge smaller maps into larger ones.
+    ValueEvents Result = Larger;
+    for (auto &[V, E] : Smaller)
       // Merge sets of events for the same values.
       // Here we have three possible situations:
       //
