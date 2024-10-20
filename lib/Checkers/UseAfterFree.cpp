@@ -61,13 +61,13 @@ public:
                                  HeapDealloca.getPtr());
   }
 
-  InFlightDiagnostic emitError(mlir::Operation *Op, FreeState State) {
+  InFlightDiagnostic emitError(mlir::Operation *Op, FreeState State) const {
     assert(State == ERROR);
     return Op->emitError("Use of deallocated pointer");
   }
 
   void emitNote(InFlightDiagnostic &Diag, mlir::Operation *Op,
-                FreeState State) {
+                FreeState State) const {
     if (State == FREED) {
       Diag.attachNote(Op->getLoc()) << "Deallocated here";
     } else {

@@ -41,11 +41,11 @@ public:
 
   /// Emit error on the given operation.
   virtual mlir::InFlightDiagnostic emitError(mlir::Operation *,
-                                             air::StateID) = 0;
+                                             air::StateID) const = 0;
 
   /// Emit issue note for the given operation.
   virtual void emitNote(mlir::InFlightDiagnostic &, mlir::Operation *,
-                        air::StateID) = 0;
+                        air::StateID) const = 0;
 
   /// Returns the unique identifier that corresponds to this pass.
   mlir::TypeID getTypeID() const { return CheckerID; }
@@ -148,17 +148,20 @@ public:
   void process(mlir::Operation *) override;
 
   mlir::InFlightDiagnostic emitError(mlir::Operation *Op,
-                                     air::StateID ID) final {
+                                     air::StateID ID) const final {
     return getDerived().emitError(Op, ID);
   }
 
   void emitNote(mlir::InFlightDiagnostic &Diag, mlir::Operation *Op,
-                air::StateID ID) final {
+                air::StateID ID) const final {
     getDerived().emitNote(Diag, Op, ID);
   }
 
 private:
   CheckerT &getDerived() { return *static_cast<CheckerT *>(this); }
+  const CheckerT &getDerived() const {
+    return *static_cast<const CheckerT *>(this);
+  }
 
   using TypeSwitch = llvm::TypeSwitch<mlir::Operation *, void>;
   template <class OperationToProcess, class... RestOps>
@@ -252,7 +255,7 @@ struct CheckerVerifier<CheckerBase<T, State, CheckerStateMachine, Ops...>> {
 
   // Check that the checker has emit methods in place.
   static constexpr bool HasEmitMethods =
-      requires(T Candidate, State S, mlir::Operation *Op,
+      requires(const T &Candidate, State S, mlir::Operation *Op,
                mlir::InFlightDiagnostic &Diag) {
     { Candidate.emitError(Op, S) } -> std::same_as<mlir::InFlightDiagnostic>;
     { Candidate.emitNote(Diag, Op, S) };
