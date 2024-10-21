@@ -10,12 +10,14 @@
 #include <mlir/IR/Block.h>
 #include <mlir/IR/Operation.h>
 
-#include <fstream>
-
 namespace {
 static llvm::cl::opt<std::string> TraceFunction("trace", llvm::cl::Hidden);
 static llvm::cl::opt<std::string> TraceDir("trace-dir", llvm::cl::Hidden,
                                            llvm::cl::init(".tau"));
+struct OpIndex {
+  unsigned BlockIndex;
+  unsigned InstIndex;
+};
 } // end anonymous namespace
 
 namespace tau::core {
@@ -48,14 +50,21 @@ private:
 
     for (mlir::Block &Block : Function.getBlocks()) {
       llvm::json::Object BlockObj;
-      BlockObj["name"] = "bb" + std::to_string(Indices[&Block]);
+      const unsigned BlockIndex = Indices[&Block];
+      BlockObj["name"] = "bb" + std::to_string(BlockIndex);
 
       llvm::json::Array CodeArray;
+      CodeArray.reserve(Block.getOperations().size());
+
       for (mlir::Operation &Op : Block.getOperations()) {
         std::string OpStr;
         llvm::raw_string_ostream OS(OpStr);
         Op.print(OS);
         CodeArray.push_back(OS.str());
+
+        OpEnumerator[&Op] = {.BlockIndex = BlockIndex,
+                             .InstIndex =
+                                 static_cast<unsigned>(CodeArray.size() - 1)};
       }
       BlockObj["code"] = std::move(CodeArray);
 
@@ -100,6 +109,7 @@ private:
   mlir::func::FuncOp Function;
   bool ShouldTrace;
   llvm::json::Object Root;
+  llvm::DenseMap<mlir::Operation *, OpIndex> OpEnumerator;
 };
 
 AnalysisTracer::AnalysisTracer(mlir::func::FuncOp &Function)
