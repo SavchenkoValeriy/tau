@@ -1,6 +1,7 @@
 #include "tau/Core/MemoryStore.h"
 
 #include "tau/AIR/AirOps.h"
+#include "tau/Core/AnalysisTracer.h"
 #include "tau/Support/FunctionExtras.h"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -272,4 +273,41 @@ bool MemoryStore::operator==(const MemoryStore &Other) const {
 
 bool MemoryStore::operator!=(const MemoryStore &Other) const {
   return !(*this == Other);
+}
+
+llvm::json::Value MemoryStore::serialize(const Serializer &S) const {
+  const auto SerializeSetOfValues = [&S](const SetOfValues &Values) {
+    llvm::json::Array SerializedValues;
+    SerializedValues.reserve(Values.size());
+
+    for (const auto &Def : Values) {
+      SerializedValues.push_back(S.serialize(Def.Value));
+    }
+
+    return SerializedValues;
+  };
+
+  llvm::json::Array SerializedModel;
+  SerializedModel.reserve(Model.size());
+  for (const auto &[Key, Values] : Model) {
+    llvm::json::Object Element;
+    Element["value"] = S.serialize(Key.Value);
+    Element["edge"] = getName(Key.Rel);
+    Element["target"] = SerializeSetOfValues(Values);
+    SerializedModel.emplace_back(std::move(Element));
+  }
+
+  llvm::json::Array SerializedCanonicals;
+  SerializedCanonicals.reserve(Canonicals.size());
+  for (const auto &[Value, Canonicals] : Canonicals) {
+    llvm::json::Object Element;
+    Element["value"] = S.serialize(Value);
+    Element["canonicals"] = SerializeSetOfValues(Canonicals);
+    SerializedModel.emplace_back(std::move(Element));
+  }
+
+  llvm::json::Object Result;
+  Result["model"] = std::move(SerializedModel);
+  Result["canonicals"] = std::move(SerializedCanonicals);
+  return std::move(Result);
 }

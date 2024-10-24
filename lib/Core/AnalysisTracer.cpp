@@ -3,12 +3,15 @@
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Format.h>
 #include <llvm/Support/JSON.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
+#include <memory>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Block.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/Value.h>
 
 namespace {
 static llvm::cl::opt<std::string> TraceFunction("trace", llvm::cl::Hidden);
@@ -21,6 +24,13 @@ struct OpIndex {
 } // end anonymous namespace
 
 namespace tau::core {
+
+class Serializer::Implementation {
+public:
+  template <class T> llvm::json::Value serialize(const T &) const;
+
+  llvm::DenseMap<mlir::Operation *, OpIndex> OpEnumerator;
+};
 
 class AnalysisTracer::Implementation {
 public:
@@ -36,6 +46,12 @@ public:
     if (ShouldTrace)
       writeJSON();
   }
+
+  Serializer &getSerializer() { return SerializerInstance; }
+
+  void addEvent(llvm::json::Value Event) { Trace.push_back(Event); }
+
+  bool ShouldTrace;
 
 private:
   void serializeFunction() {
@@ -79,6 +95,8 @@ private:
 
     FunctionObj["blocks"] = std::move(BlocksArray);
     Root["func"] = std::move(FunctionObj);
+
+    SerializerInstance.PImpl->OpEnumerator = std::move(OpEnumerator);
   }
 
   void writeJSON() {
@@ -103,18 +121,68 @@ private:
       return;
     }
 
+    Root["trace"] = std::move(Trace);
     OutFile << llvm::json::Value(std::move(Root));
   }
 
   mlir::func::FuncOp Function;
-  bool ShouldTrace;
   llvm::json::Object Root;
+  llvm::json::Array Trace;
   llvm::DenseMap<mlir::Operation *, OpIndex> OpEnumerator;
+  Serializer SerializerInstance;
 };
 
 AnalysisTracer::AnalysisTracer(mlir::func::FuncOp &Function)
     : PImpl(std::make_unique<Implementation>(Function)) {}
 
 AnalysisTracer::~AnalysisTracer() = default;
+
+Serializer &AnalysisTracer::getSerializer() { return PImpl->getSerializer(); }
+
+void AnalysisTracer::addEvent(llvm::json::Value Event) {
+  PImpl->addEvent(Event);
+}
+
+bool AnalysisTracer::shouldTrace() const { return PImpl->ShouldTrace; }
+
+template <>
+llvm::json::Value
+Serializer::Implementation::serialize(mlir::Operation *const &Op) const {
+  const auto It = OpEnumerator.find(Op);
+  assert(It != OpEnumerator.end());
+  const auto Position = It->getSecond();
+  return llvm::json::Array({Position.BlockIndex, Position.InstIndex});
+}
+
+template <>
+llvm::json::Value
+Serializer::Implementation::serialize(const mlir::Value &Value) const {
+  if (auto *Op = Value.getDefiningOp())
+    return serialize(Op);
+
+  mlir::BlockArgument Arg = llvm::cast<mlir::BlockArgument>(Value);
+  std::string Buffer;
+  llvm::raw_string_ostream SS(Buffer);
+  SS << llvm::format("arg%d", Arg.getArgNumber());
+  return SS.str();
+}
+
+Serializer::Serializer() : PImpl(std::make_unique<Implementation>()) {}
+
+Serializer::~Serializer() = default;
+
+template <class T>
+llvm::json::Value Serializer::serialize(const T &Object) const {
+  return PImpl->serialize(Object);
+}
+
+template <>
+llvm::json::Value Serializer::serialize(mlir::Operation *const &Op) const {
+  return PImpl->serialize(Op);
+}
+template <>
+llvm::json::Value Serializer::serialize(const mlir::Value &Value) const {
+  return PImpl->serialize(Value);
+}
 
 } // namespace tau::core
