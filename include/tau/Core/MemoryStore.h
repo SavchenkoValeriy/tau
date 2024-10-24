@@ -27,6 +27,7 @@
 #pragma once
 
 #include "tau/AIR/AirOps.h"
+#include "tau/Core/AnalysisTracer.h"
 #include "tau/Core/Events.h"
 
 #include <immer/map.hpp>
@@ -71,6 +72,8 @@ public:
   bool operator==(const MemoryStore &) const;
   bool operator!=(const MemoryStore &) const;
 
+  llvm::json::Value serialize(const Serializer &) const;
+
 private:
   using ModelTy = immer::map<MemoryKey, SetOfValues>;
   using CanonicalsTy = immer::map<mlir::Value, SetOfValues>;
@@ -84,5 +87,10 @@ private:
   ModelTy Model;
   CanonicalsTy Canonicals;
 };
+
+template <>
+inline llvm::json::Value Serializer::serialize(const MemoryStore &MS) const {
+  return MS.serialize(*this);
+}
 
 } // end namespace tau::core

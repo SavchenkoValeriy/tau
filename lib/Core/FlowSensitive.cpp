@@ -13,10 +13,12 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/ScopeExit.h>
 #include <llvm/ADT/SetOperations.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
+#include <llvm/Support/JSON.h>
 #include <mlir/Analysis/DataFlowFramework.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -122,6 +124,19 @@ template <> struct hash<Value> {
 };
 } // end namespace std
 
+namespace tau::core {
+template <> llvm::json::Value Serializer::serialize(const Events &E) const {
+  llvm::json::Array Result;
+  for (auto &It : E) {
+    llvm::json::Object Key{};
+    Key["checker"] = It.first.CheckerID;
+    Key["state"] = It.first.State.ID;
+    Result.push_back(std::move(Key));
+  }
+  return Result;
+}
+} // end namespace tau::core
+
 /// Implementation of the flow-sensitive analysis algorithm.
 ///
 /// This class tracks the state of values across a function's control flow
@@ -133,10 +148,12 @@ template <> struct hash<Value> {
 /// For more reasoning behind the `isGuaranteed`, please refer to the
 /// corresponding method and its comments.
 class FlowSensitiveAnalysis::Implementation {
+public:
   using ValueEvents = immer::map<Value, Events>;
   using BlockStateMap = SmallVector<ValueEvents, 20>;
   using BlockStoreMap = SmallVector<MemoryStore, 20>;
 
+private:
   // Memory management
   EventHierarchy Hierarchy;
 
@@ -256,6 +273,11 @@ private:
   }
 
   void visit(Operation &Op) {
+    Tracer.recordBeforeState(&Op, CurrentState, CurrentStore);
+    const auto RecordAfter = llvm::make_scope_exit([this, &Op]() {
+      Tracer.recordAfterState(&Op, CurrentState, CurrentStore);
+    });
+
     CurrentStore = CurrentStore.interpret(&Op);
 
     // Let's go over state attributes, the attributes marking what
@@ -478,6 +500,21 @@ private:
     return Enumerator.getTopoOrderIndex(&BB);
   }
 };
+
+namespace tau::core {
+template <>
+llvm::json::Value Serializer::serialize(
+    const FlowSensitiveAnalysis::Implementation::ValueEvents &E) const {
+  llvm::json::Array Result;
+  for (auto &It : E) {
+    llvm::json::Object ValueState{};
+    ValueState["value"] = serialize(It.first);
+    ValueState["state"] = serialize(It.second);
+    Result.push_back(std::move(ValueState));
+  }
+  return Result;
+}
+} // end namespace tau::core
 
 //===----------------------------------------------------------------------===//
 //                                  Interface
