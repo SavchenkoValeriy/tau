@@ -16,9 +16,9 @@ const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
   const [showHint, setShowHint] = useState(false);
 
   return (
-    <div 
-      style={{ 
-        whiteSpace: 'nowrap', 
+    <div
+      style={{
+        whiteSpace: 'nowrap',
         overflow: 'visible',
         position: 'relative',
         marginBottom: '2px'
@@ -27,8 +27,8 @@ const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
       onMouseLeave={() => setShowHint(false)}
     >
       {parts.map((part, index) => (
-        part.startsWith('%') ? 
-          <strong key={index}>{part}</strong> : 
+        part.startsWith('%') ?
+          <strong key={index}>{part}</strong> :
           <span key={index}>{part}</span>
       ))}
       {type && showHint && (
@@ -79,7 +79,7 @@ const BasicBlock: React.FC<BasicBlockProps> = ({ data, id, updateNodeDimensions 
       {data.code.map((line: string, i: number) => (
         <Instruction key={i} instruction={line} />
       ))}
-    {data.edges.map((_, index) => (
+      {data.edges.map((_, index) => (
         <Handle
           key={index}
           type="source"
