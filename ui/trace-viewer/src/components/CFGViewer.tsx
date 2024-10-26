@@ -11,7 +11,8 @@ import {
   addEdge,
   Node as FlowNode,
   Edge as FlowEdge,
-  NodeTypes
+  NodeTypes,
+  useNodesInitialized
 } from '@xyflow/react';
 import { useGraphLayout } from '../hooks/useGraphLayout';
 import { useGraphInitialization, CFGData } from '../hooks/useGraphInitialization';
@@ -21,35 +22,21 @@ import '@xyflow/react/dist/style.css';
 type Node = FlowNode<BasicBlockData>
 type Edge = FlowEdge<{}>
 
+const nodeTypes = {
+  basicBlock: BasicBlock,
+};
+
+const options = {
+  includeHiddenNodes: false,
+};
+
 const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const nodesInitialized = useNodesInitialized(options);
   const [isLayoutApplied, setIsLayoutApplied] = useState(false);
   const { getLayoutedElements } = useGraphLayout();
   const { initializeGraph } = useGraphInitialization();
-
-  const updateNodeDimensions = useCallback((id: string, width: number, height: number) => {
-    setNodes((nds: Node[]) =>
-      nds.map((node) => {
-        console.log(node.width, width, node.height, height);
-        if (node.id === id && (node.width !== width || node.height !== height)) {
-          return { ...node, width, height };
-        }
-        return node;
-      })
-    );
-    setIsLayoutApplied(false);
-  }, [setNodes]);
-
-  const nodeTypes = useMemo<NodeTypes>(() => ({
-    basicBlock: (props: any) => (
-      <BasicBlock
-        id={props.id}
-        data={props.data as BasicBlockData}
-        updateNodeDimensions={updateNodeDimensions}
-      />
-    ),
-  }), [updateNodeDimensions]);
 
   useEffect(() => {
     const { nodes: initialNodes, edges: initialEdges } = initializeGraph(data);
@@ -59,7 +46,7 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
   }, [data, initializeGraph, setNodes, setEdges]);
 
   useEffect(() => {
-    if (!isLayoutApplied && nodes.length > 0 && edges.length > 0) {
+    if (!isLayoutApplied && nodes.length > 0 && edges.length > 0 && nodesInitialized) {
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
         nodes,
         edges

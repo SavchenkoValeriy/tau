@@ -1,4 +1,4 @@
-import { Node as FlowNode } from '@xyflow/react';
+import { Node as FlowNode, NodeProps as FlowNodeProps } from '@xyflow/react';
 
 export interface CFG {
   func: FunctionCFG;
@@ -64,3 +64,4 @@ export interface BasicBlockData extends Record<string, unknown> {
 }
 
 export type BasicBlockNode = FlowNode<BasicBlockData>
+export type BasicBlockProps = FlowNodeProps<BasicBlockNode>
