@@ -12,8 +12,10 @@ import {
 } from '@xyflow/react';
 import { initializeGraph } from '../utils/initializeGraph';
 import { getLayoutedElements } from '../utils/layout';
+import { TraceViewer } from './TraceViewer';
 import { BasicBlock, BasicBlockData } from './BasicBlock';
 import { BasicBlockNode, CFGData } from '../types';
+import { CFGWithTrace } from '../types';
 import '@xyflow/react/dist/style.css';
 
 type Node = FlowNode<BasicBlockData>
@@ -27,7 +29,7 @@ const options = {
   includeHiddenNodes: true,
 };
 
-const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
+const CFGViewer: React.FC<{ data: CFGWithTrace }> = ({ data }) => {
   const { nodes: initialNodes, edges: initialEdges } = initializeGraph(data);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges);
@@ -64,6 +66,10 @@ const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
       >
         <Background color="#f0f0f0" gap={16} />
         <Controls />
+        <TraceViewer
+          trace={data.trace}
+          blocks={data.func.blocks}
+        />
       </ReactFlow>
     </div>
   );

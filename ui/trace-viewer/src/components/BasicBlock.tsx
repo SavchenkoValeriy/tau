@@ -18,6 +18,7 @@ const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
 
   return (
     <div
+      role="instruction"
       style={{
         display: 'flex',
         alignItems: 'flex-start',
