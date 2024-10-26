@@ -55,7 +55,6 @@ export interface CFGData {
       edges: number[];
     }[];
   };
-  trace: TraceEvent[];
 }
 
 export interface BasicBlockData extends Record<string, unknown> {

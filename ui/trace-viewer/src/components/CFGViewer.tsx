@@ -1,22 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   ReactFlow,
-  ReactFlowProvider,
   Background,
   Controls,
   useReactFlow,
   useNodesState,
   useEdgesState,
-  Panel,
-  addEdge,
   Node as FlowNode,
   Edge as FlowEdge,
-  NodeTypes,
-  useNodesInitialized
+  useNodesInitialized,
 } from '@xyflow/react';
-import { useGraphLayout } from '../hooks/useGraphLayout';
-import { useGraphInitialization, CFGData } from '../hooks/useGraphInitialization';
+import { initializeGraph } from '../utils/initializeGraph';
+import { getLayoutedElements } from '../utils/layout';
 import { BasicBlock, BasicBlockData } from './BasicBlock';
+import { BasicBlockNode, CFGData } from '../types';
 import '@xyflow/react/dist/style.css';
 
 type Node = FlowNode<BasicBlockData>
@@ -27,35 +24,26 @@ const nodeTypes = {
 };
 
 const options = {
-  includeHiddenNodes: false,
+  includeHiddenNodes: true,
 };
 
 const CFGViewer: React.FC<{ data: CFGData }> = ({ data }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { nodes: initialNodes, edges: initialEdges } = initializeGraph(data);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges);
+  const { getNodes, getEdges } = useReactFlow<BasicBlockNode>();
   const nodesInitialized = useNodesInitialized(options);
-  const [isLayoutApplied, setIsLayoutApplied] = useState(false);
-  const { getLayoutedElements } = useGraphLayout();
-  const { initializeGraph } = useGraphInitialization();
 
   useEffect(() => {
-    const { nodes: initialNodes, edges: initialEdges } = initializeGraph(data);
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-    setIsLayoutApplied(false);
-  }, [data, initializeGraph, setNodes, setEdges]);
-
-  useEffect(() => {
-    if (!isLayoutApplied && nodes.length > 0 && edges.length > 0 && nodesInitialized) {
+    if (nodesInitialized) {
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-        nodes,
-        edges
+        getNodes(),
+        getEdges()
       );
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
-      setIsLayoutApplied(true);
     }
-  }, [nodes, edges, isLayoutApplied, getLayoutedElements, setNodes, setEdges]);
+  }, [nodesInitialized]);
 
   if (nodes.length === 0) {
     return <div className="flex items-center justify-center h-64">Loading CFG...</div>;
