@@ -13,10 +13,7 @@ export const initializeGraph = (data: CFGData) => {
       },
       position: { x: 0, y: 0 },
       style: {
-        border: '1px solid #ddd',
-        borderRadius: '5px',
         backgroundColor: 'white',
-        padding: '10px',
       },
     }));
 
