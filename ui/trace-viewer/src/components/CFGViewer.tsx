@@ -14,7 +14,7 @@ import { initializeGraph } from '../utils/initializeGraph';
 import { getLayoutedElements } from '../utils/layout';
 import { TraceViewer } from './TraceViewer';
 import { BasicBlock, BasicBlockData } from './BasicBlock';
-import { BasicBlockNode, CFGData } from '../types';
+import { BasicBlockNode } from '../types';
 import { CFGWithTrace } from '../types';
 import '@xyflow/react/dist/style.css';
 
@@ -45,7 +45,7 @@ const CFGViewer: React.FC<{ data: CFGWithTrace }> = ({ data }) => {
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     }
-  }, [nodesInitialized]);
+  }, [nodesInitialized, getNodes, getEdges, setNodes, setEdges]);
 
   if (nodes.length === 0) {
     return <div className="flex items-center justify-center h-64">Loading CFG...</div>;
