@@ -56,8 +56,24 @@ export interface CanonicalMapping {
   canonicals: Value[];
 }
 
+export interface PointsToEdge {
+  kind: 'PointsTo';
+}
+
+export interface FieldEdge {
+  kind: 'Field';
+  name: string;
+}
+
+export interface ElementEdge {
+  kind: 'Element';
+  index: number;
+}
+
+export type ModelEdge = PointsToEdge | FieldEdge | ElementEdge;
+
 export interface ModelEntry {
-  edge: string;
+  edge: ModelEdge;
   value: Value;
   target: Value[];
 }

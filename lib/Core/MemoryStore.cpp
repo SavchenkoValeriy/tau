@@ -7,6 +7,8 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/Hashing.h>
 #include <llvm/ADT/TypeSwitch.h>
+#include <llvm/Support/ErrorHandling.h>
+#include <llvm/Support/JSON.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
@@ -64,6 +66,22 @@ bool isRelationshipEqual(const Relationship &LHS, const Relationship &RHS) {
     return "Element";
   }
   return "PointsTo";
+}
+
+[[maybe_unused]] llvm::json::Value serializeRelationship(Relationship Rel) {
+  llvm::json::Object Result;
+  if (std::holds_alternative<PointsTo>(Rel)) {
+    Result["kind"] = "PointsTo";
+  } else if (const Field *FieldRel = std::get_if<Field>(&Rel)) {
+    Result["kind"] = "Field";
+    Result["name"] = FieldRel->Name;
+  } else if (const Element *ElementRel = std::get_if<Element>(&Rel)) {
+    Result["kind"] = "Element";
+    Result["index"] = ElementRel->Index;
+  } else {
+    llvm_unreachable("Non-exhaustive serialization for memory relationship!");
+  }
+  return Result;
 }
 
 } // end anonymous namespace
@@ -243,7 +261,7 @@ MemoryStore MemoryStore::interpret(mlir::Operation *Op) {
         B.store(Store.getAddress(), PointsTo{}, Store.getValue(), Op);
       })
       .Case<air::GetFieldPtr>([&B](air::GetFieldPtr FieldPtr) {
-        B.associate(FieldPtr.getRecord(), Field{FieldPtr.getFieldAttrName()},
+        B.associate(FieldPtr.getRecord(), Field{FieldPtr.getFieldAttr()},
                     FieldPtr.getRes());
       })
       .Case<air::NoOp>(
@@ -292,7 +310,7 @@ llvm::json::Value MemoryStore::serialize(const Serializer &S) const {
   for (const auto &[Key, Values] : Model) {
     llvm::json::Object Element;
     Element["value"] = S.serialize(Key.Value);
-    Element["edge"] = getName(Key.Rel);
+    Element["edge"] = serializeRelationship(Key.Rel);
     Element["target"] = SerializeSetOfValues(Values);
     SerializedModel.emplace_back(std::move(Element));
   }
