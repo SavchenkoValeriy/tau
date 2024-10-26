@@ -1,12 +1,25 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { BasicBlockData, MemoryEntry, StateEntry, TraceEvent, Value } from '../types';
+import { BasicBlockData, MemoryEntry, ModelEdge, ModelEntry, StateEntry, TraceEvent, Value } from '../types';
 import { ValueViewer } from './ValueViewer';
 
 interface TraceViewerProps {
   trace: TraceEvent[];
   blocks: BasicBlockData[];
 }
+
+const ValuesView: React.FC<{ values: Iterable<Value>, blocks: BasicBlockData[] }> = ({ values, blocks }) => {
+  return (<>
+    {'{'}
+    {Array.from(values).map((value, i, arr) => (
+      <React.Fragment key={value.toString()}>
+        <ValueViewer value={value} blocks={blocks} />
+        {i < arr.length - 1 && ', '}
+      </React.Fragment>
+    ))}
+    {'}'}
+  </>);
+};
 
 const StateView: React.FC<{
   state: StateEntry[],
@@ -46,14 +59,7 @@ const StateView: React.FC<{
               paddingLeft: '1rem',
               marginBottom: '4px'
             }}>
-              {'{'}
-              {Array.from(values).map((value, i, arr) => (
-                <React.Fragment key={value.toString()}>
-                  <ValueViewer value={value} blocks={blocks} />
-                  {i < arr.length - 1 && ', '}
-                </React.Fragment>
-              ))}
-              {'}'} → {stateId}
+              <ValuesView values={values} blocks={blocks} /> → {stateId}
             </div>
           ))}
         </div>
@@ -62,28 +68,57 @@ const StateView: React.FC<{
   );
 };
 
+function ModelEdgeString(edge: ModelEdge): string {
+  switch (edge.kind) {
+    case "PointsTo":
+      return ' -> ';
+
+    case "Field":
+      return `.${edge.name} -> `;
+
+    case "Element":
+      return `[${edge.index}] -> `;
+  }
+}
+
+const ModelEdgeView: React.FC<{ model: ModelEntry, blocks: BasicBlockData[] }> = ({ model, blocks }) => {
+  return (
+    <div>
+      <ValueViewer value={model.value} blocks={blocks} />
+      {ModelEdgeString(model.edge)}
+      <ValuesView values={model.target} blocks={blocks} />
+    </div>
+  )
+};
+
 const MemoryView: React.FC<{ memory: MemoryEntry, blocks: BasicBlockData[] }> = ({ memory, blocks }) => {
   return (
-    <div style={{
-      fontSize: '0.875rem',
-      fontFamily: 'monospace'
-    }}>
-      {memory.model.map((entry, i) => (
-        <div key={i} style={{ marginBottom: '0.5rem' }}>
-          <div>Edge: {entry.edge}</div>
-          {entry.target && (
-            <div style={{ paddingLeft: '1rem' }}>
-              Target: {entry.target.map(t => (
-                typeof t === 'string' ? t : <ValueViewer value={t} blocks={blocks} />
-              )).join(', ')}
-            </div>
-          )}
-          <div style={{ paddingLeft: '1rem' }}>
-            Value: <ValueViewer value={entry.value} blocks={blocks} />
+    <>
+      <h5 style={{ margin: '0.5rem 0', fontSize: '0.875rem' }}>Model</h5>
+      <div style={{
+        fontSize: '0.875rem',
+        fontFamily: 'monospace'
+      }}>
+        {memory.model.map((entry, i) => (
+          <div key={i} style={{ marginBottom: '0.5rem' }}>
+            <ModelEdgeView model={entry} blocks={blocks} />
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      <h5 style={{ margin: '0.5rem 0', fontSize: '0.875rem' }}>Canonicals</h5>
+      <div style={{
+        fontSize: '0.875rem',
+        fontFamily: 'monospace'
+      }}>
+        {memory.canonicals.map((entry, i) => (
+          <div key={i} style={{ marginBottom: '0.5rem' }}>
+            <ValueViewer value={entry.value} blocks={blocks} />
+            {' = '}
+            <ValuesView values={entry.canonicals} blocks={blocks} />
+          </div>
+        ))}
+      </div>
+    </>
   );
 };
 
