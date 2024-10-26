@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { BasicBlockData, TraceEvent } from '../types';
+import { BasicBlockData, MemoryEntry, StateEntry, TraceEvent, Value } from '../types';
 import { ValueViewer } from './ValueViewer';
 
 interface TraceViewerProps {
@@ -8,18 +8,52 @@ interface TraceViewerProps {
   blocks: BasicBlockData[];
 }
 
-const StateView: React.FC<{ state: TraceEvent['state'], blocks: BasicBlockData[] }> = ({ state, blocks }) => {
+const StateView: React.FC<{
+  state: StateEntry[],
+  blocks: BasicBlockData[]
+}> = ({ state, blocks }) => {
+  // First, organize states by checker and state id
+  const groupedStates = state.reduce((acc, entry) => {
+    entry.state.forEach(s => {
+      if (!acc[s.checker]) {
+        acc[s.checker] = {};
+      }
+      if (!acc[s.checker][s.state]) {
+        acc[s.checker][s.state] = new Set<[number, number]>();
+      }
+      acc[s.checker][s.state].add(entry.value);
+    });
+    return acc;
+  }, {} as Record<string, Record<number, Set<Value>>>);
+
   return (
     <div style={{
       fontSize: '0.875rem',
       fontFamily: 'monospace'
     }}>
-      {state.map((entry, i) => (
-        <div key={i} style={{ marginBottom: '0.5rem' }}>
-          <div>Value: <ValueViewer value={entry.value} blocks={blocks} /></div>
-          {entry.state.map((s, j) => (
-            <div key={j} style={{ paddingLeft: '1rem' }}>
-              {s.checker}: state {s.state}
+      {Object.entries(groupedStates).map(([checker, states]) => (
+        <div key={checker} style={{ marginBottom: '1rem' }}>
+          <div style={{
+            fontWeight: 'bold',
+            borderBottom: '1px solid #e5e7eb',
+            paddingBottom: '4px',
+            marginBottom: '4px'
+          }}>
+            {checker}:
+          </div>
+          {Object.entries(states).map(([stateId, values]) => (
+            <div key={stateId} style={{
+              paddingLeft: '1rem',
+              marginBottom: '4px'
+            }}>
+              {'{'}
+              {Array.from(values).map((value, i, arr) => (
+                <React.Fragment key={value.toString()}>
+                  <ValueViewer value={value} blocks={blocks} />
+                  {i < arr.length - 1 && ', '}
+                </React.Fragment>
+              ))}
+              {'}'} → {stateId}
             </div>
           ))}
         </div>
@@ -28,7 +62,7 @@ const StateView: React.FC<{ state: TraceEvent['state'], blocks: BasicBlockData[]
   );
 };
 
-const MemoryView: React.FC<{ memory: TraceEvent['memory'], blocks: Array<{ name: string, code: string[] }> }> = ({ memory, blocks }) => {
+const MemoryView: React.FC<{ memory: MemoryEntry, blocks: BasicBlockData[] }> = ({ memory, blocks }) => {
   return (
     <div style={{
       fontSize: '0.875rem',
@@ -53,11 +87,7 @@ const MemoryView: React.FC<{ memory: TraceEvent['memory'], blocks: Array<{ name:
   );
 };
 
-
-export const TraceViewer: React.FC<{
-  trace: TraceEvent[];
-  blocks: Array<{ name: string, code: string[] }>
-}> = ({ trace, blocks }) => {
+export const TraceViewer: React.FC<TraceViewerProps> = ({ trace, blocks }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { setCenter, getNode } = useReactFlow();
   const currentEvent = trace[currentIndex];

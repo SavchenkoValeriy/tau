@@ -62,12 +62,14 @@ export interface ModelEntry {
   target: Value[];
 }
 
+export interface MemoryEntry {
+  canonicals: CanonicalMapping[];
+  model: ModelEntry[];
+}
+
 export interface TraceEvent {
   kind: 'before' | 'after';
-  memory: {
-    canonicals: CanonicalMapping[];
-    model: ModelEntry[];
-  };
+  memory: MemoryEntry;
   operation: Operation;
   state: StateEntry[];
 }
