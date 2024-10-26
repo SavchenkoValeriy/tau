@@ -163,7 +163,7 @@ Serializer::Implementation::serialize(const mlir::Value &Value) const {
   mlir::BlockArgument Arg = llvm::cast<mlir::BlockArgument>(Value);
   std::string Buffer;
   llvm::raw_string_ostream SS(Buffer);
-  SS << llvm::format("arg%d", Arg.getArgNumber());
+  SS << llvm::format("%%arg%d", Arg.getArgNumber());
   return SS.str();
 }
 
