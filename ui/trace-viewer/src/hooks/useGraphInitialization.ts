@@ -1,5 +1,6 @@
-import { Node, Edge, ConnectionLineType, MarkerType } from 'react-flow-renderer';
+import { Node, Edge, MarkerType } from '@xyflow/react';
 import { useCallback } from 'react';
+import { BasicBlockNode } from '../types';
 
 export interface CFGData {
   func: {
@@ -15,7 +16,7 @@ export interface CFGData {
 export const useGraphInitialization = () => {
   const initializeGraph = useCallback((data: CFGData) => {
     if (data && data.func && data.func.blocks) {
-      const initialNodes: Node[] = data.func.blocks.map((block) => ({
+      const initialNodes: BasicBlockNode[] = data.func.blocks.map((block) => ({
         id: block.name,
         type: 'basicBlock',
         data: {
@@ -31,16 +32,18 @@ export const useGraphInitialization = () => {
         },
       }));
 
-      const initialEdges: Edge[] = data.func.blocks.flatMap((block, blockIndex) =>
-        block.edges.map((target, edgeIndex) => ({
-          id: `${block.name}-${data.func.blocks[target].name}-${edgeIndex}`,
-          source: block.name,
-          target: data.func.blocks[target].name,
-          sourceHandle: `${block.name}-${edgeIndex}`,
-          type: ConnectionLineType.SmoothStep,
-          style: { stroke: '#000', strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#000' },
-        }))
+      const initialEdges: Edge[] = data.func.blocks.flatMap((block) =>
+        block.edges.map((targetIndex, edgeIndex) => {
+          const targetBlock = data.func.blocks[targetIndex];
+          return {
+            id: `${block.name}-${targetBlock.name}-${edgeIndex}`,
+            source: block.name,
+            target: targetBlock.name,
+            type: 'smoothstep',
+            style: { stroke: '#000', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#000' },
+          };
+        })
       );
 
       return { nodes: initialNodes, edges: initialEdges };
