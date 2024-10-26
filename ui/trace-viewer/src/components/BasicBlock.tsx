@@ -9,7 +9,11 @@ export interface BasicBlockData extends Record<string, unknown> {
 
 const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
   const [mainPart, type] = instruction.split(' : ');
-  const parts = mainPart.split(/(%\w+)/g);
+
+  // Remove state information between curly braces
+  const cleanedMainPart = mainPart.replace(/\s*{[^}]*}\s*/, ' ').trim();
+
+  const parts = cleanedMainPart.split(/(%\w+)/g);
   const [showHint, setShowHint] = useState(false);
 
   return (
