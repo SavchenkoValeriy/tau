@@ -303,7 +303,7 @@ llvm::json::Value MemoryStore::serialize(const Serializer &S) const {
     llvm::json::Object Element;
     Element["value"] = S.serialize(Value);
     Element["canonicals"] = SerializeSetOfValues(Canonicals);
-    SerializedModel.emplace_back(std::move(Element));
+    SerializedCanonicals.emplace_back(std::move(Element));
   }
 
   llvm::json::Object Result;

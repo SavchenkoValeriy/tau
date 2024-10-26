@@ -15,35 +15,13 @@ export interface Block {
   edges: number[];
 }
 
-export interface Value {
-  value: [number, number] | string;
-}
+export type Operation = [number, number]
 
-export interface StateEntry {
-  state: {
-    checker: string;
-    state: number;
-  }[];
-  value: [number, number];
-}
-
-export interface ModelEntry {
-  edge: 'PointsTo' | 'Field';
-  target?: string[];
-  value: [number, number] | string;
-  canonicals?: string[];
-}
+export type Value = Operation | string
 
 export interface Memory {
   canonicals: string[];
   model: ModelEntry[];
-}
-
-export interface TraceEvent {
-  kind: 'before' | 'after';
-  memory: Memory;
-  operation: [number, number];
-  state: StateEntry[];
 }
 
 export interface CFGData {
@@ -64,3 +42,36 @@ export interface BasicBlockData extends Record<string, unknown> {
 
 export type BasicBlockNode = FlowNode<BasicBlockData>
 export type BasicBlockProps = FlowNodeProps<BasicBlockNode>
+
+export interface StateEntry {
+  state: {
+    checker: string;
+    state: number;
+  }[];
+  value: Value;
+}
+
+export interface CanonicalMapping {
+  value: Value;
+  canonicals: Value[];
+}
+
+export interface ModelEntry {
+  edge: string;
+  value: Value;
+  target: Value[];
+}
+
+export interface TraceEvent {
+  kind: 'before' | 'after';
+  memory: {
+    canonicals: CanonicalMapping[];
+    model: ModelEntry[];
+  };
+  operation: Operation;
+  state: StateEntry[];
+}
+
+export interface CFGWithTrace extends CFGData {
+  trace: TraceEvent[];
+}
