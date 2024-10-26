@@ -12,7 +12,8 @@ export const useGraphLayout = () => {
       dagreGraph.setGraph({ rankdir: direction, ranksep: 150, nodesep: 150 });
 
       nodes.forEach((node) => {
-        dagreGraph.setNode(node.id, { width: node.width || 200, height: node.height || 100 });
+        console.log(node.id, node.measured?.width, node.measured?.height);
+        dagreGraph.setNode(node.id, { width: node.measured?.width || 200, height: node.measured?.height || 100 });
       });
 
       edges.forEach((edge) => {
@@ -22,14 +23,11 @@ export const useGraphLayout = () => {
       dagre.layout(dagreGraph);
 
       const layoutedNodes = nodes.map((node) => {
-        const nodeWithPosition = dagreGraph.node(node.id);
-        return {
-          ...node,
-          position: {
-            x: nodeWithPosition.x - (node.width || 200) / 2,
-            y: nodeWithPosition.y - (node.height || 100) / 2,
-          },
-        };
+        const position = dagreGraph.node(node.id);
+        const x = position.x - (node.measured?.width ?? 0) / 2;
+        const y = position.y - (node.measured?.height ?? 0) / 2;
+
+        return { ...node, position: { x, y } };
       });
 
       return { nodes: layoutedNodes, edges };
