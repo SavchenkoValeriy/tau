@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Handle, Position, NodeProps } from 'react-flow-renderer';
+import { Handle, Position } from '@xyflow/react';
 
-interface BasicBlockProps extends NodeProps {
-  data: {
-    name: string;
-    code: string[];
-    edges: number[];
-  };
+export interface BasicBlockData extends Record<string, unknown> {
+  name: string;
+  code: string[];
+}
+
+export interface BasicBlockProps {
+  id: string;
+  data: BasicBlockData;
   updateNodeDimensions: (id: string, width: number, height: number) => void;
 }
 
@@ -16,42 +18,30 @@ const Instruction: React.FC<{ instruction: string }> = ({ instruction }) => {
   const [showHint, setShowHint] = useState(false);
 
   return (
-    <div
-      style={{
-        whiteSpace: 'nowrap',
-        overflow: 'visible',
-        position: 'relative',
-        marginBottom: '2px'
-      }}
+    <div 
+      className="flex items-start space-x-1 relative hover:bg-gray-50 p-1 rounded"
       onMouseEnter={() => setShowHint(true)}
       onMouseLeave={() => setShowHint(false)}
     >
       {parts.map((part, index) => (
-        part.startsWith('%') ?
-          <strong key={index}>{part}</strong> :
+        part.startsWith('%') ? 
+          <code key={index} className="font-semibold text-blue-600">{part}</code> : 
           <span key={index}>{part}</span>
       ))}
       {type && showHint && (
-        <span style={{
-          position: 'absolute',
-          left: '100%',
-          top: '-2px',
-          backgroundColor: 'black',
-          color: 'white',
-          padding: '2px 5px',
-          borderRadius: '3px',
-          whiteSpace: 'nowrap',
-          zIndex: 1000,
-          pointerEvents: 'none',
-        }}>
+        <div className="absolute left-full top-0 ml-2 bg-black text-white text-xs px-2 py-1 rounded">
           : {type}
-        </span>
+        </div>
       )}
     </div>
   );
 };
 
-const BasicBlock: React.FC<BasicBlockProps> = ({ data, id, updateNodeDimensions }) => {
+export const BasicBlock: React.FC<BasicBlockProps> = ({ 
+  id, 
+  data, 
+  updateNodeDimensions 
+}) => {
   const blockRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,32 +54,23 @@ const BasicBlock: React.FC<BasicBlockProps> = ({ data, id, updateNodeDimensions 
       });
 
       resizeObserver.observe(blockRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-      };
+      return () => resizeObserver.disconnect();
     }
   }, [id, updateNodeDimensions]);
 
-
   return (
-    <div ref={blockRef} style={{ padding: '10px', fontFamily: 'monospace', fontSize: '12px', minWidth: '200px' }}>
+    <div
+      ref={blockRef}
+      className="bg-white border border-gray-200 rounded-lg shadow-sm p-4"
+    >
       <Handle type="target" position={Position.Top} />
-      <strong>{data.name}</strong>
-      {data.code.map((line: string, i: number) => (
-        <Instruction key={i} instruction={line} />
-      ))}
-      {data.edges.map((_, index) => (
-        <Handle
-          key={index}
-          type="source"
-          position={Position.Bottom}
-          id={`${id}-${index}`}
-          style={{ left: `${(index + 1) * 100 / (data.edges.length + 1)}%` }}
-        />
-      ))}
+      <div className="font-mono text-sm">
+        <div className="font-bold mb-2 text-gray-700">{data.name}</div>
+        {data.code.map((line: string, i: number) => (
+          <Instruction key={i} instruction={line} />
+        ))}
+      </div>
+      <Handle type="source" position={Position.Bottom} />
     </div>
   );
 };
-
-export default BasicBlock;
