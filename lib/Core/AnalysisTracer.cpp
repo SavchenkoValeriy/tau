@@ -14,9 +14,6 @@
 #include <mlir/IR/Value.h>
 
 namespace {
-static llvm::cl::opt<std::string> TraceFunction("trace", llvm::cl::Hidden);
-static llvm::cl::opt<std::string> TraceDir("trace-dir", llvm::cl::Hidden,
-                                           llvm::cl::init(".tau"));
 struct OpIndex {
   unsigned BlockIndex;
   unsigned InstIndex;
@@ -31,6 +28,13 @@ public:
 
   llvm::DenseMap<mlir::Operation *, OpIndex> OpEnumerator;
 };
+
+#ifdef ANALYSIS_TRACER_ENABLED
+namespace {
+static llvm::cl::opt<std::string> TraceFunction("trace", llvm::cl::Hidden);
+static llvm::cl::opt<std::string> TraceDir("trace-dir", llvm::cl::Hidden,
+                                           llvm::cl::init(".tau"));
+} // end anonymous namespace
 
 class AnalysisTracer::Implementation {
 public:
@@ -144,6 +148,7 @@ void AnalysisTracer::addEvent(llvm::json::Value Event) {
 }
 
 bool AnalysisTracer::shouldTrace() const { return PImpl->ShouldTrace; }
+#endif
 
 template <>
 llvm::json::Value

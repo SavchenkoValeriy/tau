@@ -51,6 +51,7 @@ private:
   std::unique_ptr<Implementation> PImpl;
 };
 
+#ifdef ANALYSIS_TRACER_ENABLED
 class AnalysisTracer {
 public:
   AnalysisTracer(mlir::func::FuncOp &Function);
@@ -95,6 +96,21 @@ private:
   class Implementation;
   std::unique_ptr<Implementation> PImpl;
 };
+#else
+// Nop implementation if tracing is not enabled
+class AnalysisTracer {
+public:
+  AnalysisTracer(mlir::func::FuncOp &Function){};
+
+  template <class CheckerState, class MemoryState>
+  void recordBeforeState(mlir::Operation *Op, CheckerState &State,
+                         MemoryState &Memory) {}
+
+  template <class CheckerState, class MemoryState>
+  void recordAfterState(mlir::Operation *Op, CheckerState &State,
+                        MemoryState &Memory) {}
+};
+#endif
 
 template <>
 llvm::json::Value Serializer::serialize(mlir::Operation *const &Op) const;
