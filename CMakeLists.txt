@@ -147,6 +147,16 @@ if(TAU_ENABLE_ASAN)
   set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 endif()
 
+option(TAU_ENABLE_ANALYSIS_TRACING "Enable analysis tracing")
+if(TAU_ENABLE_ANALYSIS_TRACING)
+  add_compile_definitions(ANALYSIS_TRACER_ENABLED)
+
+  find_program(BUN_EXECUTABLE bun)
+  if(NOT BUN_EXECUTABLE)
+    message(FATAL_ERROR "bun executable not found. Please install bun to build trace viewer.")
+  endif()
+endif()
+
 enable_testing()
 add_custom_target(check)
 
