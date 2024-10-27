@@ -114,6 +114,8 @@ private:
     return Result;
   }
 };
+
+using ValueEvents = immer::map<Value, Events>;
 } // end anonymous namespace
 
 namespace std {
@@ -149,7 +151,6 @@ template <> llvm::json::Value Serializer::serialize(const Events &E) const {
 /// corresponding method and its comments.
 class FlowSensitiveAnalysis::Implementation {
 public:
-  using ValueEvents = immer::map<Value, Events>;
   using BlockStateMap = SmallVector<ValueEvents, 20>;
   using BlockStoreMap = SmallVector<MemoryStore, 20>;
 
@@ -503,8 +504,7 @@ private:
 
 namespace tau::core {
 template <>
-llvm::json::Value Serializer::serialize(
-    const FlowSensitiveAnalysis::Implementation::ValueEvents &E) const {
+llvm::json::Value Serializer::serialize(const ValueEvents &E) const {
   llvm::json::Array Result;
   for (auto &It : E) {
     llvm::json::Object ValueState{};
