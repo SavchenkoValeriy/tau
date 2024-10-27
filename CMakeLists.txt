@@ -155,6 +155,8 @@ if(TAU_ENABLE_ANALYSIS_TRACING)
   if(NOT BUN_EXECUTABLE)
     message(FATAL_ERROR "bun executable not found. Please install bun to build trace viewer.")
   endif()
+
+  add_subdirectory(ui/trace-viewer)
 endif()
 
 enable_testing()
