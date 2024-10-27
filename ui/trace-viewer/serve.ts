@@ -6,10 +6,11 @@ const server = Bun.serve({
   port: 3000,
   async fetch(req: Request) {
     const u = new URL(req.url);
-    const f = Bun.file(join(STATIC, u.pathname));
+    const fileToServe = u.pathname == '/' ? 'index.html' : u.pathname;
+    const f = Bun.file(join(STATIC, fileToServe));
     const exists = await f.exists();
     if (!exists)
-      return new Response(`Not found: ${u.pathname}`, { status: 404 });
+      return new Response(`Not found: ${fileToServe}`, { status: 404 });
 
     const r = new Response(await f.arrayBuffer(), {
       headers: {
